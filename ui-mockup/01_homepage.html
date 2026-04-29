@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Career Roadmap AI — Your career, designed.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #F7F2E8;
+    --bg-2:         #EFE8D7;
+    --paper:        #FFFFFF;
+    --ink:          #15140F;
+    --ink-2:        #4D4639;
+    --ink-3:        #8A8170;
+    --rule:         #E0D7C2;
+    --rule-strong:  #C9BFA7;
+    --green:        #134E3A;
+    --green-2:      #0E3A2B;
+    --green-soft:   #DCE7DC;
+    --terra:        #C95A3D;
+    --terra-2:      #AC4A30;
+    --terra-soft:   #F4DDD2;
+    --gold:         #B68A2E;
+    --serif: 'Fraunces', 'Times New Roman', serif;
+    --sans:  'Geist', 'Helvetica Neue', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  body { overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--ink); color: var(--bg); }
+
+  /* ------------ GRAIN OVERLAY ------------ */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 9999;
+    pointer-events: none;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+  }
+
+  /* ------------ SCROLL REVEAL ------------ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.7s cubic-bezier(.2,.7,.2,1), transform 0.7s cubic-bezier(.2,.7,.2,1);
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .reveal-d1 { transition-delay: 0.1s; }
+  .reveal-d2 { transition-delay: 0.2s; }
+  .reveal-d3 { transition-delay: 0.3s; }
+  .reveal-d4 { transition-delay: 0.4s; }
+  .reveal-d5 { transition-delay: 0.5s; }
+
+  /* ------------ ANNOUNCEMENT BAR ------------ */
+  .announce {
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    text-align: center;
+    padding: 10px 16px;
+    font-weight: 400;
+  }
+  .announce span { color: var(--terra-soft); }
+  .announce a { text-decoration: underline; text-underline-offset: 3px; margin-left: 6px; transition: color .15s; }
+  .announce a:hover { color: var(--terra-soft); }
+
+  /* ------------ NAV ------------ */
+  nav.top {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--bg);
+    border-bottom: 1px solid var(--rule);
+    padding: 18px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background .3s, box-shadow .3s, border-color .3s;
+  }
+  nav.top.scrolled {
+    background: rgba(247, 242, 232, 0.88);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    box-shadow: 0 1px 0 var(--rule), 0 4px 24px -8px rgba(21,20,15,0.08);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink); }
+  .brand .mark { width: 28px; height: 28px; }
+  .nav-links { display: flex; gap: 36px; font-size: 14px; font-weight: 500; color: var(--ink-2); }
+  .nav-links a { transition: color .15s; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-links a.has-badge { position: relative; }
+  .nav-links a.has-badge::after {
+    content: 'Beta'; font-size: 9px; font-weight: 600; letter-spacing: 0.05em;
+    background: var(--terra-soft); color: var(--terra-2);
+    padding: 2px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle;
+  }
+  .nav-cta { display: flex; align-items: center; gap: 24px; }
+  .nav-cta .signin { font-size: 14px; font-weight: 500; color: var(--ink-2); transition: color .15s; }
+  .nav-cta .signin:hover { color: var(--ink); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    border: none; cursor: pointer;
+    transition: all .2s ease;
+  }
+  .btn.primary {
+    background: var(--ink); color: var(--bg);
+    padding: 10px 18px; border-radius: 999px;
+  }
+  .btn.primary:hover { background: var(--green-2); transform: translateY(-1px); box-shadow: 0 4px 16px -4px rgba(19,78,58,0.4); }
+  .btn.primary .arrow { transition: transform .2s; }
+  .btn.primary:hover .arrow { transform: translateX(3px); }
+
+  /* ------------ HERO ------------ */
+  .hero {
+    padding: 88px 48px 40px;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 64px;
+    align-items: center;
+    position: relative;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+  .hero-text > * {
+    opacity: 0;
+    transform: translateY(18px);
+    animation: heroin 0.8s cubic-bezier(.2,.7,.2,1) forwards;
+  }
+  .hero-text .eyebrow  { animation-delay: 0.05s; }
+  .hero-text h1        { animation-delay: 0.18s; }
+  .hero-text .lede     { animation-delay: 0.30s; }
+  .hero-text .hero-ctas { animation-delay: 0.40s; }
+  .hero-text .trust-line { animation-delay: 0.50s; }
+  @keyframes heroin {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--green); margin-bottom: 28px;
+  }
+  .eyebrow .dot { width: 8px; height: 8px; background: var(--terra); border-radius: 50%; box-shadow: 0 0 0 4px var(--terra-soft); animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 4px var(--terra-soft); }
+    50% { box-shadow: 0 0 0 8px rgba(244, 221, 210, 0.5); }
+  }
+
+  h1.headline {
+    font-family: var(--serif);
+    font-weight: 350;
+    font-size: 84px;
+    line-height: 0.96;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    margin-bottom: 28px;
+  }
+  h1.headline em { font-style: italic; font-weight: 400; color: var(--green); font-variation-settings: "opsz" 144; }
+  h1.headline .nbsp { white-space: nowrap; }
+
+  .lede {
+    font-size: 18px; line-height: 1.55; color: var(--ink-2);
+    max-width: 520px; margin-bottom: 36px; font-weight: 400;
+  }
+
+  .hero-ctas { display: flex; align-items: center; gap: 16px; margin-bottom: 36px; }
+  .btn.large { padding: 14px 24px; font-size: 15px; border-radius: 999px; }
+  .btn.large.primary { background: var(--green); color: #fff; }
+  .btn.large.primary:hover { background: var(--green-2); transform: translateY(-1px); box-shadow: 0 6px 20px -4px rgba(19,78,58,0.45); }
+  .btn.ghost {
+    background: transparent; color: var(--ink); border: 1px solid var(--rule-strong);
+    padding: 13px 22px;
+  }
+  .btn.ghost:hover { background: var(--paper); border-color: var(--ink); }
+  .btn.ghost svg { width: 14px; height: 14px; }
+
+  .trust-line { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--ink-3); }
+  .avatars { display: flex; }
+  .avatars span {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid var(--bg); display: inline-flex; align-items: center; justify-content: center;
+    margin-left: -8px; font-family: var(--serif); font-size: 11px; color: #fff; font-weight: 600;
+  }
+  .avatars span:first-child { margin-left: 0; }
+  .avatars span:nth-child(1) { background: #1F5A3D; }
+  .avatars span:nth-child(2) { background: #C95A3D; }
+  .avatars span:nth-child(3) { background: #B68A2E; }
+  .avatars span:nth-child(4) { background: #2A3A6E; }
+  .avatars span:nth-child(5) { background: var(--ink); font-size: 9px; }
+
+  /* ------------ HERO VISUAL ------------ */
+  .hero-visual { position: relative; height: 580px; }
+  .roadmap-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; overflow: visible; }
+  .roadmap-path {
+    fill: none; stroke: var(--green); stroke-width: 1.5;
+    stroke-dasharray: 1400; stroke-dashoffset: 1400;
+    animation: drawpath 2.2s ease-out 0.4s forwards;
+  }
+  @keyframes drawpath { to { stroke-dashoffset: 0; } }
+  .milestone { fill: var(--bg); stroke: var(--green); stroke-width: 1.5; opacity: 0; animation: fadeIn .5s ease-out forwards; }
+  .milestone.done { fill: var(--green); }
+  .milestone-label { font-family: var(--sans); font-size: 10px; font-weight: 500; fill: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0; animation: fadeIn .5s ease-out forwards; }
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  .float-card {
+    position: absolute; z-index: 2;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 0 18px 50px -20px rgba(21, 20, 15, 0.18), 0 4px 12px -4px rgba(21, 20, 15, 0.06);
+    opacity: 0; transform: translateY(10px);
+    animation: cardin .7s cubic-bezier(.2,.7,.2,1) forwards;
+  }
+  @keyframes cardin { to { opacity: 1; transform: translateY(0); } }
+
+  .card-phase { top: 60px; left: 0; width: 280px; animation-delay: 1.2s; }
+  .card-phase .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; font-weight: 500; }
+  .card-phase .title { font-family: var(--serif); font-size: 20px; font-weight: 500; line-height: 1.15; margin-bottom: 14px; }
+  .card-phase .progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .card-phase .progress-row .text { font-size: 12px; color: var(--ink-2); }
+  .card-phase .progress-row .pct { font-family: var(--serif); font-size: 16px; font-weight: 500; }
+  .progress-bar { height: 4px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
+  .progress-bar .fill { height: 100%; background: var(--green); border-radius: 999px; width: 0; animation: fill-bar 1.2s cubic-bezier(.4,0,.2,1) 1.8s forwards; }
+  @keyframes fill-bar { to { width: 57%; } }
+
+  .card-week { bottom: 70px; right: 10px; width: 270px; animation-delay: 1.5s; }
+  .card-week .row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+  .card-week .row:last-child { border-bottom: none; }
+  .card-week .row .left { display: flex; align-items: center; gap: 10px; color: var(--ink-2); }
+  .card-week .row .check { width: 16px; height: 16px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .card-week .row.done .check { background: var(--green); color: #fff; }
+  .card-week .row.done .left { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--rule-strong); }
+  .card-week .row.todo .check { background: var(--bg-2); border: 1.5px solid var(--rule-strong); }
+  .card-week .row .time { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .card-week .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .card-week .head .ttl { font-family: var(--serif); font-size: 16px; font-weight: 500; }
+  .card-week .head .day { font-size: 11px; color: var(--ink-3); letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .card-pulse { top: 280px; right: -10px; width: 220px; animation-delay: 1.8s; }
+  .card-pulse .header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--terra); font-weight: 500; }
+  .card-pulse .header .live-dot { width: 6px; height: 6px; background: var(--terra); border-radius: 50%; animation: pulse 2s infinite; }
+  .card-pulse .skill { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .card-pulse .skill:last-child { margin-bottom: 0; }
+  .card-pulse .skill .name { font-size: 13px; color: var(--ink); font-weight: 500; }
+  .card-pulse .skill .change { font-size: 11px; color: var(--green); font-variant-numeric: tabular-nums; font-weight: 500; }
+
+  .badge-score {
+    position: absolute; top: 10px; right: 50px; z-index: 2;
+    background: var(--ink); color: var(--bg);
+    border-radius: 999px; padding: 8px 14px 8px 8px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; font-weight: 500;
+    opacity: 0; animation: cardin .7s cubic-bezier(.2,.7,.2,1) 2s forwards;
+  }
+  .badge-score .ring {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: conic-gradient(var(--terra) 0deg 259deg, rgba(255,255,255,0.15) 259deg 360deg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .badge-score .ring span {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-size: 11px; font-weight: 600;
+  }
+
+  /* ------------ MARQUEE / TRUST BAR ------------ */
+  .trust-bar {
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin-top: 60px;
+    overflow: hidden;
+    padding: 24px 0;
+    position: relative;
+  }
+  .trust-bar::before,
+  .trust-bar::after {
+    content: '';
+    position: absolute; top: 0; bottom: 0; width: 80px; z-index: 1;
+    pointer-events: none;
+  }
+  .trust-bar::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+  .trust-bar::after  { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
+
+  .marquee-track {
+    display: flex; gap: 80px; align-items: center;
+    width: max-content;
+    animation: marquee 30s linear infinite;
+  }
+  .marquee-track:hover { animation-play-state: paused; }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .marquee-track span {
+    font-family: var(--serif); font-style: italic;
+    color: var(--ink-2); font-size: 22px; font-weight: 400;
+    opacity: 0.55; white-space: nowrap; transition: opacity .2s;
+    cursor: default;
+  }
+  .marquee-track span:hover { opacity: 1; }
+
+  /* ------------ SECTION GENERIC ------------ */
+  section.block { padding: 120px 48px; }
+  .section-header { max-width: 880px; margin: 0 auto 72px; text-align: center; }
+  .section-eyebrow {
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--terra); font-weight: 600; margin-bottom: 20px; display: inline-block;
+  }
+  .section-eyebrow .num { font-family: var(--serif); font-style: italic; font-weight: 500; margin-right: 8px; }
+  .section-title {
+    font-family: var(--serif); font-weight: 350;
+    font-size: 56px; line-height: 1.02; letter-spacing: -0.025em;
+    margin-bottom: 24px; color: var(--ink);
+  }
+  .section-title em { font-style: italic; color: var(--green); }
+  .section-sub { font-size: 18px; color: var(--ink-2); line-height: 1.55; max-width: 660px; margin: 0 auto; }
+
+  /* ------------ FIVE PILLARS ------------ */
+  .pillars-section {
+    background: var(--bg-2);
+    padding: 120px 48px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .pillars-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    border-top: 1px solid var(--rule-strong);
+    border-left: 1px solid var(--rule-strong);
+    max-width: 1280px; margin: 0 auto;
+  }
+  .pillar {
+    padding: 36px 28px 40px;
+    border-right: 1px solid var(--rule-strong);
+    border-bottom: 1px solid var(--rule-strong);
+    background: var(--bg);
+    transition: background .25s, transform .25s;
+    position: relative; min-height: 320px;
+    display: flex; flex-direction: column;
+    cursor: default;
+  }
+  .pillar:hover { background: var(--paper); }
+  .pillar .num { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--terra); margin-bottom: 24px; }
+  .pillar .icon { width: 36px; height: 36px; margin-bottom: 28px; color: var(--green); }
+  .pillar h3 { font-family: var(--serif); font-weight: 450; font-size: 22px; line-height: 1.15; letter-spacing: -0.01em; margin-bottom: 14px; }
+  .pillar p { font-size: 13.5px; line-height: 1.55; color: var(--ink-2); margin-top: auto; }
+
+  /* ------------ HOW IT WORKS ------------ */
+  .how-grid {
+    max-width: 1280px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .step { padding: 40px 32px 28px; border-right: 1px solid var(--rule); position: relative; }
+  .step:last-child { border-right: none; }
+  .step-connector {
+    position: absolute; top: 69px; right: -1px; width: 24px; height: 24px;
+    background: var(--bg); display: flex; align-items: center; justify-content: center;
+    z-index: 1;
+  }
+  .step-connector::after { content: '→'; font-size: 12px; color: var(--terra); }
+  .step:last-child .step-connector { display: none; }
+  .step .step-num {
+    font-family: var(--serif); font-style: italic; font-weight: 350;
+    font-size: 64px; line-height: 1; color: var(--terra); margin-bottom: 28px;
+  }
+  .step h4 { font-family: var(--serif); font-weight: 450; font-size: 20px; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 12px; }
+  .step p { font-size: 14px; line-height: 1.55; color: var(--ink-2); }
+
+  /* ------------ FEATURES GRID ------------ */
+  .features-section {
+    padding: 120px 48px;
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .features-section .section-eyebrow { color: var(--terra-soft); }
+  .features-section .section-title { color: var(--bg); }
+  .features-section .section-title em { color: var(--terra-soft); font-variation-settings: "opsz" 144; }
+  .features-section .section-sub { color: rgba(247, 242, 232, 0.65); }
+
+  .features-grid {
+    max-width: 1280px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .feature {
+    background: var(--ink); padding: 36px 32px;
+    transition: background .3s; cursor: default;
+    min-height: 240px; display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  .feature::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 0% 100%, rgba(201,90,61,0.07) 0%, transparent 60%);
+    opacity: 0; transition: opacity .3s;
+  }
+  .feature:hover { background: #1a1813; }
+  .feature:hover::before { opacity: 1; }
+  .feature .feat-tag { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--terra-soft); font-weight: 500; margin-bottom: 18px; }
+  .feature h4 { font-family: var(--serif); font-weight: 450; font-size: 26px; line-height: 1.1; letter-spacing: -0.015em; margin-bottom: 14px; color: var(--bg); }
+  .feature h4 em { font-style: italic; color: var(--terra-soft); }
+  .feature p { font-size: 14px; line-height: 1.55; color: rgba(247, 242, 232, 0.65); margin-top: auto; }
+  .feature .arrow-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--terra-soft); margin-top: 16px; font-weight: 500; transition: gap .2s; }
+  .feature:hover .arrow-link { gap: 10px; }
+
+  /* ------------ STORY ------------ */
+  .story-section { padding: 140px 48px 120px; }
+  .story-grid { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 80px; align-items: center; }
+  .story-img {
+    aspect-ratio: 4/5; background: var(--green);
+    border-radius: 4px; position: relative; overflow: hidden;
+    display: flex; align-items: flex-end; padding: 32px;
+  }
+  .story-img::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.06) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(201, 90, 61, 0.18) 0%, transparent 50%);
+  }
+  .story-img .quote-mark { position: absolute; top: 20px; left: 24px; font-family: var(--serif); font-size: 140px; line-height: 1; color: rgba(255, 255, 255, 0.12); font-weight: 350; }
+  .story-img .name-tag { position: relative; z-index: 1; color: var(--bg); }
+  .story-img .name-tag .name { font-family: var(--serif); font-size: 24px; font-weight: 450; margin-bottom: 4px; }
+  .story-img .name-tag .role { font-size: 13px; opacity: 0.75; }
+
+  .story-text .label { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--terra); font-weight: 600; margin-bottom: 24px; }
+  .story-text .quote { font-family: var(--serif); font-weight: 350; font-size: 38px; line-height: 1.18; letter-spacing: -0.018em; color: var(--ink); margin-bottom: 36px; }
+  .story-text .quote em { font-style: italic; color: var(--green); }
+  .story-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding-top: 32px; border-top: 1px solid var(--rule); }
+  .story-stats .stat .num { font-family: var(--serif); font-size: 40px; font-weight: 400; color: var(--ink); letter-spacing: -0.02em; line-height: 1; margin-bottom: 8px; }
+  .story-stats .stat .num em { font-style: italic; color: var(--terra); }
+  .story-stats .stat .desc { font-size: 12px; color: var(--ink-2); line-height: 1.4; }
+
+  /* ------------ AUDIENCE ------------ */
+  .audience-section { padding: 120px 48px; background: var(--bg-2); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .audience-grid { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .audience-card {
+    background: var(--bg); border: 1px solid var(--rule);
+    padding: 28px; border-radius: 6px;
+    transition: all .25s; display: flex; gap: 18px;
+  }
+  .audience-card:hover { background: var(--paper); border-color: var(--rule-strong); transform: translateY(-2px); box-shadow: 0 8px 32px -8px rgba(21,20,15,0.1); }
+  .audience-card .ic { width: 38px; height: 38px; border-radius: 8px; background: var(--green-soft); color: var(--green); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .audience-card.tone-2 .ic { background: var(--terra-soft); color: var(--terra-2); }
+  .audience-card .body h5 { font-family: var(--serif); font-size: 18px; font-weight: 500; margin-bottom: 6px; letter-spacing: -0.01em; }
+  .audience-card .body p { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+
+  /* ------------ PRICING SECTION ------------ */
+  .pricing-section {
+    padding: 120px 48px;
+    background: var(--bg);
+    border-top: 1px solid var(--rule);
+  }
+  .pricing-grid {
+    max-width: 1280px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+    border: 1px solid var(--rule-strong);
+    border-radius: 8px; overflow: hidden;
+  }
+  .plan {
+    padding: 40px 36px 44px;
+    border-right: 1px solid var(--rule-strong);
+    position: relative; display: flex; flex-direction: column;
+    transition: background .25s;
+  }
+  .plan:last-child { border-right: none; }
+  .plan.featured {
+    background: var(--green);
+    border-right-color: rgba(255,255,255,0.12);
+  }
+  .plan:not(.featured):hover { background: var(--paper); }
+  .plan .plan-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; margin-bottom: 20px; }
+  .plan:not(.featured) .plan-label { color: var(--terra); }
+  .plan.featured .plan-label { color: rgba(220,231,220,0.75); }
+  .plan .plan-badge {
+    position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+    background: var(--terra); color: #fff;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 4px 14px; border-radius: 0 0 8px 8px;
+  }
+  .plan .price { font-family: var(--serif); font-weight: 350; letter-spacing: -0.03em; margin-bottom: 4px; }
+  .plan:not(.featured) .price { font-size: 52px; color: var(--ink); }
+  .plan.featured .price { font-size: 52px; color: #fff; }
+  .plan .per { font-size: 13px; color: var(--ink-3); margin-bottom: 24px; }
+  .plan.featured .per { color: rgba(220,231,220,0.7); }
+  .plan .plan-desc { font-size: 14px; line-height: 1.55; margin-bottom: 32px; padding-bottom: 28px; border-bottom: 1px solid; }
+  .plan:not(.featured) .plan-desc { color: var(--ink-2); border-color: var(--rule); }
+  .plan.featured .plan-desc { color: rgba(220,231,220,0.8); border-color: rgba(255,255,255,0.12); }
+  .plan .plan-features { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 36px; margin-top: auto; }
+  .plan .plan-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; }
+  .plan:not(.featured) .plan-features li { color: var(--ink-2); }
+  .plan.featured .plan-features li { color: rgba(220,231,220,0.88); }
+  .plan .plan-features li::before { content: '✓'; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
+  .plan:not(.featured) .plan-features li::before { color: var(--green); }
+  .plan.featured .plan-features li::before { color: var(--terra-soft); }
+  .plan .plan-cta {
+    display: block; text-align: center; padding: 13px 20px; border-radius: 999px;
+    font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all .2s;
+  }
+  .plan:not(.featured) .plan-cta { background: transparent; border: 1.5px solid var(--rule-strong); color: var(--ink); }
+  .plan:not(.featured) .plan-cta:hover { border-color: var(--ink); background: var(--bg-2); }
+  .plan.featured .plan-cta { background: #fff; color: var(--green-2); }
+  .plan.featured .plan-cta:hover { background: var(--terra-soft); }
+  .pricing-note { text-align: center; margin-top: 24px; font-size: 13px; color: var(--ink-3); }
+
+  /* ------------ FINAL CTA ------------ */
+  .final-cta {
+    padding: 140px 48px 160px;
+    background: var(--bg);
+    text-align: center;
+    border-top: 1px solid var(--rule);
+    position: relative; overflow: hidden;
+  }
+  .final-cta .bg-line { position: absolute; left: 50%; top: 0; transform: translateX(-50%); height: 100%; width: 1px; background: var(--rule); }
+  /* decorative corner marks */
+  .final-cta::before, .final-cta::after {
+    content: ''; position: absolute; width: 200px; height: 200px;
+    border: 1px solid var(--rule); border-radius: 50%;
+    opacity: 0.5;
+  }
+  .final-cta::before { left: -80px; bottom: -80px; }
+  .final-cta::after  { right: -80px; top: -80px; }
+  .final-cta .ornament { font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--terra); letter-spacing: 0.05em; margin-bottom: 32px; }
+  .final-cta h2 { font-family: var(--serif); font-weight: 350; font-size: 96px; line-height: 0.95; letter-spacing: -0.04em; color: var(--ink); margin-bottom: 32px; }
+  .final-cta h2 em { font-style: italic; color: var(--green); font-variation-settings: "opsz" 144; }
+  .final-cta p { font-size: 18px; color: var(--ink-2); max-width: 540px; margin: 0 auto 44px; line-height: 1.55; }
+  .final-cta .cta-row { display: inline-flex; gap: 14px; position: relative; z-index: 1; }
+
+  /* ------------ FOOTER ------------ */
+  footer { background: var(--ink); color: var(--bg); padding: 80px 48px 32px; }
+  .footer-grid {
+    max-width: 1280px; margin: 0 auto;
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 48px;
+    padding-bottom: 64px; border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .footer-brand .brand { color: var(--bg); margin-bottom: 18px; }
+  .footer-brand p { font-size: 13px; color: rgba(247,242,232,0.55); line-height: 1.6; max-width: 280px; }
+  .footer-col h6 { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--terra-soft); font-weight: 500; margin-bottom: 18px; }
+  .footer-col a { display: block; font-size: 13.5px; color: rgba(247,242,232,0.7); margin-bottom: 10px; transition: color .15s; }
+  .footer-col a:hover { color: var(--bg); }
+  .footer-bottom {
+    max-width: 1280px; margin: 0 auto; padding-top: 28px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: rgba(247,242,232,0.45);
+  }
+  .footer-bottom .socials { display: flex; gap: 18px; }
+  .footer-bottom .socials a { color: rgba(247,242,232,0.55); transition: color .15s; }
+  .footer-bottom .socials a:hover { color: var(--bg); }
+
+  /* ------------ RESPONSIVE ------------ */
+  @media (max-width: 1100px) {
+    .hero { grid-template-columns: 1fr; gap: 80px; padding: 64px 32px 40px; max-width: 100%; }
+    .hero-visual { height: 480px; }
+    h1.headline { font-size: 64px; }
+    .pillars-grid { grid-template-columns: repeat(2, 1fr); }
+    .features-grid { grid-template-columns: repeat(2, 1fr); }
+    .how-grid { grid-template-columns: repeat(2, 1fr); }
+    .audience-grid { grid-template-columns: repeat(2, 1fr); }
+    .pricing-grid { grid-template-columns: 1fr; border-radius: 0; }
+    .plan { border-right: none; border-bottom: 1px solid var(--rule-strong); }
+    .plan:last-child { border-bottom: none; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+    .story-grid { grid-template-columns: 1fr; }
+    .final-cta h2 { font-size: 64px; }
+    nav.top { padding: 16px 24px; }
+    .nav-links { display: none; }
+    section.block, .pillars-section, .features-section, .story-section, .audience-section, .pricing-section { padding: 80px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ANNOUNCEMENT BAR -->
+<div class="announce">
+  <span>●</span> New: <strong>Career Twin</strong> is now in beta — meet the AI persona that knows your full plan.
+  <a href="#">Read the announcement →</a>
+</div>
+
+<!-- NAVIGATION -->
+<nav class="top" id="nav">
+  <a href="#" class="brand">
+    <svg class="mark" viewBox="0 0 28 28" fill="none">
+      <path d="M3 22 C 8 22, 8 6, 14 6 S 20 22, 25 22" stroke="#15140F" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="3" cy="22" r="2.2" fill="#C95A3D"/>
+      <circle cx="14" cy="6" r="2.2" fill="#134E3A"/>
+      <circle cx="25" cy="22" r="2.2" fill="#15140F"/>
+    </svg>
+    Career Roadmap AI
+  </a>
+  <div class="nav-links">
+    <a href="#">Product</a>
+    <a href="#">How it works</a>
+    <a href="#">Features</a>
+    <a href="#" class="has-badge">Career Twin</a>
+    <a href="#pricing">Pricing</a>
+  </div>
+  <div class="nav-cta">
+    <a href="#" class="signin">Sign in</a>
+    <button class="btn primary">Get started <span class="arrow">→</span></button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-text">
+    <div class="eyebrow"><span class="dot"></span>The Global AI Career Platform</div>
+    <h1 class="headline">
+      Your career, <em>designed</em> &amp; tracked like an <span class="nbsp">engineering project.</span>
+    </h1>
+    <p class="lede">
+      Career Roadmap AI builds a living, intelligent career plan around your CV,
+      your goals, and the real-time job market — then keeps it in sync with the
+      world you're actually working in.
+    </p>
+    <div class="hero-ctas">
+      <button class="btn large primary">Start your roadmap <span class="arrow">→</span></button>
+      <button class="btn large ghost">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Watch 90s demo
+      </button>
+    </div>
+    <div class="trust-line">
+      <div class="avatars">
+        <span>M</span><span>R</span><span>A</span><span>K</span><span>+12K</span>
+      </div>
+      <div>Free to start. No credit card. Trusted by professionals in 84 countries.</div>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <!-- Career Health Score badge -->
+    <div class="badge-score">
+      <div class="ring"><span>72</span></div>
+      Career Health Score
+    </div>
+
+    <svg class="roadmap-svg" viewBox="0 0 540 580" preserveAspectRatio="none">
+      <path class="roadmap-path"
+        d="M 40 540 C 40 460, 180 430, 200 360 C 220 290, 100 260, 130 200 C 160 140, 320 160, 360 110 C 400 60, 480 60, 500 40"/>
+      <circle class="milestone done" cx="40" cy="540" r="6" style="animation-delay:.6s"/>
+      <text class="milestone-label" x="56" y="544" style="animation-delay:.6s">START · CV uploaded</text>
+      <circle class="milestone done" cx="200" cy="360" r="6" style="animation-delay:.9s"/>
+      <text class="milestone-label" x="216" y="364" style="animation-delay:.9s">FOUNDATION</text>
+      <circle class="milestone done" cx="130" cy="200" r="6" style="animation-delay:1.2s"/>
+      <text class="milestone-label" x="146" y="204" style="animation-delay:1.2s">SPECIALISATION</text>
+      <circle class="milestone" cx="360" cy="110" r="6" style="animation-delay:1.5s"/>
+      <text class="milestone-label" x="376" y="114" style="animation-delay:1.5s">PORTFOLIO</text>
+      <circle class="milestone" cx="500" cy="40" r="7" style="animation-delay:1.8s"/>
+      <text class="milestone-label" x="494" y="24" style="animation-delay:1.8s">TARGET ROLE</text>
+    </svg>
+
+    <div class="float-card card-phase">
+      <div class="label">Current phase</div>
+      <div class="title">Specialisation in applied&nbsp;ML</div>
+      <div class="progress-row">
+        <span class="text">4 of 7 milestones</span>
+        <span class="pct">57<span style="font-size:11px;color:var(--ink-3);">%</span></span>
+      </div>
+      <div class="progress-bar"><div class="fill"></div></div>
+    </div>
+
+    <div class="float-card card-week">
+      <div class="head">
+        <div class="ttl">This week's focus</div>
+        <div class="day">Wk 14</div>
+      </div>
+      <div class="row done">
+        <div class="left"><span class="check"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Finish RAG project pipeline</div>
+        <div class="time">3.5h</div>
+      </div>
+      <div class="row done">
+        <div class="left"><span class="check"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Review system-design notes</div>
+        <div class="time">2h</div>
+      </div>
+      <div class="row todo">
+        <div class="left"><span class="check"></span>Mock interview · Anthropic</div>
+        <div class="time">1h</div>
+      </div>
+      <div class="row todo">
+        <div class="left"><span class="check"></span>Reach out to 3 ML engineers</div>
+        <div class="time">45m</div>
+      </div>
+    </div>
+
+    <div class="float-card card-pulse">
+      <div class="header"><span class="live-dot"></span> Live market pulse</div>
+      <div class="skill"><span class="name">RAG systems</span><span class="change">↑ 38%</span></div>
+      <div class="skill"><span class="name">PyTorch · prod</span><span class="change">↑ 21%</span></div>
+      <div class="skill"><span class="name">Eval frameworks</span><span class="change">↑ 14%</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ANIMATED MARQUEE TRUST BAR -->
+<div class="trust-bar">
+  <div class="marquee-track">
+    <span>The Verge</span>
+    <span>TechCrunch</span>
+    <span>Product Hunt</span>
+    <span>Hacker News</span>
+    <span>Indie Hackers</span>
+    <span>WIRED</span>
+    <span>MIT Technology Review</span>
+    <span>Fast Company</span>
+    <!-- Duplicate for seamless loop -->
+    <span>The Verge</span>
+    <span>TechCrunch</span>
+    <span>Product Hunt</span>
+    <span>Hacker News</span>
+    <span>Indie Hackers</span>
+    <span>WIRED</span>
+    <span>MIT Technology Review</span>
+    <span>Fast Company</span>
+  </div>
+</div>
+
+<!-- FIVE PILLARS -->
+<section class="pillars-section">
+  <div class="section-header">
+    <div class="section-eyebrow reveal"><span class="num">I.</span>The architecture of a career</div>
+    <h2 class="section-title reveal reveal-d1">Five <em>pillars</em>. One coherent system for the long arc of your career.</h2>
+    <p class="section-sub reveal reveal-d2">Most career tools solve one slice — a CV, a course, a job board, a chat. We tied them all to a single living plan that adapts as you grow and as the market moves.</p>
+  </div>
+  <div class="pillars-grid">
+    <div class="pillar reveal reveal-d1">
+      <div class="num">01</div>
+      <svg class="icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="16" cy="11" r="5"/><path d="M16 16v6m-4 0h8m-12 6c0-3 4-5 8-5s8 2 8 5"/><circle cx="24" cy="6" r="2" fill="currentColor"/></svg>
+      <h3>AI-Guided Career Design</h3>
+      <p>A guided conversation with an LLM career coach turns your situation, goals and constraints into a multi-phase, fully editable roadmap.</p>
+    </div>
+    <div class="pillar reveal reveal-d2">
+      <div class="num">02</div>
+      <svg class="icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 24l6-8 5 4 7-10 6 6"/><circle cx="4" cy="24" r="1.5" fill="currentColor"/><circle cx="10" cy="16" r="1.5" fill="currentColor"/><circle cx="15" cy="20" r="1.5" fill="currentColor"/><circle cx="22" cy="10" r="1.5" fill="currentColor"/><circle cx="28" cy="16" r="1.5" fill="currentColor"/></svg>
+      <h3>Real-Time Market Intelligence</h3>
+      <p>Live signals from job boards, GitHub, LinkedIn and industry communities — filtered to what actually matters for your plan this week.</p>
+    </div>
+    <div class="pillar reveal reveal-d3">
+      <div class="num">03</div>
+      <svg class="icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="6" y="4" width="20" height="24" rx="2"/><path d="M11 11h10M11 16h10M11 21h6"/><circle cx="24" cy="22" r="4" fill="none"/><path d="M27 25l3 3" stroke-linecap="round"/></svg>
+      <h3>CV-Based Gap Analysis</h3>
+      <p>Upload a CV and a target role. We parse both, surface the gaps, and convert each one into a concrete project, course or networking action.</p>
+    </div>
+    <div class="pillar reveal reveal-d4">
+      <div class="num">04</div>
+      <svg class="icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="6" width="24" height="22" rx="2"/><path d="M4 12h24M9 4v4M23 4v4"/><rect x="9" y="16" width="3" height="3" fill="currentColor"/><rect x="14" y="16" width="3" height="3" fill="currentColor"/><rect x="19" y="16" width="3" height="3" fill="currentColor"/><rect x="9" y="21" width="3" height="3" fill="currentColor"/><rect x="14" y="21" width="3" height="3" fill="currentColor" opacity=".4"/></svg>
+      <h3>Plan Execution &amp; Tracking</h3>
+      <p>Weekly time-budget, daily habits with streaks, a Friday review ritual, and quantified progress that turns ambition into measurable execution.</p>
+    </div>
+    <div class="pillar reveal reveal-d5">
+      <div class="num">05</div>
+      <svg class="icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M16 4 A12 12 0 1 1 4 16"/><path d="M4 16l3-3M4 16l3 3" stroke-linecap="round"/><path d="M22 12l-6 6-3-3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <h3>Continuous Adaptation</h3>
+      <p>Your plan updates when you finish a milestone, change direction, or when the market shifts. A five-minute chat is enough — no more redrafting.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="block">
+  <div class="section-header">
+    <div class="section-eyebrow reveal"><span class="num">II.</span>The journey</div>
+    <h2 class="section-title reveal reveal-d1">From CV to career plan, in <em>under fifteen minutes.</em></h2>
+    <p class="section-sub reveal reveal-d2">A step-by-step onboarding so you always know what's being asked, and what you'll get in return.</p>
+  </div>
+  <div class="how-grid">
+    <div class="step reveal reveal-d1">
+      <div class="step-connector"></div>
+      <div class="step-num">01</div>
+      <h4>Upload your CV</h4>
+      <p>Drop in a CV, resume, LinkedIn export, GitHub or portfolio URL. We parse a structured profile of your skills, experience, projects and signals of impact.</p>
+    </div>
+    <div class="step reveal reveal-d2">
+      <div class="step-connector"></div>
+      <div class="step-num">02</div>
+      <h4>Set your direction</h4>
+      <p>Pick a target role, paste a job posting, or let the AI suggest careers that fit your strengths, geography, salary range and life constraints.</p>
+    </div>
+    <div class="step reveal reveal-d3">
+      <div class="step-connector"></div>
+      <div class="step-num">03</div>
+      <h4>Get your roadmap</h4>
+      <p>The AI generates a personalised, multi-phase plan with milestones, weekly routines, learning resources, projects and networking actions — fully editable.</p>
+    </div>
+    <div class="step reveal reveal-d4">
+      <div class="step-num">04</div>
+      <h4>Track &amp; adapt</h4>
+      <p>Daily habits, weekly reviews, market alerts, and live opportunity radar. The roadmap adapts as you complete milestones or as the market shifts.</p>
+    </div>
+  </div>
+</section>
+
+<!-- STANDOUT FEATURES -->
+<section class="features-section">
+  <div class="section-header">
+    <div class="section-eyebrow reveal"><span class="num">III.</span>Standout features</div>
+    <h2 class="section-title reveal reveal-d1">A career operating system, <em>not a chat box.</em></h2>
+    <p class="section-sub reveal reveal-d2">Twenty-one distinctive features. These are the six users tell us they couldn't live without.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature reveal reveal-d1">
+      <div class="feat-tag">14.1 · Career Twin</div>
+      <h4>An <em>AI persona</em> that grows with you.</h4>
+      <p>A persistent companion that knows your plan, energy patterns and language. Voice-first conversations on commutes. Socratic questions before big decisions.</p>
+      <a href="#" class="arrow-link">Meet the Twin →</a>
+    </div>
+    <div class="feature reveal reveal-d2">
+      <div class="feat-tag">14.2 · Adaptive Skill Graph</div>
+      <h4>A living <em>map of you</em> and where you can go next.</h4>
+      <p>Visualise current skills, target skills, prerequisites and adjacent roles. Updates as you ship projects, take courses, or shift direction.</p>
+      <a href="#" class="arrow-link">See the graph →</a>
+    </div>
+    <div class="feature reveal reveal-d3">
+      <div class="feat-tag">14.3 · What-If Simulator</div>
+      <h4><em>Test major decisions</em> before you commit.</h4>
+      <p>Switch from data engineer to ML researcher? Move to Berlin? Take a sabbatical? Compare side-by-side: roadmap, salary, lifestyle, probability.</p>
+      <a href="#" class="arrow-link">Run a scenario →</a>
+    </div>
+    <div class="feature reveal reveal-d1">
+      <div class="feat-tag">14.4 · Live Job Market Pulse</div>
+      <h4>The <em>real-time</em> story of your target market.</h4>
+      <p>Open positions, week-over-week change, median compensation, fastest-growing skills, time-to-hire. MCP-driven aggregation across major job boards.</p>
+      <a href="#" class="arrow-link">View the pulse →</a>
+    </div>
+    <div class="feature reveal reveal-d2">
+      <div class="feat-tag">14.6 · Mock Interview Studio</div>
+      <h4><em>Rehearse</em> with role-specific drills.</h4>
+      <p>Behavioural, system-design, technical-coding and case-study formats. Annotated transcripts, structured feedback, and an interview-readiness score over time.</p>
+      <a href="#" class="arrow-link">Start a session →</a>
+    </div>
+    <div class="feature reveal reveal-d3">
+      <div class="feat-tag">14.10 · Career Health Score</div>
+      <h4>One number. <em>Five honest signals.</em></h4>
+      <p>Roadmap progress, skill readiness, portfolio strength, market alignment, application readiness. Glanceable, transparent, never gameable.</p>
+      <a href="#" class="arrow-link">See methodology →</a>
+    </div>
+  </div>
+</section>
+
+<!-- STORY / CASE STUDY -->
+<section class="story-section">
+  <div class="story-grid">
+    <div class="story-img reveal">
+      <div class="quote-mark">"</div>
+      <div class="name-tag">
+        <div class="name">Maya R.</div>
+        <div class="role">Backend → ML Engineer · Bangalore, IN</div>
+      </div>
+    </div>
+    <div class="story-text">
+      <div class="label reveal">Member story · 12 months in</div>
+      <div class="quote reveal reveal-d1">
+        "I went in as a backend engineer with no production ML experience. Twelve months later I had a portfolio, an open-source contribution, two offers, and a coach that <em>negotiated my salary with me</em>, not for me."
+      </div>
+      <div class="story-stats">
+        <div class="stat reveal reveal-d1">
+          <div class="num"><em>14</em></div>
+          <div class="desc">Milestones completed across three career phases</div>
+        </div>
+        <div class="stat reveal reveal-d2">
+          <div class="num"><em>2</em></div>
+          <div class="desc">Offers received from remote-friendly ML startups</div>
+        </div>
+        <div class="stat reveal reveal-d3">
+          <div class="num"><em>+38<span style="font-size:18px;">%</span></em></div>
+          <div class="desc">Compensation uplift on signed offer vs. previous role</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIENCE -->
+<section class="audience-section">
+  <div class="section-header">
+    <div class="section-eyebrow reveal"><span class="num">IV.</span>For everyone with a serious plan</div>
+    <h2 class="section-title reveal reveal-d1">Whoever you are. <em>Wherever you are.</em></h2>
+    <p class="section-sub reveal reveal-d2">Country-aware from day one. Visa rules, salary norms, networking events and hiring rhythms differ across markets — we treat that as first-class data, not an afterthought.</p>
+  </div>
+  <div class="audience-grid">
+    <div class="audience-card reveal reveal-d1">
+      <div class="ic"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6l8-3 8 3-8 3-8-3z"/><path d="M5 7.5v4c0 1.5 2.5 3 5 3s5-1.5 5-3v-4M18 7v5"/></svg></div>
+      <div class="body"><h5>Students &amp; new grads</h5><p>Translate a degree into a concrete first-role plan and a competitive profile.</p></div>
+    </div>
+    <div class="audience-card tone-2 reveal reveal-d2">
+      <div class="ic"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17V8l7-5 7 5v9"/><path d="M8 17v-5h4v5"/></svg></div>
+      <div class="body"><h5>Active job seekers</h5><p>Target specific roles, fix CV gaps, prepare for interviews, track applications end-to-end.</p></div>
+    </div>
+    <div class="audience-card reveal reveal-d3">
+      <div class="ic"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3a10 10 0 0 1 0 14M10 3a10 10 0 0 0 0 14"/></svg></div>
+      <div class="body"><h5>Career switchers</h5><p>Map transferable skills, identify gaps, build a credible new identity in a new field.</p></div>
+    </div>
+    <div class="audience-card tone-2 reveal reveal-d1">
+      <div class="ic"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17l4-4 3 3 7-8"/><path d="M13 8h4v4"/></svg></div>
+      <div class="body"><h5>Working professionals</h5><p>Level up to senior or staff roles, pivot into adjacent fields, prepare for promotion.</p></div>
+    </div>
+    <div class="audience-card reveal reveal-d2">
+      <div class="ic"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="6" r="3"/><path d="M3 17c0-3 3-5 7-5s7 2 7 5"/><path d="M14 4l2 2 2-2"/></svg></div>
+      <div class="body"><h5>Returning professionals</h5><p>Re-enter the workforce after a break with a structured ramp-up and visibility plan.</p></div>
+    </div>
+    <div class="audience-card tone-2 reveal reveal-d3">
+      <div class="ic"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10h4l2-5 4 10 2-5h4"/></svg></div>
+      <div class="body"><h5>Freelancers &amp; creators</h5><p>Plan portfolio assets, content strategy, outreach routines and reputation milestones.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing-section" id="pricing">
+  <div class="section-header">
+    <div class="section-eyebrow reveal"><span class="num">V.</span>Simple, transparent pricing</div>
+    <h2 class="section-title reveal reveal-d1">Start free. Grow <em>with your career.</em></h2>
+    <p class="section-sub reveal reveal-d2">No hidden fees. Export your data anytime. Cancel in one click. Your plan belongs to you.</p>
+  </div>
+  <div class="pricing-grid reveal reveal-d1">
+    <div class="plan">
+      <div class="plan-label">Starter</div>
+      <div class="price">$0</div>
+      <div class="per">/ month · always free</div>
+      <p class="plan-desc">Everything you need to build your first roadmap and understand your gaps.</p>
+      <ul class="plan-features">
+        <li>AI-generated career roadmap (1 active)</li>
+        <li>CV upload &amp; gap analysis</li>
+        <li>Weekly focus planner</li>
+        <li>Job market pulse · 3 roles</li>
+        <li>Career Health Score</li>
+      </ul>
+      <button class="plan-cta">Get started free</button>
+    </div>
+    <div class="plan featured">
+      <div class="plan-badge">Most popular</div>
+      <div class="plan-label">Pro</div>
+      <div class="price">$19</div>
+      <div class="per">/ month · billed annually</div>
+      <p class="plan-desc">The full career OS for professionals who are serious about their next move.</p>
+      <ul class="plan-features">
+        <li>Unlimited roadmaps &amp; phases</li>
+        <li>Career Twin AI companion</li>
+        <li>Adaptive Skill Graph</li>
+        <li>What-If Scenario Simulator</li>
+        <li>Mock Interview Studio · unlimited</li>
+        <li>Live market pulse · unlimited roles</li>
+        <li>Application tracker &amp; outreach CRM</li>
+        <li>Priority support</li>
+      </ul>
+      <button class="plan-cta">Start 14-day free trial</button>
+    </div>
+    <div class="plan">
+      <div class="plan-label">Teams &amp; Coaches</div>
+      <div class="price">$49</div>
+      <div class="per">/ seat / month · min. 5 seats</div>
+      <p class="plan-desc">For career coaches, HR teams and universities managing cohorts at scale.</p>
+      <ul class="plan-features">
+        <li>Everything in Pro, per seat</li>
+        <li>Coach dashboard &amp; client views</li>
+        <li>Cohort analytics &amp; reporting</li>
+        <li>White-label ready</li>
+        <li>SSO &amp; advanced security</li>
+        <li>Dedicated success manager</li>
+      </ul>
+      <button class="plan-cta">Talk to sales →</button>
+    </div>
+  </div>
+  <p class="pricing-note reveal">All plans include a 14-day free trial on Pro. No credit card required to start. · <a href="#" style="color:var(--terra); text-decoration:underline; text-underline-offset:3px;">Compare all features →</a></p>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta">
+  <div class="bg-line"></div>
+  <div class="ornament reveal">— Everyone deserves a serious plan —</div>
+  <h2 class="reveal reveal-d1">Design your <em>career.</em></h2>
+  <p class="reveal reveal-d2">Free to start. Your plan is private by default. Cancel, export or delete your data at any time.</p>
+  <div class="cta-row reveal reveal-d3">
+    <button class="btn large primary">Start your roadmap <span class="arrow">→</span></button>
+    <button class="btn large ghost">Talk to the team</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="#" class="brand">
+        <svg class="mark" viewBox="0 0 28 28" fill="none">
+          <path d="M3 22 C 8 22, 8 6, 14 6 S 20 22, 25 22" stroke="#F7F2E8" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="3" cy="22" r="2.2" fill="#C95A3D"/>
+          <circle cx="14" cy="6" r="2.2" fill="#DCE7DC"/>
+          <circle cx="25" cy="22" r="2.2" fill="#F7F2E8"/>
+        </svg>
+        Career Roadmap AI
+      </a>
+      <p>The global, AI-powered career intelligence platform. Personalised plans. Real-time market signals. Built for the long arc of a career.</p>
+    </div>
+    <div class="footer-col">
+      <h6>Product</h6>
+      <a href="#">How it works</a>
+      <a href="#">Career Twin</a>
+      <a href="#">Skill Graph</a>
+      <a href="#">Mock Interview</a>
+      <a href="#">Pricing</a>
+    </div>
+    <div class="footer-col">
+      <h6>For</h6>
+      <a href="#">Students</a>
+      <a href="#">Job seekers</a>
+      <a href="#">Career switchers</a>
+      <a href="#">Professionals</a>
+      <a href="#">Coaches &amp; institutions</a>
+    </div>
+    <div class="footer-col">
+      <h6>Resources</h6>
+      <a href="#">Career library</a>
+      <a href="#">Roadmap templates</a>
+      <a href="#">Interview prep</a>
+      <a href="#">Salary benchmarks</a>
+      <a href="#">Newsletter</a>
+    </div>
+    <div class="footer-col">
+      <h6>Company</h6>
+      <a href="#">About</a>
+      <a href="#">Manifesto</a>
+      <a href="#">Privacy</a>
+      <a href="#">Security</a>
+      <a href="#">Contact</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div>© 2026 Career Roadmap AI · Made with care in Zürich.</div>
+    <div class="socials">
+      <a href="#">Twitter / X</a>
+      <a href="#">LinkedIn</a>
+      <a href="#">GitHub</a>
+      <a href="#">Newsletter</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Glassmorphic nav on scroll
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 40);
+  }, { passive: true });
+
+  // IntersectionObserver — scroll reveals
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  revealEls.forEach(el => io.observe(el));
+</script>
+</body>
+</html>

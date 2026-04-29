@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Build your roadmap · Career Roadmap AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #F7F2E8;
+    --bg-2:         #EFE8D7;
+    --bg-3:         #E8E0C8;
+    --paper:        #FFFFFF;
+    --ink:          #15140F;
+    --ink-2:        #4D4639;
+    --ink-3:        #8A8170;
+    --rule:         #E0D7C2;
+    --rule-strong:  #C9BFA7;
+
+    --green:        #134E3A;
+    --green-2:      #0E3A2B;
+    --green-soft:   #DCE7DC;
+    --green-faint:  #E9F0E5;
+
+    --terra:        #C95A3D;
+    --terra-2:      #AC4A30;
+    --terra-soft:   #F4DDD2;
+    --terra-faint:  #F9E8DD;
+
+    --gold:         #B68A2E;
+    --gold-soft:    #F2E2BD;
+
+    --serif: 'Fraunces', 'Times New Roman', serif;
+    --sans:  'Geist', 'Helvetica Neue', sans-serif;
+    --mono:  'Geist Mono', 'SF Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  body { min-height: 100vh; }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: none; }
+  ::selection { background: var(--ink); color: var(--bg); }
+  input, textarea { font-family: inherit; }
+
+  /* ============ TOP BAR ============ */
+  .top {
+    position: sticky; top: 0; z-index: 60;
+    background: var(--bg);
+    border-bottom: 1px solid var(--rule);
+    padding: 16px 36px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--serif); font-size: 19px; font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .brand .mark { width: 26px; height: 26px; }
+
+  .top-meta { font-size: 12.5px; color: var(--ink-3); display: flex; align-items: center; gap: 10px; }
+  .top-meta .save { display: inline-flex; align-items: center; gap: 5px; }
+  .top-meta .save .pip { width: 6px; height: 6px; background: var(--green); border-radius: 50%; box-shadow: 0 0 0 0 rgba(19,78,58,0.5); animation: pip 2.4s infinite; }
+  @keyframes pip { 0%, 100% { box-shadow: 0 0 0 0 rgba(19,78,58,0.5); } 50% { box-shadow: 0 0 0 4px rgba(19,78,58,0); } }
+  .top-exit { color: var(--ink-3); font-size: 12.5px; padding-left: 14px; border-left: 1px solid var(--rule); }
+  .top-exit:hover { color: var(--ink); }
+
+  /* ============ STEPPER ============ */
+  .stepper {
+    background: var(--bg);
+    border-bottom: 1px solid var(--rule);
+    padding: 18px 36px 22px;
+    position: sticky; top: 57px; z-index: 50;
+  }
+  .stepper-track {
+    max-width: 980px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    position: relative;
+  }
+  .step {
+    display: flex; flex-direction: column; gap: 8px;
+    cursor: default; position: relative;
+  }
+  .step .bar {
+    height: 3px; border-radius: 999px;
+    background: var(--rule);
+    overflow: hidden; position: relative;
+  }
+  .step .bar::after {
+    content: ''; position: absolute; inset: 0;
+    background: var(--green);
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform .6s cubic-bezier(.2,.7,.2,1);
+  }
+  .step.done .bar::after { transform: scaleX(1); }
+  .step.current .bar::after { transform: scaleX(1); background: var(--terra); }
+
+  .step .meta {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 10px;
+  }
+  .step .num {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-3); letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  .step .lbl {
+    font-size: 12.5px; color: var(--ink-3); font-weight: 500;
+    transition: color .25s;
+  }
+  .step.done .lbl { color: var(--ink-2); }
+  .step.current .lbl { color: var(--ink); font-weight: 600; }
+  .step .check {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--green); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ============ CANVAS ============ */
+  .canvas {
+    max-width: 980px; margin: 0 auto;
+    padding: 56px 36px 100px;
+    position: relative;
+  }
+
+  .panel {
+    display: none;
+    animation: fadein .55s cubic-bezier(.2,.7,.2,1);
+  }
+  .panel.active { display: block; }
+  @keyframes fadein {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ----- Shared panel header ----- */
+  .panel-header { margin-bottom: 36px; max-width: 720px; }
+  .panel-eyebrow {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--terra); font-weight: 600;
+    margin-bottom: 22px;
+  }
+  .panel-eyebrow .stepnum {
+    font-family: var(--serif); font-style: italic; font-weight: 500;
+    color: var(--ink-3); text-transform: none; letter-spacing: 0;
+    font-size: 13px;
+  }
+  .panel h2 {
+    font-family: var(--serif); font-weight: 350;
+    font-size: 48px; line-height: 1.05; letter-spacing: -0.025em;
+    color: var(--ink); margin-bottom: 18px;
+  }
+  .panel h2 em { font-style: italic; color: var(--green); }
+  .panel .lede {
+    font-size: 16px; color: var(--ink-2); line-height: 1.55;
+    max-width: 600px;
+  }
+  .panel .lede b { color: var(--ink); font-weight: 600; }
+
+  /* ============ SHARED · BUTTONS / FOOTER ============ */
+  .panel-foot {
+    margin-top: 44px; padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 14px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    transition: all .18s ease;
+    background: transparent;
+  }
+  .btn.primary {
+    background: var(--ink); color: var(--bg);
+  }
+  .btn.primary:hover { background: var(--green-2); transform: translateY(-1px); box-shadow: 0 8px 20px -8px rgba(14,58,43,0.4); }
+  .btn.primary:disabled { background: var(--rule-strong); color: var(--ink-3); cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn.primary .arr { transition: transform .2s; }
+  .btn.primary:hover:not(:disabled) .arr { transform: translateX(3px); }
+  .btn.ghost {
+    background: transparent; color: var(--ink-2);
+    border: 1px solid var(--rule-strong);
+  }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--ink); background: var(--bg-2); }
+  .btn.text {
+    color: var(--ink-3); padding: 12px 0;
+    font-weight: 500;
+  }
+  .btn.text:hover { color: var(--ink); }
+  .btn.text.green { color: var(--green); }
+  .btn.text.green:hover { color: var(--green-2); }
+
+  /* ============ STEP 1 · WELCOME ============ */
+  #panel-1 { padding-top: 24px; }
+  .welcome-grid {
+    display: grid; grid-template-columns: 1.05fr 0.95fr;
+    gap: 56px; align-items: center;
+  }
+  .welcome-text h2 { font-size: 56px; }
+  .welcome-text .quote-from {
+    margin-top: 28px; padding: 20px 22px;
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 12px; border-left: 3px solid var(--terra);
+    font-family: var(--serif); font-size: 16px; line-height: 1.55;
+    color: var(--ink-2); font-style: italic; font-weight: 350;
+    max-width: 540px;
+  }
+  .welcome-text .quote-from cite {
+    display: block; margin-top: 12px;
+    font-style: normal; font-family: var(--sans);
+    font-size: 12px; color: var(--ink-3); letter-spacing: 0.04em;
+  }
+  .welcome-text .quote-from cite b { color: var(--ink); font-weight: 600; }
+
+  .welcome-illus {
+    aspect-ratio: 1/1.02;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    padding: 26px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 14px 40px -20px rgba(21,20,15,0.12);
+  }
+  .welcome-illus::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 0% 0%, var(--terra-faint) 0%, transparent 35%),
+      radial-gradient(circle at 100% 100%, var(--green-faint) 0%, transparent 40%);
+    pointer-events: none;
+  }
+  .welcome-illus .stamp {
+    position: relative; z-index: 1;
+    font-family: var(--serif); font-style: italic; font-weight: 400;
+    font-size: 14px; color: var(--terra);
+    margin-bottom: 6px;
+  }
+  .welcome-illus .ttl {
+    font-family: var(--serif); font-size: 24px; font-weight: 450;
+    letter-spacing: -0.015em; color: var(--ink); margin-bottom: 22px;
+    line-height: 1.15; max-width: 80%;
+    position: relative; z-index: 1;
+  }
+  .welcome-illus svg.path-art {
+    width: 100%; position: relative; z-index: 1;
+    margin-top: 8px;
+  }
+  .welcome-illus .anchor-cards {
+    position: absolute; left: 26px; right: 26px; bottom: 26px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    z-index: 2;
+  }
+  .anchor-card {
+    background: var(--bg); border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 11px;
+  }
+  .anchor-card .lab {
+    font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px;
+  }
+  .anchor-card .v { font-family: var(--serif); font-size: 13.5px; color: var(--ink); font-weight: 500; line-height: 1.2; }
+  .anchor-card.t .v { color: var(--terra-2); font-style: italic; }
+  .anchor-card.g .v { color: var(--green); }
+
+  .welcome-bullets {
+    margin-top: 32px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    max-width: 720px;
+  }
+  .wb {
+    display: flex; gap: 11px; align-items: flex-start;
+  }
+  .wb .ic {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: var(--green-soft); color: var(--green);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .wb .ic svg { width: 14px; height: 14px; }
+  .wb .body .t { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+  .wb .body .d { font-size: 12px; color: var(--ink-2); line-height: 1.45; }
+
+  /* ============ STEP 2 · CV UPLOAD ============ */
+  .cv-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 22px;
+    align-items: start;
+  }
+
+  /* Drop zone */
+  .dropzone {
+    background: var(--paper);
+    border: 1.5px dashed var(--rule-strong);
+    border-radius: 14px;
+    padding: 40px 28px;
+    text-align: center;
+    transition: all .25s ease;
+    position: relative; overflow: hidden;
+    cursor: pointer;
+    min-height: 360px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .dropzone:hover {
+    border-color: var(--green); background: var(--green-faint);
+  }
+  .dropzone.has-file {
+    cursor: default;
+    border-style: solid; border-color: var(--green);
+    background: var(--paper);
+    text-align: left;
+    padding: 24px;
+    align-items: stretch; justify-content: flex-start;
+  }
+  .dropzone .empty-state { display: flex; flex-direction: column; align-items: center; }
+  .dropzone.has-file .empty-state { display: none; }
+  .dropzone .file-state { display: none; flex-direction: column; gap: 16px; width: 100%; }
+  .dropzone.has-file .file-state { display: flex; }
+
+  .upload-icon {
+    width: 56px; height: 56px;
+    background: var(--bg-2); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 18px;
+    color: var(--ink-2);
+    transition: all .25s;
+  }
+  .dropzone:hover .upload-icon { background: var(--green); color: #fff; transform: translateY(-2px); }
+  .dropzone .drop-ttl {
+    font-family: var(--serif); font-size: 22px; font-weight: 450;
+    letter-spacing: -0.01em; color: var(--ink); margin-bottom: 8px;
+  }
+  .dropzone .drop-sub { font-size: 13px; color: var(--ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 18px; }
+  .dropzone .drop-btn {
+    background: var(--ink); color: var(--bg);
+    padding: 9px 18px; border-radius: 7px;
+    font-size: 13px; font-weight: 500;
+    margin-bottom: 14px;
+  }
+  .dropzone .drop-formats {
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+    letter-spacing: 0.08em;
+  }
+
+  /* File preview state */
+  .file-row {
+    display: grid; grid-template-columns: 40px 1fr auto;
+    gap: 14px; align-items: center;
+    padding-bottom: 16px; border-bottom: 1px solid var(--rule);
+  }
+  .file-icon {
+    width: 40px; height: 50px;
+    background: var(--bg-2); border-radius: 5px;
+    border: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-style: italic; font-size: 13px;
+    color: var(--terra-2); font-weight: 500;
+    position: relative;
+  }
+  .file-icon::after {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 10px; height: 10px;
+    background: linear-gradient(225deg, var(--rule) 50%, transparent 50%);
+  }
+  .file-meta .fname { font-size: 13.5px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+  .file-meta .fsize { font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+  .file-meta .fsize .ok {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--green); font-weight: 600;
+  }
+  .file-meta .fsize .ok::before { content: '✓'; }
+  .file-replace {
+    color: var(--ink-3); font-size: 12px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .file-replace:hover { color: var(--ink); }
+
+  /* Parsing animation */
+  .parse-progress {
+    margin-top: 4px;
+  }
+  .parse-progress .label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11.5px; margin-bottom: 8px;
+  }
+  .parse-progress .label .what { color: var(--ink-2); font-weight: 500; }
+  .parse-progress .label .pct { font-family: var(--mono); color: var(--green); font-weight: 600; }
+  .parse-progress .track {
+    height: 4px; background: var(--bg-2); border-radius: 999px; overflow: hidden;
+  }
+  .parse-progress .track .fill {
+    height: 100%; background: var(--green);
+    border-radius: 999px;
+    width: 100%;
+    animation: pgrow 2.4s ease-out forwards;
+  }
+  @keyframes pgrow { from { width: 0; } }
+  .parse-steps {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-top: 14px;
+  }
+  .parse-step {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12.5px; color: var(--ink-2);
+    opacity: 0;
+    animation: stepin .4s ease-out forwards;
+  }
+  @keyframes stepin {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .parse-step:nth-child(1) { animation-delay: 0.4s; }
+  .parse-step:nth-child(2) { animation-delay: 0.9s; }
+  .parse-step:nth-child(3) { animation-delay: 1.5s; }
+  .parse-step:nth-child(4) { animation-delay: 2.1s; }
+  .parse-step .tick {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--green); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .parse-step .tick svg { width: 9px; height: 9px; }
+  .parse-step b { color: var(--ink); font-weight: 600; }
+
+  /* OR alternative inputs */
+  .alt-inputs {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 24px;
+    min-height: 360px;
+    display: flex; flex-direction: column;
+  }
+  .alt-inputs h4 {
+    font-family: var(--serif); font-size: 17px; font-weight: 500;
+    letter-spacing: -0.005em; color: var(--ink); margin-bottom: 6px;
+  }
+  .alt-inputs .alt-sub {
+    font-size: 12.5px; color: var(--ink-3); margin-bottom: 18px;
+    line-height: 1.5;
+  }
+  .alt-tab {
+    display: flex; gap: 4px; margin-bottom: 16px;
+    background: var(--bg-2); padding: 3px; border-radius: 8px;
+  }
+  .alt-tab button {
+    flex: 1; padding: 8px 10px;
+    border-radius: 6px;
+    background: transparent; color: var(--ink-3);
+    font-size: 12px; font-weight: 500;
+    transition: all .15s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .alt-tab button:hover { color: var(--ink); }
+  .alt-tab button.on { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .alt-tab button svg { width: 12px; height: 12px; }
+
+  .alt-input {
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    width: 100%;
+    transition: border-color .15s;
+    color: var(--ink);
+    margin-bottom: 14px;
+  }
+  .alt-input:focus { outline: none; border-color: var(--green); background: var(--paper); }
+  .alt-input::placeholder { color: var(--ink-3); }
+
+  .alt-help {
+    margin-top: auto; padding-top: 14px;
+    border-top: 1px dashed var(--rule);
+    font-size: 11.5px; color: var(--ink-3); line-height: 1.5;
+  }
+  .alt-help b { color: var(--ink-2); font-weight: 600; }
+
+  /* ============ STEP 3 · DIRECTION (chat) ============ */
+  .chat-shell {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px -20px rgba(21,20,15,0.1);
+  }
+  .chat-head {
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--bg-2);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .chat-head .twin {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--ink); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; flex-shrink: 0;
+  }
+  .chat-head .twin::after {
+    content: ''; position: absolute; bottom: -1px; right: -1px;
+    width: 10px; height: 10px;
+    background: var(--green); border: 2px solid var(--bg-2); border-radius: 50%;
+  }
+  .chat-head .twin svg { width: 18px; height: 18px; color: var(--terra-soft); }
+  .chat-head .who .name { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .chat-head .who .role { font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; margin-top: 1px; }
+  .chat-head .who .role .pip { width: 5px; height: 5px; background: var(--green); border-radius: 50%; }
+  .chat-head .lang {
+    margin-left: auto;
+    font-size: 11.5px; color: var(--ink-2);
+    background: var(--paper); border: 1px solid var(--rule);
+    padding: 5px 10px 5px 8px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chat-head .lang svg { width: 11px; height: 11px; opacity: 0.6; }
+
+  .chat-body {
+    padding: 28px 28px 12px;
+    background: var(--paper);
+    min-height: 360px;
+    max-height: 460px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .chat-body::-webkit-scrollbar { width: 5px; }
+  .chat-body::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
+
+  .msg { display: flex; gap: 12px; max-width: 86%; }
+  .msg.from-twin { align-self: flex-start; }
+  .msg.from-me { align-self: flex-end; flex-direction: row-reverse; }
+  .msg .av {
+    width: 28px; height: 28px; border-radius: 50%;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+  }
+  .msg.from-twin .av { background: var(--ink); color: var(--terra-soft); }
+  .msg.from-twin .av svg { width: 13px; height: 13px; }
+  .msg.from-me .av { background: var(--green); color: #fff; font-family: var(--serif); }
+
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 14px; line-height: 1.55;
+  }
+  .msg.from-twin .bubble {
+    background: var(--bg);
+    color: var(--ink);
+    border-top-left-radius: 4px;
+  }
+  .msg.from-me .bubble {
+    background: var(--green); color: #fff;
+    border-top-right-radius: 4px;
+  }
+  .bubble b { font-weight: 600; }
+  .bubble em { font-style: italic; color: var(--green); font-family: var(--serif); font-size: 15px; }
+  .msg.from-me .bubble em { color: var(--terra-soft); }
+  .msg .meta-time {
+    font-size: 10px; color: var(--ink-3); margin-top: 4px;
+    font-family: var(--mono); letter-spacing: 0.04em;
+  }
+
+  /* Typing indicator */
+  .typing { display: flex; gap: 4px; padding: 4px 0; }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ink-3);
+    animation: typing 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Choice chips for AI to suggest */
+  .choice-chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-top: 4px;
+  }
+  .chip {
+    background: var(--paper); border: 1px solid var(--rule-strong);
+    padding: 8px 14px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--ink-2);
+    transition: all .15s;
+    cursor: pointer;
+  }
+  .chip:hover { border-color: var(--green); color: var(--ink); background: var(--green-faint); }
+  .chip.selected {
+    background: var(--green); color: #fff; border-color: var(--green);
+  }
+  .chip .delta { font-family: var(--mono); font-size: 10.5px; opacity: 0.7; margin-left: 5px; }
+
+  /* Inline composer */
+  .composer {
+    border-top: 1px solid var(--rule);
+    background: var(--bg);
+    padding: 14px 22px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .composer .input-wrap {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 6px 6px 6px 16px;
+    transition: border-color .15s;
+  }
+  .composer .input-wrap:focus-within { border-color: var(--green); }
+  .composer input {
+    flex: 1; border: none; outline: none;
+    background: transparent;
+    font-size: 13.5px; padding: 6px 0;
+    color: var(--ink);
+  }
+  .composer input::placeholder { color: var(--ink-3); }
+  .composer .voice-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--bg-2); color: var(--ink-2);
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .composer .voice-btn:hover { background: var(--terra); color: #fff; }
+  .composer .voice-btn svg { width: 13px; height: 13px; }
+  .composer .send-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--ink); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .composer .send-btn:hover { background: var(--green-2); }
+  .composer .send-btn svg { width: 14px; height: 14px; }
+
+  /* Sidebar context (parsed CV) */
+  .step3-grid {
+    display: grid; grid-template-columns: 1fr 320px; gap: 22px;
+    align-items: start;
+  }
+  .ctx-card {
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 14px; padding: 20px; position: sticky; top: 200px;
+  }
+  .ctx-card h5 {
+    font-family: var(--serif); font-size: 14px; font-weight: 500;
+    color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 12px; border-bottom: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .ctx-card h5 .edit { font-size: 11px; color: var(--terra); text-transform: none; letter-spacing: 0; font-style: italic; font-weight: 500; }
+  .ctx-section { margin-bottom: 16px; }
+  .ctx-section:last-child { margin-bottom: 0; }
+  .ctx-section .lbl {
+    font-family: var(--mono); font-size: 9.5px;
+    color: var(--ink-3); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .ctx-section .val {
+    font-size: 13px; color: var(--ink); font-weight: 500;
+    line-height: 1.4;
+  }
+  .ctx-section .val em { font-style: italic; color: var(--green); font-family: var(--serif); font-size: 14px; }
+  .ctx-tags {
+    display: flex; flex-wrap: wrap; gap: 5px;
+  }
+  .ctx-tag {
+    font-size: 11px; font-weight: 500;
+    background: var(--bg); border: 1px solid var(--rule);
+    padding: 3px 8px; border-radius: 4px;
+    color: var(--ink-2);
+  }
+
+  /* ============ STEP 4 · CONSTRAINTS ============ */
+  .constraints-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+  }
+  .field-card {
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 12px; padding: 22px;
+    transition: border-color .15s;
+  }
+  .field-card:hover { border-color: var(--rule-strong); }
+  .field-card .ftop { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
+  .field-card .ftop .ic {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--green-soft); color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .field-card .ftop .ic.t2 { background: var(--terra-soft); color: var(--terra-2); }
+  .field-card .ftop .ic.gd { background: var(--gold-soft); color: var(--gold); }
+  .field-card .ftop .ic svg { width: 15px; height: 15px; }
+  .field-card .ftop .lbl {
+    font-family: var(--serif); font-size: 16px; font-weight: 500;
+    color: var(--ink); letter-spacing: -0.005em;
+  }
+  .field-card .ftop .lbl .opt {
+    font-family: var(--sans); font-size: 11px; color: var(--ink-3);
+    font-weight: 500; margin-left: 6px; font-style: italic;
+  }
+  .field-card .descr { font-size: 12.5px; color: var(--ink-3); line-height: 1.5; margin-bottom: 14px; }
+
+  .opt-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+  .opt {
+    padding: 8px 13px;
+    border: 1px solid var(--rule);
+    border-radius: 7px;
+    background: var(--bg);
+    font-size: 12.5px; font-weight: 500;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .opt:hover { border-color: var(--green); color: var(--ink); }
+  .opt.on {
+    background: var(--green); color: #fff; border-color: var(--green);
+  }
+
+  .slider-row { margin-top: 10px; }
+  .slider-row .vrow {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--serif); font-size: 22px; font-weight: 400;
+    color: var(--ink); letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .slider-row .vrow .min, .slider-row .vrow .max {
+    font-size: 11.5px; color: var(--ink-3); font-family: var(--sans); font-weight: 500;
+  }
+  .slider {
+    appearance: none; -webkit-appearance: none;
+    width: 100%; height: 4px;
+    background: linear-gradient(to right, var(--green) 0%, var(--green) 45%, var(--bg-2) 45%, var(--bg-2) 100%);
+    border-radius: 999px; outline: none;
+  }
+  .slider::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--paper); border: 2px solid var(--green);
+    cursor: pointer; box-shadow: 0 2px 6px rgba(19,78,58,0.25);
+  }
+  .slider::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--paper); border: 2px solid var(--green);
+    cursor: pointer;
+  }
+  .slider-marks {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 9.5px; color: var(--ink-3);
+    margin-top: 8px;
+  }
+
+  /* Toggle for sensitive option */
+  .toggle-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px;
+    background: var(--bg); border-radius: 8px;
+  }
+  .toggle-row .body { flex: 1; }
+  .toggle-row .body .t { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+  .toggle-row .body .d { font-size: 11.5px; color: var(--ink-3); line-height: 1.4; }
+  .switch {
+    width: 38px; height: 22px; border-radius: 999px;
+    background: var(--rule-strong); position: relative;
+    cursor: pointer; transition: background .2s;
+    flex-shrink: 0;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; transition: all .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .switch.on { background: var(--green); }
+  .switch.on::after { left: 18px; }
+
+  /* ============ STEP 5 · GENERATING ============ */
+  #panel-5 { text-align: center; padding-top: 40px; }
+  .gen-wrap {
+    max-width: 620px; margin: 0 auto;
+  }
+  .gen-stage {
+    width: 200px; height: 200px;
+    margin: 0 auto 38px;
+    position: relative;
+  }
+  .gen-stage svg.orb { width: 100%; height: 100%; }
+  .gen-stage .orb-r1, .gen-stage .orb-r2, .gen-stage .orb-r3 {
+    fill: none;
+    stroke-width: 1.4;
+    transform-origin: 50% 50%;
+  }
+  .gen-stage .orb-r1 { stroke: var(--green); animation: spin 8s linear infinite; }
+  .gen-stage .orb-r2 { stroke: var(--terra); animation: spin 6s linear infinite reverse; }
+  .gen-stage .orb-r3 { stroke: var(--gold); animation: spin 12s linear infinite; }
+  @keyframes spin {
+    from { transform: rotate(0); }
+    to   { transform: rotate(360deg); }
+  }
+  .gen-stage .core {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .gen-stage .core .corein {
+    width: 76px; height: 76px;
+    background: var(--ink); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 12px 28px -8px rgba(21,20,15,0.5);
+  }
+  .gen-stage .core .corein svg {
+    width: 32px; height: 32px; color: var(--terra-soft);
+    animation: sparklepulse 2s ease-in-out infinite;
+  }
+  @keyframes sparklepulse {
+    0%, 100% { transform: scale(1); opacity: 0.85; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+
+  #panel-5 h2 { font-size: 44px; margin-bottom: 14px; }
+  #panel-5 .gen-sub {
+    font-size: 15px; color: var(--ink-2); line-height: 1.55;
+    max-width: 520px; margin: 0 auto 36px;
+  }
+
+  .gen-progress-list {
+    max-width: 460px; margin: 0 auto;
+    text-align: left;
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 12px; padding: 18px 22px;
+  }
+  .gen-prog-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 13.5px;
+  }
+  .gen-prog-item:last-child { border-bottom: none; }
+  .gen-prog-item .gp-ic {
+    width: 18px; height: 18px; border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .gen-prog-item.done .gp-ic { background: var(--green); color: #fff; }
+  .gen-prog-item.done .gp-ic svg { width: 9px; height: 9px; }
+  .gen-prog-item.doing .gp-ic { background: var(--terra-faint); color: var(--terra); }
+  .gen-prog-item.doing .gp-ic .dot-spin {
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 1.5px solid var(--terra); border-top-color: transparent;
+    animation: rot 0.8s linear infinite;
+  }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .gen-prog-item.todo .gp-ic { background: var(--bg-2); }
+  .gen-prog-item.todo .gp-ic::after {
+    content: ''; width: 5px; height: 5px; background: var(--rule-strong); border-radius: 50%;
+  }
+
+  .gen-prog-item .text { flex: 1; }
+  .gen-prog-item .text .t {
+    font-weight: 500; color: var(--ink);
+  }
+  .gen-prog-item.todo .text .t { color: var(--ink-3); }
+  .gen-prog-item .text .d { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+  .gen-prog-item .took {
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  }
+  .gen-prog-item.done .took { color: var(--green); font-weight: 600; }
+
+  .gen-fact {
+    margin-top: 22px;
+    font-family: var(--serif); font-style: italic; font-weight: 350;
+    font-size: 14px; color: var(--ink-3);
+    max-width: 480px; margin-left: auto; margin-right: auto;
+    line-height: 1.5;
+  }
+  .gen-fact span { color: var(--terra); }
+
+  /* ============ STEP 6 · PREVIEW (final) ============ */
+  .preview-grid {
+    display: grid; grid-template-columns: 1fr 280px; gap: 22px;
+    align-items: start;
+  }
+  .preview-main {
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 14px; padding: 24px 26px;
+  }
+  .preview-main .roadmap-banner {
+    background:
+      radial-gradient(circle at 0% 100%, var(--green-faint) 0%, transparent 50%),
+      radial-gradient(circle at 100% 0%, var(--terra-faint) 0%, transparent 50%);
+    border: 1px dashed var(--rule);
+    border-radius: 10px;
+    padding: 22px 24px; margin-bottom: 22px;
+    position: relative; overflow: hidden;
+  }
+  .preview-main .roadmap-banner .stamp {
+    font-family: var(--serif); font-style: italic; color: var(--terra);
+    font-size: 13px; margin-bottom: 6px;
+  }
+  .preview-main .roadmap-banner h3 {
+    font-family: var(--serif); font-size: 26px; font-weight: 450;
+    letter-spacing: -0.018em; line-height: 1.15;
+    margin-bottom: 10px;
+  }
+  .preview-main .roadmap-banner h3 em { font-style: italic; color: var(--green); }
+  .preview-main .roadmap-banner .summary {
+    font-size: 13.5px; color: var(--ink-2); line-height: 1.55;
+    max-width: 600px;
+  }
+  .preview-main .roadmap-banner .pills {
+    display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;
+  }
+  .preview-main .roadmap-banner .pill {
+    background: var(--paper); border: 1px solid var(--rule);
+    padding: 5px 11px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; color: var(--ink-2);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .preview-main .roadmap-banner .pill svg { width: 11px; height: 11px; opacity: 0.7; }
+
+  .phase-block {
+    border-top: 1px solid var(--rule);
+    padding: 18px 0;
+    display: grid; grid-template-columns: 80px 1fr auto;
+    gap: 18px; align-items: start;
+  }
+  .phase-block:last-child { border-bottom: 1px solid var(--rule); }
+  .phase-num {
+    font-family: var(--serif); font-style: italic; font-weight: 350;
+    font-size: 32px; color: var(--terra);
+    line-height: 1; padding-top: 4px;
+  }
+  .phase-info .phh {
+    display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px;
+  }
+  .phase-info .name {
+    font-family: var(--serif); font-size: 19px; font-weight: 500;
+    color: var(--ink); letter-spacing: -0.01em;
+  }
+  .phase-info .when {
+    font-size: 11.5px; color: var(--ink-3);
+    font-family: var(--mono); letter-spacing: 0.04em;
+  }
+  .phase-info .desc {
+    font-size: 13px; color: var(--ink-2); line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .phase-info .ms-list {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .phase-info .ms-pill {
+    background: var(--bg); border: 1px solid var(--rule);
+    padding: 4px 9px; border-radius: 5px;
+    font-size: 11.5px; color: var(--ink-2);
+    font-weight: 500;
+  }
+  .phase-info .ms-pill::before { content: '◇ '; color: var(--ink-3); }
+  .phase-stat {
+    text-align: right; flex-shrink: 0;
+  }
+  .phase-stat .pct {
+    font-family: var(--serif); font-size: 22px; font-weight: 400;
+    letter-spacing: -0.01em; color: var(--ink);
+  }
+  .phase-stat .lab {
+    font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.06em;
+    text-transform: uppercase; margin-top: 2px;
+  }
+
+  .preview-side .ps-card {
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 12px; padding: 18px; margin-bottom: 14px;
+  }
+  .preview-side .ps-card h6 {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; margin-bottom: 10px;
+  }
+  .preview-side .ps-stat {
+    font-family: var(--serif); font-size: 24px; font-weight: 400;
+    line-height: 1.05; letter-spacing: -0.018em;
+    color: var(--ink); margin-bottom: 4px;
+  }
+  .preview-side .ps-stat em { font-style: italic; color: var(--green); }
+  .preview-side .ps-stat .unit { font-size: 13px; color: var(--ink-3); margin-left: 2px; }
+  .preview-side .ps-sub { font-size: 11.5px; color: var(--ink-2); line-height: 1.45; }
+  .preview-side .ps-sub b { color: var(--ink); font-weight: 600; }
+
+  .ps-tweaks { background: var(--bg-2)!important; border-color: var(--rule-strong)!important; }
+  .ps-tweaks .tweak {
+    display: flex; gap: 9px; padding: 8px 0; align-items: flex-start;
+    font-size: 12px; color: var(--ink-2);
+  }
+  .ps-tweaks .tweak .tnum {
+    font-family: var(--serif); font-style: italic;
+    color: var(--terra); font-weight: 500;
+    flex-shrink: 0; width: 16px;
+  }
+
+  /* responsive */
+  @media (max-width: 980px) {
+    .stepper-track { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .step .lbl { display: none; }
+    .welcome-grid, .cv-grid, .step3-grid, .preview-grid { grid-template-columns: 1fr; }
+    .constraints-grid { grid-template-columns: 1fr; }
+    .canvas { padding: 36px 22px 80px; }
+    .panel h2 { font-size: 36px; }
+    .welcome-text h2 { font-size: 40px; }
+    .welcome-bullets { grid-template-columns: 1fr; }
+    .top, .stepper { padding-left: 20px; padding-right: 20px; }
+    .ctx-card { position: static; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOP ============ -->
+<header class="top">
+  <a href="#" class="brand">
+    <svg class="mark" viewBox="0 0 28 28" fill="none">
+      <path d="M3 22 C 8 22, 8 6, 14 6 S 20 22, 25 22" stroke="#15140F" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="3" cy="22" r="2.2" fill="#C95A3D"/>
+      <circle cx="14" cy="6" r="2.2" fill="#134E3A"/>
+      <circle cx="25" cy="22" r="2.2" fill="#15140F"/>
+    </svg>
+    Career Roadmap AI
+  </a>
+  <div class="top-meta">
+    <span class="save"><span class="pip"></span>Saved automatically</span>
+    <a href="#" class="top-exit">Exit setup</a>
+  </div>
+</header>
+
+<!-- ============ STEPPER ============ -->
+<div class="stepper">
+  <div class="stepper-track">
+    <div class="step done" data-target="1">
+      <div class="bar"></div>
+      <div class="meta"><span class="num">01</span><span class="lbl">Welcome</span></div>
+    </div>
+    <div class="step done" data-target="2">
+      <div class="bar"></div>
+      <div class="meta"><span class="num">02</span><span class="lbl">Your CV</span></div>
+    </div>
+    <div class="step current" data-target="3">
+      <div class="bar"></div>
+      <div class="meta"><span class="num">03</span><span class="lbl">Your direction</span></div>
+    </div>
+    <div class="step" data-target="4">
+      <div class="bar"></div>
+      <div class="meta"><span class="num">04</span><span class="lbl">Constraints</span></div>
+    </div>
+    <div class="step" data-target="5">
+      <div class="bar"></div>
+      <div class="meta"><span class="num">05</span><span class="lbl">Your roadmap</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CANVAS ============ -->
+<div class="canvas">
+
+  <!-- ====== STEP 1 · WELCOME ====== -->
+  <section class="panel" id="panel-1">
+    <div class="panel-header">
+      <div class="panel-eyebrow">
+        <span class="stepnum">Step one of five</span>
+        · Begin
+      </div>
+    </div>
+    <div class="welcome-grid">
+      <div class="welcome-text">
+        <h2>Welcome. Let's build your <em>career roadmap</em>.</h2>
+        <p class="lede">In about <b>twelve minutes</b>, we'll turn your CV and goals into a multi-phase plan, with weekly habits and milestones that adapt as the market shifts. Everything is editable. Nothing is shared without your permission.</p>
+        <div class="quote-from">
+          "I expected another generic career quiz. What I got was a plan that knew me better than my last three managers combined."
+          <cite><b>Maya R.</b> · 12 months in · backend → ML engineer</cite>
+        </div>
+      </div>
+
+      <div class="welcome-illus">
+        <div class="stamp">— Sample roadmap preview —</div>
+        <div class="ttl">Full-Stack → AI Systems Eng.</div>
+        <svg class="path-art" viewBox="0 0 360 100" preserveAspectRatio="none">
+          <path d="M 10 80 C 60 80, 80 25, 130 25 C 180 25, 200 70, 250 60 C 290 52, 320 18, 350 12"
+                stroke="#C9BFA7" stroke-width="1.5" fill="none" stroke-dasharray="2 4"/>
+          <path d="M 10 80 C 60 80, 80 25, 130 25 C 180 25, 200 70, 230 65"
+                stroke="#134E3A" stroke-width="2" fill="none"/>
+          <circle cx="10"  cy="80" r="5" fill="#134E3A"/>
+          <circle cx="130" cy="25" r="5" fill="#134E3A"/>
+          <circle cx="230" cy="65" r="6" fill="#C95A3D" stroke="#fff" stroke-width="2"/>
+          <circle cx="350" cy="12" r="6" fill="#fff" stroke="#15140F" stroke-width="2"/>
+        </svg>
+        <div class="anchor-cards">
+          <div class="anchor-card g">
+            <div class="lab">Phase 1</div>
+            <div class="v">Done</div>
+          </div>
+          <div class="anchor-card t">
+            <div class="lab">Now</div>
+            <div class="v">Specialise</div>
+          </div>
+          <div class="anchor-card">
+            <div class="lab">Goal</div>
+            <div class="v">18 mo.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="welcome-bullets">
+      <div class="wb">
+        <span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4" stroke-linecap="round"/></svg></span>
+        <div class="body">
+          <div class="t">Bring your CV</div>
+          <div class="d">PDF, DOCX, or LinkedIn URL — we'll parse skills, projects, and impact signals.</div>
+        </div>
+      </div>
+      <div class="wb">
+        <span class="ic" style="background:var(--terra-soft); color:var(--terra-2);"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5" stroke-linecap="round"/></svg></span>
+        <div class="body">
+          <div class="t">Twelve minutes</div>
+          <div class="d">Five short steps. You can pause anytime — your progress saves automatically.</div>
+        </div>
+      </div>
+      <div class="wb">
+        <span class="ic" style="background:var(--gold-soft); color:var(--gold);"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/><circle cx="11.5" cy="9.5" r="1" fill="currentColor"/></svg></span>
+        <div class="body">
+          <div class="t">Private by default</div>
+          <div class="d">Your data stays yours. Export, delete, or rebuild your plan whenever you want.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-foot">
+      <a href="#" class="btn text">← Back to home</a>
+      <button class="btn primary" data-go="2">
+        Let's begin
+        <span class="arr">→</span>
+      </button>
+    </div>
+  </section>
+
+
+  <!-- ====== STEP 2 · CV UPLOAD ====== -->
+  <section class="panel" id="panel-2">
+    <div class="panel-header">
+      <div class="panel-eyebrow"><span class="stepnum">Step two of five</span> · Your CV</div>
+      <h2>Bring your <em>professional self</em> into the room.</h2>
+      <p class="lede">Drop your CV here. We'll extract your skills, experience and impact signals — then use them to draft a roadmap that matches who you actually are. Or paste a LinkedIn / GitHub URL on the right.</p>
+    </div>
+
+    <div class="cv-grid">
+
+      <!-- DROP ZONE -->
+      <div class="dropzone has-file" id="dropzone">
+        <div class="empty-state">
+          <div class="upload-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M12 4v12M7 9l5-5 5 5M4 19h16" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="drop-ttl">Drop your CV here</div>
+          <div class="drop-sub">Drag &amp; drop your file, or pick from your computer.</div>
+          <button class="drop-btn">Choose a file</button>
+          <div class="drop-formats">PDF · DOCX · TXT · max 10 MB</div>
+        </div>
+
+        <!-- After upload -->
+        <div class="file-state">
+          <div class="file-row">
+            <div class="file-icon">PDF</div>
+            <div class="file-meta">
+              <div class="fname">Lea_Schneider_CV_2026.pdf</div>
+              <div class="fsize">218 KB · 3 pages <span style="color:var(--rule-strong);">·</span> <span class="ok">Parsed</span></div>
+            </div>
+            <a href="#" class="file-replace">Replace</a>
+          </div>
+
+          <div class="parse-progress">
+            <div class="label">
+              <span class="what">Extracting your professional profile…</span>
+              <span class="pct">100%</span>
+            </div>
+            <div class="track"><div class="fill"></div></div>
+          </div>
+
+          <div class="parse-steps">
+            <div class="parse-step">
+              <span class="tick"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Found <b>5 roles</b> across <b>7 years</b> of experience
+            </div>
+            <div class="parse-step">
+              <span class="tick"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Detected <b>34 skills</b> · 12 strong, 22 supporting
+            </div>
+            <div class="parse-step">
+              <span class="tick"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Identified <b>4 standout projects</b> and <b>2 leadership signals</b>
+            </div>
+            <div class="parse-step">
+              <span class="tick"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Education in <b>Computer Science · ETH Zürich, 2017</b>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALTERNATIVE INPUTS -->
+      <div class="alt-inputs">
+        <h4>No CV handy?</h4>
+        <p class="alt-sub">Pull your profile from one of these instead. We'll fetch the public information only.</p>
+
+        <div class="alt-tab">
+          <button class="on">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="10" height="10" rx="1.5"/><path d="M5 5h4M5 7h4M5 9h2"/></svg>
+            LinkedIn
+          </button>
+          <button>
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="5.5"/><path d="M2.5 7c2 1.5 7 1.5 9 0M7 1.5c1.5 2 1.5 9 0 11M7 1.5c-1.5 2-1.5 9 0 11"/></svg>
+            GitHub
+          </button>
+          <button>
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 11V3l5 4 5-4v8M2 3l5 4 5-4"/></svg>
+            URL
+          </button>
+        </div>
+
+        <input class="alt-input" type="text" placeholder="linkedin.com/in/your-handle" value="linkedin.com/in/lea-schneider"/>
+
+        <button class="btn ghost" style="align-self: flex-start;">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 7h10M8 3l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Pull profile
+        </button>
+
+        <div class="alt-help">
+          <b>Privacy:</b> we read public info only. We never store your password and never post on your behalf. Read our <a href="#" style="color:var(--terra); text-decoration:underline; text-underline-offset:2px;">privacy promise</a>.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-foot">
+      <button class="btn text" data-go="1">← Back</button>
+      <button class="btn primary" data-go="3">
+        Confirm &amp; continue
+        <span class="arr">→</span>
+      </button>
+    </div>
+  </section>
+
+
+  <!-- ====== STEP 3 · DIRECTION (chat) ====== -->
+  <section class="panel active" id="panel-3">
+    <div class="panel-header">
+      <div class="panel-eyebrow"><span class="stepnum">Step three of five</span> · Your direction</div>
+      <h2>Where are you trying to <em>go?</em></h2>
+      <p class="lede">No need for the perfect answer. Talk it through with the Career Twin like you would with a thoughtful friend who's done this before. We'll refine it together.</p>
+    </div>
+
+    <div class="step3-grid">
+
+      <!-- CHAT -->
+      <div>
+        <div class="chat-shell">
+          <div class="chat-head">
+            <div class="twin">
+              <svg viewBox="0 0 18 18" fill="currentColor"><path d="M9 1l1.8 5 5 1.8-5 1.8L9 14.5l-1.8-5L2.2 7.8l5-1.8z"/></svg>
+            </div>
+            <div class="who">
+              <div class="name">Career Twin</div>
+              <div class="role"><span class="pip"></span>Online · context loaded from your CV</div>
+            </div>
+            <div class="lang">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="5"/><path d="M1 6h10M6 1c2 1.5 2 8.5 0 10M6 1c-2 1.5-2 8.5 0 10"/></svg>
+              English
+            </div>
+          </div>
+
+          <div class="chat-body" id="chat-body">
+
+            <div class="msg from-twin">
+              <span class="av"><svg viewBox="0 0 14 14" fill="currentColor"><path d="M7 1l1.4 4 4 1.4-4 1.4L7 11.5l-1.4-4L1.6 6.4l4-1.4z"/></svg></span>
+              <div>
+                <div class="bubble">
+                  Hi <b>Léa</b> 👋 I just finished reading your CV — really impressive work on that <b>distributed systems migration</b> at your last role. Before we map out where you're going, I want to make sure I understand what you're <em>actually</em> looking for. A few quick questions:
+                </div>
+                <div class="meta-time">10:42</div>
+              </div>
+            </div>
+
+            <div class="msg from-twin">
+              <span class="av"><svg viewBox="0 0 14 14" fill="currentColor"><path d="M7 1l1.4 4 4 1.4-4 1.4L7 11.5l-1.4-4L1.6 6.4l4-1.4z"/></svg></span>
+              <div>
+                <div class="bubble">
+                  Looking at your trajectory, <b>three paths</b> seem strongest. Which one excites you most? (You can pick one — or tell me why none of them feel right.)
+                  <div class="choice-chips" style="margin-top:12px;">
+                    <button class="chip">🧠 AI Systems Engineer<span class="delta">+62% demand</span></button>
+                    <button class="chip">🏗️ Staff Backend Engineer<span class="delta">stable</span></button>
+                    <button class="chip">🌱 Founding Engineer · early-stage<span class="delta">+34%</span></button>
+                  </div>
+                </div>
+                <div class="meta-time">10:42</div>
+              </div>
+            </div>
+
+            <div class="msg from-me">
+              <span class="av">L</span>
+              <div>
+                <div class="bubble">
+                  AI Systems Engineer. Honestly I've been building toward this for a while — RAG, evals, the whole thing — but I've never had a coherent plan for the jump. I want roles where I'm shipping <em>real</em> AI products, not just calling APIs.
+                </div>
+                <div class="meta-time">10:43</div>
+              </div>
+            </div>
+
+            <div class="msg from-twin">
+              <span class="av"><svg viewBox="0 0 14 14" fill="currentColor"><path d="M7 1l1.4 4 4 1.4-4 1.4L7 11.5l-1.4-4L1.6 6.4l4-1.4z"/></svg></span>
+              <div>
+                <div class="bubble">
+                  Got it — that distinction matters. Real AI products means <b>retrieval, evals, latency, agent design</b> — the production craft, not the demo craft. I'll bias your plan that way.
+                  <br><br>
+                  And what's your <b>time horizon?</b> Are you in a "land a role in three months" mode, or "build the strongest possible profile over twelve to eighteen"?
+                  <div class="choice-chips" style="margin-top:12px;">
+                    <button class="chip">3 months · soon</button>
+                    <button class="chip selected">6 months</button>
+                    <button class="chip">12–18 months · build it right</button>
+                    <button class="chip">Open / not sure</button>
+                  </div>
+                </div>
+                <div class="meta-time">10:44</div>
+              </div>
+            </div>
+
+            <div class="msg from-twin">
+              <span class="av"><svg viewBox="0 0 14 14" fill="currentColor"><path d="M7 1l1.4 4 4 1.4-4 1.4L7 11.5l-1.4-4L1.6 6.4l4-1.4z"/></svg></span>
+              <div>
+                <div class="bubble">
+                  <span class="typing"><span></span><span></span><span></span></span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="composer">
+            <div class="input-wrap">
+              <input type="text" placeholder="Type your reply…  (or press the mic to talk)" />
+              <button class="voice-btn" title="Voice">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="1.5" width="4" height="7" rx="2"/><path d="M3 7a4 4 0 0 0 8 0M7 11.5v1.5" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+            <button class="send-btn" title="Send">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12L12 2M12 2H5M12 2v7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARSED CV CONTEXT CARD -->
+      <aside class="ctx-card">
+        <h5>From your CV <a class="edit" href="#">Edit</a></h5>
+
+        <div class="ctx-section">
+          <div class="lbl">Current role</div>
+          <div class="val"><em>Senior Full-Stack Eng.</em><br/>Six years &middot; SaaS &middot; Zürich</div>
+        </div>
+
+        <div class="ctx-section">
+          <div class="lbl">Strongest skills</div>
+          <div class="ctx-tags">
+            <span class="ctx-tag">TypeScript</span>
+            <span class="ctx-tag">Python</span>
+            <span class="ctx-tag">PostgreSQL</span>
+            <span class="ctx-tag">System design</span>
+            <span class="ctx-tag">Distributed sys.</span>
+          </div>
+        </div>
+
+        <div class="ctx-section">
+          <div class="lbl">Emerging signals</div>
+          <div class="ctx-tags">
+            <span class="ctx-tag">RAG (side project)</span>
+            <span class="ctx-tag">PyTorch</span>
+            <span class="ctx-tag">Open-source · 8 PRs</span>
+          </div>
+        </div>
+
+        <div class="ctx-section">
+          <div class="lbl">Education</div>
+          <div class="val" style="font-size:12.5px;">M.Sc. Computer Science<br/>ETH Zürich, 2017</div>
+        </div>
+
+        <div class="ctx-section">
+          <div class="lbl">Standout impact</div>
+          <div class="val" style="font-size:12.5px; line-height:1.45;">Led migration that cut p99 latency by 41% — a strong systems credibility signal for AI infra roles.</div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="panel-foot">
+      <button class="btn text" data-go="2">← Back</button>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <a href="#" class="btn text green">Skip — let AI suggest 3 paths</a>
+        <button class="btn primary" data-go="4">
+          Continue
+          <span class="arr">→</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====== STEP 4 · CONSTRAINTS ====== -->
+  <section class="panel" id="panel-4">
+    <div class="panel-header">
+      <div class="panel-eyebrow"><span class="stepnum">Step four of five</span> · Your reality</div>
+      <h2>The <em>constraints</em> that make a plan real.</h2>
+      <p class="lede">A career plan that ignores your life isn't a plan, it's a fantasy. Tell us what's true for you right now — we'll design around it. Everything below is editable later.</p>
+    </div>
+
+    <div class="constraints-grid">
+
+      <!-- Hours per week -->
+      <div class="field-card">
+        <div class="ftop">
+          <span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2" stroke-linecap="round"/></svg></span>
+          <div class="lbl">Weekly time budget <span class="opt">— honest estimate</span></div>
+        </div>
+        <p class="descr">How many hours per week can you realistically invest in growing — alongside work, family, life?</p>
+        <div class="slider-row">
+          <div class="vrow">
+            <span class="min">2 h</span>
+            <span><em style="color:var(--green); font-style:italic;">12 h</em> <span style="font-size:13px; color:var(--ink-3); font-weight:400;">/ week</span></span>
+            <span class="max">20+ h</span>
+          </div>
+          <input type="range" min="2" max="20" value="12" class="slider"/>
+          <div class="slider-marks">
+            <span>Light</span><span>Steady</span><span>Intense</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Geography -->
+      <div class="field-card">
+        <div class="ftop">
+          <span class="ic t2"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.8 2 1.8 10 0 12M8 2c-1.8 2-1.8 10 0 12"/></svg></span>
+          <div class="lbl">Where are you working from</div>
+        </div>
+        <p class="descr">We'll tune the plan for visa rules, salary norms, hiring rhythms and local communities.</p>
+        <input class="alt-input" type="text" value="Zürich, Switzerland" style="margin-bottom: 12px;"/>
+        <div class="opt-grid">
+          <button class="opt on">Open to remote</button>
+          <button class="opt">Open to relocate · EU</button>
+          <button class="opt">Open to relocate · global</button>
+          <button class="opt">Local only</button>
+        </div>
+      </div>
+
+      <!-- Compensation goal -->
+      <div class="field-card">
+        <div class="ftop">
+          <span class="ic gd"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 5c-1.5 0-2 .8-2 1.5C6 8 10 8 10 9.5c0 .7-.5 1.5-2 1.5M8 4v8" stroke-linecap="round"/></svg></span>
+          <div class="lbl">Compensation target <span class="opt">— optional</span></div>
+        </div>
+        <p class="descr">Your roadmap will weight roles and milestones to make this realistic — not just aspirational.</p>
+        <div class="slider-row">
+          <div class="vrow">
+            <span class="min">CHF 80k</span>
+            <span><em style="color:var(--green); font-style:italic;">CHF 165k</em></span>
+            <span class="max">300k+</span>
+          </div>
+          <input type="range" min="80" max="300" value="165" class="slider"/>
+          <div class="slider-marks">
+            <span>Mid</span><span>Senior</span><span>Staff+</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Working style -->
+      <div class="field-card">
+        <div class="ftop">
+          <span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2.4"/><circle cx="11" cy="5" r="1.8"/><path d="M2 13c0-2.2 2-3.6 4-3.6s4 1.4 4 3.6M9 13c0-1.6 1.5-2.6 3-2.6s2 .8 2 2.4"/></svg></span>
+          <div class="lbl">What energises you most</div>
+        </div>
+        <p class="descr">Pick all that resonate — we'll bias your weekly habits and milestone types accordingly.</p>
+        <div class="opt-grid">
+          <button class="opt on">Deep technical work</button>
+          <button class="opt on">Shipping &amp; impact</button>
+          <button class="opt">Mentoring others</button>
+          <button class="opt">Public speaking</button>
+          <button class="opt on">Open-source</button>
+          <button class="opt">Writing &amp; thought leadership</button>
+          <button class="opt">Founding / 0→1</button>
+        </div>
+      </div>
+
+      <!-- Life context -->
+      <div class="field-card" style="grid-column: 1 / -1;">
+        <div class="ftop">
+          <span class="ic t2"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 14s-5-3-5-7a3 3 0 0 1 5-2 3 3 0 0 1 5 2c0 4-5 7-5 7z"/></svg></span>
+          <div class="lbl">Life context <span class="opt">— optional, helps the coach be human</span></div>
+        </div>
+        <p class="descr">A short note to ground the plan in your actual life. Is anything happening you'd want the coach to know about?</p>
+        <textarea class="alt-input" style="min-height: 80px; resize: vertical; font-family: inherit; line-height:1.5;" placeholder="e.g. partner is also job-hunting · expecting in October · prefer mornings · etc.">Partner relocating in 6 months — would prefer EU-based or remote-friendly companies. Mornings before 9am are my strongest deep-work block.</textarea>
+
+        <div class="toggle-row" style="margin-top: 14px;">
+          <div class="body">
+            <div class="t">Use this context privately for personalisation</div>
+            <div class="d">Never shared, never used for ads, never seen by humans except you.</div>
+          </div>
+          <div class="switch on" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="panel-foot">
+      <button class="btn text" data-go="3">← Back</button>
+      <button class="btn primary" data-go="5">
+        Generate my roadmap
+        <span class="arr">→</span>
+      </button>
+    </div>
+  </section>
+
+
+  <!-- ====== STEP 5 · GENERATING / PREVIEW ====== -->
+  <section class="panel" id="panel-5">
+    <div class="gen-wrap">
+      <div class="gen-stage">
+        <svg class="orb" viewBox="0 0 200 200">
+          <circle class="orb-r1" cx="100" cy="100" r="92" stroke-dasharray="3 6"/>
+          <circle class="orb-r2" cx="100" cy="100" r="74" stroke-dasharray="2 8"/>
+          <circle class="orb-r3" cx="100" cy="100" r="56" stroke-dasharray="1 5"/>
+        </svg>
+        <div class="core">
+          <div class="corein">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l2.5 7L22 10.5l-7.5 2.5L12 21l-2.5-8L2 10.5 9.5 8z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-eyebrow" style="justify-content:center;"><span class="stepnum">Step five of five</span> · Generating</div>
+      <h2>Designing your <em>career roadmap</em>.</h2>
+      <p class="gen-sub">The Career Twin is matching your CV against 142,000 live job postings, your goals against your geography, and your weekly hours against what's actually achievable. About 30 seconds.</p>
+
+      <div class="gen-progress-list">
+        <div class="gen-prog-item done">
+          <span class="gp-ic"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div class="text">
+            <div class="t">Reading your CV &amp; goals</div>
+            <div class="d">7 years of experience · 34 skills · 4 standout projects</div>
+          </div>
+          <span class="took">2.1 s</span>
+        </div>
+
+        <div class="gen-prog-item done">
+          <span class="gp-ic"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div class="text">
+            <div class="t">Mapping the path to AI Systems Engineer</div>
+            <div class="d">Identified 12 skill gaps · 4 already in flight</div>
+          </div>
+          <span class="took">3.6 s</span>
+        </div>
+
+        <div class="gen-prog-item doing">
+          <span class="gp-ic"><span class="dot-spin"></span></span>
+          <div class="text">
+            <div class="t">Aligning to live market signals</div>
+            <div class="d">Cross-referencing 142,000 active postings · CH, EU, remote</div>
+          </div>
+          <span class="took">…</span>
+        </div>
+
+        <div class="gen-prog-item todo">
+          <span class="gp-ic"></span>
+          <div class="text">
+            <div class="t">Drafting weekly habits &amp; milestones</div>
+            <div class="d">Tuned to 12 h / week · morning deep-work · 6-month horizon</div>
+          </div>
+          <span class="took"></span>
+        </div>
+
+        <div class="gen-prog-item todo">
+          <span class="gp-ic"></span>
+          <div class="text">
+            <div class="t">Building your Career Health Score baseline</div>
+            <div class="d">Five signals · projected to 80+ by month four</div>
+          </div>
+          <span class="took"></span>
+        </div>
+      </div>
+
+      <p class="gen-fact">
+        Did you know? <span>Members who define a 6-month horizon</span> stick with their roadmap <span>2.4× longer</span> than those who don't.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Stepper navigation
+  const panels = document.querySelectorAll('.panel');
+  const steps = document.querySelectorAll('.step');
+
+  function goTo(target) {
+    panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + target));
+    steps.forEach((s, i) => {
+      const idx = i + 1;
+      s.classList.toggle('done', idx < target);
+      s.classList.toggle('current', idx === Number(target));
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.querySelectorAll('[data-go]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      goTo(btn.dataset.go);
+    });
+  });
+
+  // Allow clicking on completed/current step in stepper to jump back
+  steps.forEach(s => {
+    s.addEventListener('click', () => {
+      if (s.classList.contains('done') || s.classList.contains('current')) {
+        goTo(s.dataset.target);
+      }
+    });
+    s.style.cursor = 'pointer';
+  });
+
+  // Chip selection
+  document.querySelectorAll('.choice-chips').forEach(group => {
+    group.addEventListener('click', e => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      group.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+    });
+  });
+
+  // Constraint option selection (multi-select)
+  document.querySelectorAll('.opt-grid').forEach(group => {
+    group.addEventListener('click', e => {
+      const opt = e.target.closest('.opt');
+      if (!opt) return;
+      opt.classList.toggle('on');
+    });
+  });
+
+  // Slider visual update
+  document.querySelectorAll('.slider').forEach(s => {
+    const update = () => {
+      const min = +s.min, max = +s.max, val = +s.value;
+      const pct = ((val - min) / (max - min)) * 100;
+      s.style.background = `linear-gradient(to right, var(--green) 0%, var(--green) ${pct}%, var(--bg-2) ${pct}%, var(--bg-2) 100%)`;
+    };
+    s.addEventListener('input', update);
+    update();
+  });
+
+  // Auto-advance through generating steps (demo)
+  const genItems = document.querySelectorAll('#panel-5 .gen-prog-item');
+  let genIdx = 2;
+  function advanceGen() {
+    if (genIdx >= genItems.length) return;
+    const cur = genItems[genIdx];
+    cur.classList.remove('todo'); cur.classList.add('doing');
+    cur.querySelector('.gp-ic').innerHTML = '<span class="dot-spin"></span>';
+
+    const prev = genItems[genIdx - 1];
+    if (prev && prev.classList.contains('doing')) {
+      prev.classList.remove('doing'); prev.classList.add('done');
+      prev.querySelector('.gp-ic').innerHTML = '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      prev.querySelector('.took').textContent = (3 + Math.random() * 4).toFixed(1) + ' s';
+    }
+    genIdx++;
+  }
+  // run when panel-5 becomes visible
+  const genObs = new MutationObserver(() => {
+    if (document.getElementById('panel-5').classList.contains('active')) {
+      setTimeout(advanceGen, 1800);
+      setTimeout(advanceGen, 4000);
+      setTimeout(advanceGen, 6500);
+    }
+  });
+  genObs.observe(document.getElementById('panel-5'), { attributes: true, attributeFilter: ['class'] });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Career Roadmap AI — Backend Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg-deep:      #060810;
+    --bg-surface:   #0d1117;
+    --bg-card:      #111827;
+    --bg-card2:     #161e2e;
+    --border:       #1f2d40;
+    --border-bright:#2a3f58;
+    --text-primary: #e8f0fe;
+    --text-muted:   #6b83a1;
+    --text-dim:     #3d5472;
+
+    /* Layer accent colors */
+    --client:    #38bdf8;
+    --gateway:   #a78bfa;
+    --orch:      #f59e0b;
+    --agents:    #34d399;
+    --mcp:       #fb7185;
+    --rag:       #60a5fa;
+    --data:      #c084fc;
+    --ext:       #94a3b8;
+
+    --glow-orch: rgba(245,158,11,0.15);
+    --glow-agents: rgba(52,211,153,0.12);
+    --glow-mcp: rgba(251,113,133,0.12);
+    --glow-rag: rgba(96,165,250,0.12);
+
+    --radius:    8px;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+
+  /* ─── Page Header ───────────────────────────────────────── */
+  .page-header {
+    padding: 40px 48px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #0a0f1a 0%, var(--bg-deep) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .page-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 800px 300px at 50% 0%, rgba(96,165,250,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--rag);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: 0.8;
+  }
+  .header-title {
+    font-family: var(--font-sans);
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .header-title span { color: var(--orch); }
+  .header-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  .header-meta {
+    position: absolute;
+    top: 44px;
+    right: 48px;
+    text-align: right;
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 2;
+  }
+  .header-meta .tag {
+    display: inline-block;
+    background: rgba(96,165,250,0.08);
+    border: 1px solid rgba(96,165,250,0.2);
+    color: var(--rag);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-left: 4px;
+  }
+
+  /* ─── Legend ────────────────────────────────────────────── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px 48px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+    align-items: center;
+  }
+  .legend-title {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    margin-right: 4px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9.5px;
+    color: var(--text-muted);
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ─── Canvas ────────────────────────────────────────────── */
+  .canvas {
+    padding: 40px 48px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 1240px;
+  }
+
+  /* ─── Layer Band ─────────────────────────────────────────── */
+  .layer {
+    display: flex;
+    align-items: stretch;
+    min-height: 120px;
+    position: relative;
+  }
+
+  .layer-label-col {
+    width: 120px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px 12px 16px 0;
+    border-right: 2px solid var(--border);
+    position: relative;
+    z-index: 2;
+  }
+  .layer-label-col::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-bright);
+  }
+  .layer-name {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    writing-mode: horizontal-tb;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .layer-id {
+    font-size: 8.5px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+  }
+
+  .layer-body {
+    flex: 1;
+    padding: 20px 0 20px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+  }
+
+  /* ─── Row within a layer ─────────────────────────────────── */
+  .row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ─── Node / Box ─────────────────────────────────────────── */
+  .node {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    min-width: 150px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .node:hover { border-color: var(--border-bright); }
+
+  .node-title {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 3px;
+    letter-spacing: 0.01em;
+  }
+  .node-sub {
+    font-size: 9px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .node-badge {
+    position: absolute;
+    top: -8px;
+    right: 10px;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .node-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .node-tag {
+    font-size: 8px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid;
+    opacity: 0.7;
+    letter-spacing: 0.05em;
+  }
+
+  /* ─── Connector arrows ───────────────────────────────────── */
+  .connector-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    position: relative;
+    margin: 0 0 0 148px;
+  }
+  .connector-line {
+    position: absolute;
+    left: 0; right: 0;
+    top: 50%;
+    border-top: 1px dashed var(--border-bright);
+    opacity: 0.5;
+  }
+  .connector-arrows {
+    display: flex;
+    gap: 60px;
+    position: relative;
+    z-index: 2;
+  }
+  .arrow-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .arrow-label {
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .arrow-sym {
+    font-size: 14px;
+    color: var(--border-bright);
+    line-height: 1;
+  }
+
+  /* ─── Color utilities ────────────────────────────────────── */
+  .c-client   { color: var(--client); }
+  .c-gateway  { color: var(--gateway); }
+  .c-orch     { color: var(--orch); }
+  .c-agents   { color: var(--agents); }
+  .c-mcp      { color: var(--mcp); }
+  .c-rag      { color: var(--rag); }
+  .c-data     { color: var(--data); }
+  .c-ext      { color: var(--ext); }
+
+  .b-client   { background: rgba(56,189,248,0.06);  border-color: rgba(56,189,248,0.25); }
+  .b-gateway  { background: rgba(167,139,250,0.06); border-color: rgba(167,139,250,0.25); }
+  .b-orch     { background: rgba(245,158,11,0.07);  border-color: rgba(245,158,11,0.3); }
+  .b-agents   { background: rgba(52,211,153,0.06);  border-color: rgba(52,211,153,0.25); }
+  .b-mcp      { background: rgba(251,113,133,0.06); border-color: rgba(251,113,133,0.25); }
+  .b-rag      { background: rgba(96,165,250,0.06);  border-color: rgba(96,165,250,0.25); }
+  .b-data     { background: rgba(192,132,252,0.06); border-color: rgba(192,132,252,0.25); }
+  .b-ext      { background: rgba(148,163,184,0.04); border-color: rgba(148,163,184,0.15); }
+
+  .badge-client  { background: rgba(56,189,248,0.15);  color: var(--client); }
+  .badge-gateway { background: rgba(167,139,250,0.15); color: var(--gateway); }
+  .badge-orch    { background: rgba(245,158,11,0.15);  color: var(--orch); }
+  .badge-agents  { background: rgba(52,211,153,0.15);  color: var(--agents); }
+  .badge-mcp     { background: rgba(251,113,133,0.15); color: var(--mcp); }
+  .badge-rag     { background: rgba(96,165,250,0.15);  color: var(--rag); }
+  .badge-data    { background: rgba(192,132,252,0.15); color: var(--data); }
+
+  .tag-client  { border-color: rgba(56,189,248,0.3);  color: var(--client); }
+  .tag-gateway { border-color: rgba(167,139,250,0.3); color: var(--gateway); }
+  .tag-orch    { border-color: rgba(245,158,11,0.3);  color: var(--orch); }
+  .tag-agents  { border-color: rgba(52,211,153,0.3);  color: var(--agents); }
+  .tag-mcp     { border-color: rgba(251,113,133,0.3); color: var(--mcp); }
+  .tag-rag     { border-color: rgba(96,165,250,0.3);  color: var(--rag); }
+  .tag-data    { border-color: rgba(192,132,252,0.3); color: var(--data); }
+  .tag-ext     { border-color: rgba(148,163,184,0.2); color: var(--ext); }
+
+  /* ─── Layer glow strips ──────────────────────────────────── */
+  .layer-client  .layer-body { background: linear-gradient(90deg, rgba(56,189,248,0.03) 0%, transparent 60%); }
+  .layer-gateway .layer-body { background: linear-gradient(90deg, rgba(167,139,250,0.03) 0%, transparent 60%); }
+  .layer-orch    .layer-body { background: linear-gradient(90deg, var(--glow-orch) 0%, transparent 60%); }
+  .layer-agents  .layer-body { background: linear-gradient(90deg, var(--glow-agents) 0%, transparent 60%); }
+  .layer-mcp     .layer-body { background: linear-gradient(90deg, var(--glow-mcp) 0%, transparent 60%); }
+  .layer-rag     .layer-body { background: linear-gradient(90deg, var(--glow-rag) 0%, transparent 60%); }
+  .layer-data    .layer-body { background: linear-gradient(90deg, rgba(192,132,252,0.04) 0%, transparent 60%); }
+  .layer-ext     .layer-body { background: linear-gradient(90deg, rgba(148,163,184,0.02) 0%, transparent 60%); }
+
+  /* ─── Separator bar between layers ──────────────────────── */
+  .layer-sep {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 120px, var(--border) 120px, var(--border) 100%);
+    opacity: 0.5;
+  }
+
+  /* ─── Orchestration center highlight ────────────────────── */
+  .orch-center {
+    border: 1.5px solid rgba(245,158,11,0.4);
+    box-shadow: 0 0 32px rgba(245,158,11,0.08), inset 0 0 24px rgba(245,158,11,0.04);
+    min-width: 260px;
+  }
+  .orch-center .node-title { font-size: 13px; }
+
+  /* ─── Agent grid ─────────────────────────────────────────── */
+  .agent-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    flex: 1;
+  }
+  .agent-node {
+    background: var(--bg-card2);
+    border: 1px solid rgba(52,211,153,0.2);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    position: relative;
+  }
+  .agent-node .node-title { font-size: 10px; }
+
+  /* ─── Protocol Bus ───────────────────────────────────────── */
+  .protocol-bus {
+    background: var(--bg-card);
+    border: 1px dashed rgba(245,158,11,0.35);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .bus-label {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--orch);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .bus-protocols {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .bus-proto {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--orch);
+    opacity: 0.75;
+    letter-spacing: 0.06em;
+  }
+
+  /* ─── Data flow annotations ──────────────────────────────── */
+  .flow-note {
+    background: rgba(96,165,250,0.05);
+    border-left: 2px solid var(--rag);
+    padding: 6px 10px;
+    border-radius: 0 4px 4px 0;
+    font-size: 9px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 280px;
+  }
+  .flow-note strong { color: var(--rag); font-weight: 600; }
+
+  /* ─── Section divider ────────────────────────────────────── */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    margin: 0 0 0 148px;
+    height: 44px;
+  }
+  .divider-track {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  .divider-line {
+    width: 100%;
+    height: 1px;
+    background: var(--border);
+  }
+  .divider-arrow {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: var(--bg-deep);
+    padding: 0 8px;
+  }
+  .divider-arrow span {
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .divider-arrow .sym {
+    font-size: 12px;
+    color: var(--border-bright);
+  }
+
+  /* ─── Key flows sidebar ──────────────────────────────────── */
+  .key-flows {
+    margin: 0 48px 48px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .flow-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .flow-card-title {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .flow-card-title .num {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .flow-step {
+    display: flex;
+    gap: 8px;
+    font-size: 9.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .flow-step .idx {
+    width: 14px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    font-size: 9px;
+  }
+  .flow-step .arrow { color: var(--border-bright); }
+
+  /* ─── Footer ────────────────────────────────────────────── */
+  .page-footer {
+    border-top: 1px solid var(--border);
+    padding: 16px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+  .page-footer .fw { color: var(--text-muted); font-weight: 600; }
+
+  /* ─── Wide node ──────────────────────────────────────────── */
+  .node-wide { min-width: 220px; }
+  .node-xl   { min-width: 300px; }
+
+  /* ─── Vertical connector lines between layers ────────────── */
+  .v-connector {
+    margin: 0 0 0 148px;
+    height: 32px;
+    display: flex;
+    gap: 48px;
+    align-items: center;
+    padding-left: 60px;
+  }
+  .v-conn-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .v-conn-line {
+    width: 1px;
+    height: 18px;
+    background: var(--border-bright);
+    opacity: 0.4;
+  }
+  .v-conn-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--border-bright);
+    opacity: 0.5;
+  }
+  .v-conn-label {
+    font-size: 7.5px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* MCP grid */
+  .mcp-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .mcp-server {
+    background: var(--bg-card2);
+    border: 1px solid rgba(251,113,133,0.2);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    min-width: 130px;
+  }
+
+  /* RAG internals */
+  .rag-internals {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .rag-box {
+    background: var(--bg-card2);
+    border: 1px solid rgba(96,165,250,0.2);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    min-width: 130px;
+  }
+
+  /* Data stores row */
+  .data-stores {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .store-node {
+    background: var(--bg-card2);
+    border: 1px solid rgba(192,132,252,0.2);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    min-width: 140px;
+  }
+
+  .section-heading {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    margin-top: 2px;
+  }
+
+</style>
+</head>
+<body>
+
+<!-- ══════════ PAGE HEADER ══════════ -->
+<div class="page-header">
+  <div class="header-label">System Architecture — Backend Design</div>
+  <div class="header-title">Career Roadmap <span>AI</span></div>
+  <div class="header-sub">End-to-End Agentic Backend · Multi-Agent Orchestration · MCP Integration · RAG Pipeline · Real-Time Market Intelligence</div>
+  <div class="header-meta">
+    <div>Roger Jeasy Bavibidila</div>
+    <div>April 2026 · v1.0</div>
+    <div><span class="tag">Confidential</span><span class="tag">Draft</span></div>
+  </div>
+</div>
+
+<!-- ══════════ LEGEND ══════════ -->
+<div class="legend">
+  <span class="legend-title">Layer Key</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--client)"></div>Client &amp; API Gateway</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--orch)"></div>AI Orchestrator</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--agents)"></div>Specialist Agents</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--mcp)"></div>MCP Tool Servers</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--rag)"></div>RAG &amp; Knowledge</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--data)"></div>Data &amp; Storage</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--ext)"></div>External Services</div>
+  <div class="legend-item" style="margin-left:16px">
+    <div style="width:20px;height:1px;border-top:1px solid var(--agents);margin-right:4px"></div>
+    Sync call
+  </div>
+  <div class="legend-item">
+    <div style="width:20px;height:1px;border-top:1px dashed var(--orch);margin-right:4px"></div>
+    Async / event
+  </div>
+</div>
+
+<!-- ══════════ MAIN CANVAS ══════════ -->
+<div class="canvas">
+
+  <!-- ───── LAYER 1: CLIENT + API GATEWAY ───── -->
+  <div class="layer layer-client">
+    <div class="layer-label-col">
+      <div class="layer-name c-client">L1<br>Client &amp;<br>Gateway</div>
+      <div class="layer-id">EDGE</div>
+    </div>
+    <div class="layer-body">
+      <div class="row">
+        <!-- Client -->
+        <div class="node b-client node-wide">
+          <div class="node-badge badge-client">Frontend</div>
+          <div class="node-title c-client">Next.js 14 App</div>
+          <div class="node-sub">React TypeScript · App Router<br>Tailwind CSS · shadcn/ui · Zustand</div>
+          <div class="node-tags">
+            <span class="node-tag tag-client">WebSocket</span>
+            <span class="node-tag tag-client">REST</span>
+            <span class="node-tag tag-client">SSE</span>
+          </div>
+        </div>
+
+        <!-- WebSocket / SSE note -->
+        <div style="display:flex;align-items:center;padding:0 4px;color:var(--text-dim);font-size:18px">→</div>
+
+        <!-- API Gateway -->
+        <div class="node b-gateway node-wide">
+          <div class="node-badge badge-gateway">Gateway</div>
+          <div class="node-title c-gateway">FastAPI Gateway</div>
+          <div class="node-sub">JWT Auth · Rate Limiting · CORS<br>Request validation · Pydantic v2<br>OpenAPI schema · Async ASGI</div>
+          <div class="node-tags">
+            <span class="node-tag tag-gateway">OAuth2</span>
+            <span class="node-tag tag-gateway">JWT</span>
+            <span class="node-tag tag-gateway">TLS</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;padding:0 4px;color:var(--text-dim);font-size:18px">→</div>
+
+        <!-- Session Manager -->
+        <div class="node b-gateway">
+          <div class="node-title c-gateway">Session &amp; Context Manager</div>
+          <div class="node-sub">Conversation state per user<br>Follow-up queue · Clarification flags<br>User profile &amp; plan context cache</div>
+          <div class="node-tags">
+            <span class="node-tag tag-gateway">Redis</span>
+            <span class="node-tag tag-gateway">TTL</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;padding:0 4px;color:var(--text-dim);font-size:18px">→</div>
+
+        <!-- Streaming Handler -->
+        <div class="node b-gateway">
+          <div class="node-title c-gateway">Streaming Handler</div>
+          <div class="node-sub">SSE / WebSocket bridge<br>Token-by-token LLM stream<br>Agent status events push</div>
+          <div class="node-tags">
+            <span class="node-tag tag-gateway">SSE</span>
+            <span class="node-tag tag-gateway">WS</span>
+          </div>
+        </div>
+
+        <!-- flow note -->
+        <div class="flow-note" style="align-self:center">
+          <strong>Auth flow:</strong> JWT issued on login → stored in httpOnly cookie → validated on every request via FastAPI dependency injection. WebSocket connections upgraded after token check.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-sep"></div>
+
+  <!-- v-connector -->
+  <div class="v-connector">
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div>
+      <div class="v-conn-line"></div>
+      <div class="v-conn-dot"></div>
+      <div class="v-conn-label">POST /api/roadmap/generate</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div>
+      <div class="v-conn-line"></div>
+      <div class="v-conn-dot"></div>
+      <div class="v-conn-label">WS /ws/agent-stream/{session}</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div>
+      <div class="v-conn-line"></div>
+      <div class="v-conn-dot"></div>
+      <div class="v-conn-label">POST /api/clarification/reply</div>
+    </div>
+  </div>
+
+  <!-- ───── LAYER 2: AI ORCHESTRATION ───── -->
+  <div class="layer layer-orch">
+    <div class="layer-label-col">
+      <div class="layer-name c-orch">L2<br>AI<br>Orchestr.</div>
+      <div class="layer-id">CORE</div>
+    </div>
+    <div class="layer-body">
+
+      <!-- Protocol Bus -->
+      <div class="protocol-bus">
+        <div class="bus-label">⬡ Inter-Agent Message Bus</div>
+        <div class="bus-protocols">
+          <span class="bus-proto">A2A protocol</span>
+          <span class="bus-proto">JSON-RPC 2.0</span>
+          <span class="bus-proto">Tool-use schema</span>
+          <span class="bus-proto">Async task queue</span>
+          <span class="bus-proto">Event callbacks</span>
+          <span class="bus-proto">Celery / Redis</span>
+        </div>
+      </div>
+
+      <div class="row" style="align-items:flex-start">
+        <!-- Master Orchestrator -->
+        <div class="node b-orch orch-center">
+          <div class="node-badge badge-orch">Master</div>
+          <div class="node-title c-orch">🧭 Master Orchestrator Agent</div>
+          <div class="node-sub">
+            Central reasoning loop (ReAct / CoT)<br>
+            Decomposes user intent → sub-tasks<br>
+            Routes tasks to specialist agents<br>
+            Aggregates &amp; synthesises outputs<br>
+            <strong style="color:var(--orch)">Decides when to ask user for clarification</strong><br>
+            Manages multi-turn dialogue state<br>
+            Validates coherence before delivery
+          </div>
+          <div class="node-tags">
+            <span class="node-tag tag-orch">claude-3-5-sonnet</span>
+            <span class="node-tag tag-orch">LangGraph</span>
+            <span class="node-tag tag-orch">ReAct</span>
+            <span class="node-tag tag-orch">Tool-use</span>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;padding:20px 8px">
+          <div style="font-size:20px;color:var(--orch);opacity:0.5">⇄</div>
+          <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em">dispatch</div>
+        </div>
+
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+
+          <!-- Clarification Engine -->
+          <div class="node b-orch node-wide" style="border-style:dashed">
+            <div class="node-badge badge-orch">Clarify</div>
+            <div class="node-title c-orch">🔄 Clarification Engine</div>
+            <div class="node-sub">
+              Detects ambiguity / missing inputs<br>
+              Generates targeted follow-up Qs<br>
+              Scores answer completeness<br>
+              Blocks generation until resolved<br>
+              Supports multi-turn clarification
+            </div>
+            <div class="node-tags">
+              <span class="node-tag tag-orch">ambiguity-score</span>
+              <span class="node-tag tag-orch">question-gen</span>
+            </div>
+          </div>
+
+          <!-- Plan Validator -->
+          <div class="node b-orch" style="border-style:dashed">
+            <div class="node-title c-orch">✅ Output Validator</div>
+            <div class="node-sub">
+              Checks realism &amp; grounding<br>
+              Detects hallucinations vs RAG facts<br>
+              Confidence scoring per roadmap step<br>
+              Flags unverified claims
+            </div>
+            <div class="node-tags">
+              <span class="node-tag tag-orch">grounding-check</span>
+              <span class="node-tag tag-orch">confidence</span>
+            </div>
+          </div>
+
+          <!-- Task Planner -->
+          <div class="node b-orch" style="border-style:dashed">
+            <div class="node-title c-orch">📋 Task Planner</div>
+            <div class="node-sub">
+              DAG of sub-tasks per user goal<br>
+              Parallel vs sequential scheduling<br>
+              Retry logic &amp; fallback paths
+            </div>
+            <div class="node-tags">
+              <span class="node-tag tag-orch">DAG</span>
+              <span class="node-tag tag-orch">Celery</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="flow-note" style="align-self:flex-start;margin-top:4px">
+          <strong>Orchestration loop:</strong><br>
+          1. Parse intent &amp; profile<br>
+          2. Score completeness → ask Qs if needed<br>
+          3. Build task DAG<br>
+          4. Dispatch to agents in parallel<br>
+          5. Collect results<br>
+          6. Validate &amp; ground-check<br>
+          7. Synthesise final roadmap<br>
+          8. Stream response to client
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-sep"></div>
+
+  <!-- v-connector -->
+  <div class="v-connector">
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">dispatch(CVAnalysisTask)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">dispatch(GapAnalysisTask)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">dispatch(MarketIntelTask)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">dispatch(RoadmapGenTask)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">A2A messages via Bus</div>
+    </div>
+  </div>
+
+  <!-- ───── LAYER 3: SPECIALIST AGENTS ───── -->
+  <div class="layer layer-agents">
+    <div class="layer-label-col">
+      <div class="layer-name c-agents">L3<br>Specialist<br>Agents</div>
+      <div class="layer-id">WORKERS</div>
+    </div>
+    <div class="layer-body">
+      <div class="section-heading c-agents">Specialist Agent Pool — each exposes tool-use interface to Orchestrator</div>
+      <div class="agent-grid">
+
+        <!-- Agent 1: Intake -->
+        <div class="agent-node">
+          <div class="node-badge badge-agents" style="font-size:7px">Intake</div>
+          <div class="node-title c-agents">🎙 Intake &amp; Profile Agent</div>
+          <div class="node-sub">
+            Conducts discovery interview<br>
+            Extracts: skills, goals, constraints,<br>
+            experience, location, timeline<br>
+            Builds structured UserProfile JSON<br>
+            Triggers follow-up Qs via Orchestr.
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">NER</span>
+            <span class="node-tag tag-agents">Slot-fill</span>
+          </div>
+        </div>
+
+        <!-- Agent 2: CV -->
+        <div class="agent-node">
+          <div class="node-badge badge-agents" style="font-size:7px">CV</div>
+          <div class="node-title c-agents">📄 CV Analysis Agent</div>
+          <div class="node-sub">
+            Parses uploaded CV / LinkedIn export<br>
+            Extracts: skills, exp., edu., projects<br>
+            Normalises to SkillGraph schema<br>
+            Computes readiness &amp; seniority score<br>
+            Flags weak/missing impact statements
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">PDF parse</span>
+            <span class="node-tag tag-agents">NLP</span>
+          </div>
+        </div>
+
+        <!-- Agent 3: Gap -->
+        <div class="agent-node">
+          <div class="node-badge badge-agents" style="font-size:7px">Gap</div>
+          <div class="node-title c-agents">🔍 Gap Analysis Agent</div>
+          <div class="node-sub">
+            Compares UserProfile vs TargetRole<br>
+            Scores: tech skills, soft skills,<br>
+            certifications, portfolio, keywords<br>
+            Ranks gaps by ROI &amp; urgency<br>
+            → feeds Roadmap Gen Agent
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">diff-score</span>
+            <span class="node-tag tag-agents">priority-rank</span>
+          </div>
+        </div>
+
+        <!-- Agent 4: Market Intel -->
+        <div class="agent-node">
+          <div class="node-badge badge-agents" style="font-size:7px">Market</div>
+          <div class="node-title c-agents">📊 Market Intelligence Agent</div>
+          <div class="node-sub">
+            Polls MCP job-board servers<br>
+            Identifies trending skills &amp; roles<br>
+            Retrieves salary benchmarks<br>
+            Summarises industry signals<br>
+            Country-aware (CH / DE / FR…)
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">MCP-call</span>
+            <span class="node-tag tag-agents">real-time</span>
+          </div>
+        </div>
+
+        <!-- Agent 5: Roadmap Gen -->
+        <div class="agent-node" style="border-color:rgba(52,211,153,0.4);background:rgba(52,211,153,0.04)">
+          <div class="node-badge badge-agents" style="font-size:7px">Core</div>
+          <div class="node-title c-agents">🗺 Roadmap Generation Agent</div>
+          <div class="node-sub">
+            Receives: UserProfile + GapReport<br>
+            + MarketSignals + RAG context<br>
+            Generates phased roadmap:<br>
+            phases → milestones → weekly plan<br>
+            → daily habits → resources
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">structured-out</span>
+            <span class="node-tag tag-agents">grounded</span>
+          </div>
+        </div>
+
+        <!-- Agent 6: Learning -->
+        <div class="agent-node">
+          <div class="node-title c-agents">📚 Learning Resource Agent</div>
+          <div class="node-sub">
+            Queries MCP course catalogue server<br>
+            Matches resources to gap items<br>
+            Ranks by quality, relevance, cost<br>
+            Embeds in roadmap steps
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">MCP-course</span>
+            <span class="node-tag tag-agents">rank</span>
+          </div>
+        </div>
+
+        <!-- Agent 7: Networking -->
+        <div class="agent-node">
+          <div class="node-title c-agents">🤝 Networking &amp; Outreach Agent</div>
+          <div class="node-sub">
+            Drafts mentor outreach messages<br>
+            Finds relevant events &amp; communities<br>
+            Tracks relationship pipeline<br>
+            LinkedIn profile review
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">drafts</span>
+            <span class="node-tag tag-agents">events</span>
+          </div>
+        </div>
+
+        <!-- Agent 8: Progress -->
+        <div class="agent-node">
+          <div class="node-title c-agents">📈 Progress &amp; Adaptation Agent</div>
+          <div class="node-sub">
+            Reads weekly scorecard logs<br>
+            Detects drift from plan<br>
+            Proposes plan adaptations<br>
+            Habit streak analysis<br>
+            Triggers re-generation if needed
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">adapt</span>
+            <span class="node-tag tag-agents">analytics</span>
+          </div>
+        </div>
+
+        <!-- Agent 9: Coach -->
+        <div class="agent-node">
+          <div class="node-title c-agents">💬 Conversational Coach Agent</div>
+          <div class="node-sub">
+            Always-on chat companion<br>
+            Full plan + history context<br>
+            Answers ad-hoc career Qs<br>
+            Provides interview prep<br>
+            Challenges unrealistic timelines
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">full-context</span>
+            <span class="node-tag tag-agents">coach</span>
+          </div>
+        </div>
+
+        <!-- Agent 10: Opportunity -->
+        <div class="agent-node">
+          <div class="node-title c-agents">🎯 Opportunity Matching Agent</div>
+          <div class="node-sub">
+            Monitors live job listings<br>
+            Scores fit vs UserProfile<br>
+            Alerts on high-match roles<br>
+            Builds target company tracker<br>
+            CV tailoring per job post
+          </div>
+          <div class="node-tags" style="margin-top:6px">
+            <span class="node-tag tag-agents">matching</span>
+            <span class="node-tag tag-agents">alerts</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-sep"></div>
+
+  <div class="v-connector">
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">mcp_tool_call(job_board)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">rag_retrieve(career_kb)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">mcp_tool_call(course_search)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">mcp_tool_call(github_trends)</div>
+    </div>
+  </div>
+
+  <!-- ───── LAYER 4: MCP TOOL SERVERS ───── -->
+  <div class="layer layer-mcp">
+    <div class="layer-label-col">
+      <div class="layer-name c-mcp">L4<br>MCP<br>Servers</div>
+      <div class="layer-id">TOOLS</div>
+    </div>
+    <div class="layer-body">
+      <div class="section-heading c-mcp">MCP Tool Server Registry — agents compose at runtime, no hard-wiring</div>
+      <div class="mcp-grid">
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">🏢 Job Board Server</div>
+          <div class="node-sub">LinkedIn Jobs · Indeed<br>Glassdoor · Swiss Job Portal<br>Returns: title, skills, salary, co.</div>
+        </div>
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">📖 Course Catalogue Server</div>
+          <div class="node-sub">Coursera · Udemy · edX<br>YouTube · O'Reilly<br>Search by skill + level</div>
+        </div>
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">🐙 GitHub Trends Server</div>
+          <div class="node-sub">Trending repos by topic<br>Good-first-issues<br>Activity signals per tech</div>
+        </div>
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">🔗 LinkedIn Profile Server</div>
+          <div class="node-sub">Profile fetch (user-authed)<br>Job title normalisation<br>Connection suggestions</div>
+        </div>
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">💬 Social Signals Server</div>
+          <div class="node-sub">HackerNews · Reddit<br>Twitter/X · Dev.to<br>Trending topics per stack</div>
+        </div>
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">📅 Calendar Server</div>
+          <div class="node-sub">Google Cal · Outlook<br>Write weekly tasks<br>Set milestone reminders</div>
+        </div>
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">💰 Salary Benchmark Server</div>
+          <div class="node-sub">Levels.fyi · Glassdoor<br>Country + role + seniority<br>Compensation ranges</div>
+        </div>
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">📰 Industry News Server</div>
+          <div class="node-sub">RSS feeds · newsletters<br>Conference schedules<br>Weekly digest assembly</div>
+        </div>
+
+        <div class="mcp-server">
+          <div class="node-title c-mcp" style="font-size:10px">📁 Document Store Server</div>
+          <div class="node-sub">CV / resume storage<br>Portfolio uploads<br>Evidence vault access</div>
+        </div>
+
+      </div>
+      <div style="margin-top:8px">
+        <div class="flow-note">
+          <strong>MCP protocol:</strong> All tool servers expose a JSON-RPC 2.0 interface via stdio or HTTP transport. The agent runtime maintains a tool registry; agents call <code style="color:var(--rag)">mcp.call(server_id, tool_name, params)</code> — the runtime resolves, authenticates, rate-limits, and proxies. All calls are permission-scoped and user-revocable.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-sep"></div>
+
+  <div class="v-connector">
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">embed(query) → vector_search</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">retrieve(top-k chunks)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">rerank → inject context</div>
+    </div>
+  </div>
+
+  <!-- ───── LAYER 5: RAG ───── -->
+  <div class="layer layer-rag">
+    <div class="layer-label-col">
+      <div class="layer-name c-rag">L5<br>RAG &amp;<br>Knowledge</div>
+      <div class="layer-id">MEMORY</div>
+    </div>
+    <div class="layer-body">
+      <div class="section-heading c-rag">Retrieval-Augmented Generation Pipeline — grounds all agent outputs in verified knowledge</div>
+      <div class="rag-internals">
+
+        <div class="rag-box">
+          <div class="node-title c-rag" style="font-size:10px">📥 Ingestion Pipeline</div>
+          <div class="node-sub">
+            Career KB articles<br>
+            Job market reports<br>
+            Skill taxonomy (ESCO / O*NET)<br>
+            Role requirement templates<br>
+            Swiss / EU market data<br>
+            Course metadata<br>
+            → chunk → embed → upsert
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;color:var(--text-dim);font-size:14px;padding:0 4px">→</div>
+
+        <div class="rag-box">
+          <div class="node-title c-rag" style="font-size:10px">🧮 Embedding Service</div>
+          <div class="node-sub">
+            text-embedding-3-large<br>
+            Semantic chunking strategy<br>
+            Metadata tagging:<br>
+            role / industry / country<br>
+            Batch + real-time indexing
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;color:var(--text-dim);font-size:14px;padding:0 4px">→</div>
+
+        <div class="rag-box" style="border-color:rgba(96,165,250,0.4);background:rgba(96,165,250,0.05)">
+          <div class="node-title c-rag" style="font-size:10px">🗄 Vector Store</div>
+          <div class="node-sub">
+            Pinecone / pgvector<br>
+            Namespaces per knowledge type<br>
+            Hybrid: dense + sparse (BM25)<br>
+            Metadata filtering<br>
+            ~1M+ career knowledge chunks
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;color:var(--text-dim);font-size:14px;padding:0 4px">→</div>
+
+        <div class="rag-box">
+          <div class="node-title c-rag" style="font-size:10px">🔎 Retrieval Engine</div>
+          <div class="node-sub">
+            Query → embed → ANN search<br>
+            Top-k candidate chunks<br>
+            Reranker (cross-encoder)<br>
+            Diversity &amp; MMR filtering<br>
+            Returns scored, cited chunks
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;color:var(--text-dim);font-size:14px;padding:0 4px">→</div>
+
+        <div class="rag-box">
+          <div class="node-title c-rag" style="font-size:10px">📝 Context Injector</div>
+          <div class="node-sub">
+            Builds agent prompt context<br>
+            Inserts retrieved passages<br>
+            Source citations attached<br>
+            Token budget management<br>
+            Anti-hallucination grounding
+          </div>
+        </div>
+
+        <div class="flow-note" style="align-self:flex-start">
+          <strong>Anti-hallucination:</strong> Every roadmap step generated by the Roadmap Agent must cite a retrieved RAG chunk OR a verified MCP data point. The Output Validator agent checks this — uncited claims are flagged and either grounded or removed.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-sep"></div>
+
+  <div class="v-connector">
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">db.write(roadmap, user_id)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">cache.set(session_ctx)</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">queue.push(background_task)</div>
+    </div>
+  </div>
+
+  <!-- ───── LAYER 6: DATA ───── -->
+  <div class="layer layer-data">
+    <div class="layer-label-col">
+      <div class="layer-name c-data">L6<br>Data &amp;<br>Storage</div>
+      <div class="layer-id">PERSIST</div>
+    </div>
+    <div class="layer-body">
+      <div class="section-heading c-data">Persistence &amp; State Layer</div>
+      <div class="data-stores">
+
+        <div class="store-node" style="border-color:rgba(192,132,252,0.35)">
+          <div class="node-title c-data" style="font-size:10px">🐘 PostgreSQL 16</div>
+          <div class="node-sub">
+            Primary relational store<br>
+            Users · Profiles · Roadmaps<br>
+            Milestones · Habits · Progress<br>
+            Networking · Plans<br>
+            SQLAlchemy async + Alembic
+          </div>
+        </div>
+
+        <div class="store-node">
+          <div class="node-title c-data" style="font-size:10px">⚡ Redis 7</div>
+          <div class="node-sub">
+            Session &amp; conversation cache<br>
+            Agent task queue (Celery)<br>
+            Rate limit counters<br>
+            Real-time pub/sub<br>
+            TTL-based context expiry
+          </div>
+        </div>
+
+        <div class="store-node">
+          <div class="node-title c-data" style="font-size:10px">🗃 Vector DB</div>
+          <div class="node-sub">
+            Pinecone / pgvector<br>
+            Career knowledge embeddings<br>
+            User skill embeddings<br>
+            Job posting embeddings<br>
+            ANN search index
+          </div>
+        </div>
+
+        <div class="store-node">
+          <div class="node-title c-data" style="font-size:10px">🪣 Azure Blob / S3</div>
+          <div class="node-sub">
+            CV &amp; resume file storage<br>
+            Portfolio artefacts<br>
+            Encrypted at rest<br>
+            Scoped to user account<br>
+            GDPR-compliant deletion
+          </div>
+        </div>
+
+        <div class="store-node">
+          <div class="node-title c-data" style="font-size:10px">📜 Audit Log Store</div>
+          <div class="node-sub">
+            All agent actions logged<br>
+            MCP tool calls + results<br>
+            LLM prompt/response hashes<br>
+            User consent records<br>
+            SIEM-ready format
+          </div>
+        </div>
+
+        <div class="store-node">
+          <div class="node-title c-data" style="font-size:10px">📊 Analytics Warehouse</div>
+          <div class="node-sub">
+            Weekly review history<br>
+            Habit streak data<br>
+            Progress analytics<br>
+            Platform usage metrics<br>
+            BigQuery / DuckDB
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-sep"></div>
+
+  <div class="v-connector">
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">HTTPS API calls</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">OAuth2 user-scoped</div>
+    </div>
+    <div class="v-conn-item">
+      <div class="v-conn-dot"></div><div class="v-conn-line"></div><div class="v-conn-dot"></div>
+      <div class="v-conn-label">scheduled polling</div>
+    </div>
+  </div>
+
+  <!-- ───── LAYER 7: EXTERNAL SERVICES ───── -->
+  <div class="layer layer-ext">
+    <div class="layer-label-col">
+      <div class="layer-name c-ext">L7<br>External<br>Services</div>
+      <div class="layer-id">3RD PARTY</div>
+    </div>
+    <div class="layer-body">
+      <div class="section-heading c-ext">External APIs &amp; Data Sources — accessed exclusively via MCP Tool Servers (never directly by agents)</div>
+      <div class="row">
+
+        <div class="node b-ext">
+          <div class="node-title c-ext" style="font-size:10px">🤖 LLM Providers</div>
+          <div class="node-sub">Anthropic Claude API<br>OpenAI (fallback)<br>Streaming · Tool-use<br>claude-3-5-sonnet-20241022</div>
+        </div>
+
+        <div class="node b-ext">
+          <div class="node-title c-ext" style="font-size:10px">💼 Job Platforms</div>
+          <div class="node-sub">LinkedIn Jobs API<br>Indeed API · Glassdoor<br>Swiss Job Portal<br>Company career pages</div>
+        </div>
+
+        <div class="node b-ext">
+          <div class="node-title c-ext" style="font-size:10px">🎓 Learning Platforms</div>
+          <div class="node-sub">Coursera API · Udemy<br>edX · YouTube Data API<br>O'Reilly · Pluralsight</div>
+        </div>
+
+        <div class="node b-ext">
+          <div class="node-title c-ext" style="font-size:10px">🐙 Developer Signals</div>
+          <div class="node-sub">GitHub API (trends, issues)<br>HackerNews API<br>Dev.to RSS · Stack Overflow</div>
+        </div>
+
+        <div class="node b-ext">
+          <div class="node-title c-ext" style="font-size:10px">📱 Social Networks</div>
+          <div class="node-sub">LinkedIn Profile API<br>Twitter/X v2 API<br>Reddit API (careers/tech)</div>
+        </div>
+
+        <div class="node b-ext">
+          <div class="node-title c-ext" style="font-size:10px">🏛 Taxonomy &amp; Data</div>
+          <div class="node-sub">ESCO Skill Taxonomy<br>O*NET Occupational DB<br>Levels.fyi Salary Data<br>Swiss Federal Statistics</div>
+        </div>
+
+        <div class="node b-ext">
+          <div class="node-title c-ext" style="font-size:10px">📅 Productivity</div>
+          <div class="node-sub">Google Calendar API<br>Microsoft Outlook API<br>Notion (optional)<br>Webhook delivery</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div><!-- /.canvas -->
+
+<!-- ══════════ KEY FLOWS ══════════ -->
+<div style="padding:0 48px 16px">
+  <div style="font-family:var(--font-sans);font-size:13px;font-weight:800;color:var(--text-primary);margin-bottom:16px;letter-spacing:-0.01em">
+    Key End-to-End Data Flows
+  </div>
+</div>
+<div class="key-flows">
+
+  <!-- Flow 1 -->
+  <div class="flow-card">
+    <div class="flow-card-title">
+      <div class="num" style="background:rgba(245,158,11,0.15);color:var(--orch)">1</div>
+      <span>Roadmap Generation Flow</span>
+    </div>
+    <div class="flow-steps">
+      <div class="flow-step"><span class="idx">01</span><span>User submits goal + uploads CV via Next.js → REST POST</span></div>
+      <div class="flow-step"><span class="idx">02</span><span>API Gateway validates JWT, deserialises payload, creates session</span></div>
+      <div class="flow-step"><span class="idx">03</span><span class="arrow">→</span> Master Orchestrator scores completeness; if ambiguous → <strong style="color:var(--orch)">Clarification Engine triggers follow-up Qs</strong> pushed to client via SSE</div>
+      <div class="flow-step"><span class="idx">04</span><span>User answers Qs → PATCH /api/session/clarify → Orchestrator resumes</span></div>
+      <div class="flow-step"><span class="idx">05</span><span>Task DAG built: CV Agent + Gap Agent + Market Intel Agent run in parallel</span></div>
+      <div class="flow-step"><span class="idx">06</span><span>Each agent calls RAG Retrieval Engine for grounding context</span></div>
+      <div class="flow-step"><span class="idx">07</span><span>Market Intel Agent calls MCP Job Board + Salary Servers</span></div>
+      <div class="flow-step"><span class="idx">08</span><span>Results aggregate → Roadmap Gen Agent synthesises structured roadmap</span></div>
+      <div class="flow-step"><span class="idx">09</span><span>Output Validator checks grounding &amp; realism; flags hallucinations</span></div>
+      <div class="flow-step"><span class="idx">10</span><span>Roadmap written to PostgreSQL; streamed to client via WebSocket</span></div>
+    </div>
+  </div>
+
+  <!-- Flow 2 -->
+  <div class="flow-card">
+    <div class="flow-card-title">
+      <div class="num" style="background:rgba(52,211,153,0.15);color:var(--agents)">2</div>
+      <span>Follow-Up Clarification Flow</span>
+    </div>
+    <div class="flow-steps">
+      <div class="flow-step"><span class="idx">01</span><span>Orchestrator calls Clarification Engine mid-generation</span></div>
+      <div class="flow-step"><span class="idx">02</span><span>Engine analyses missing slots: target country? time available? salary goal?</span></div>
+      <div class="flow-step"><span class="idx">03</span><span>Generates ≤3 focused questions (not generic); ranked by blocking priority</span></div>
+      <div class="flow-step"><span class="idx">04</span><span>Questions pushed to client via SSE event: <code style="color:var(--rag)">type: clarification_required</code></span></div>
+      <div class="flow-step"><span class="idx">05</span><span>Frontend renders interactive question UI (not free-text chat)</span></div>
+      <div class="flow-step"><span class="idx">06</span><span>User responds → POST /api/clarification/{session_id}</span></div>
+      <div class="flow-step"><span class="idx">07</span><span>Answers validated &amp; merged into UserProfile JSON in Redis session</span></div>
+      <div class="flow-step"><span class="idx">08</span><span>Orchestrator resumes paused task DAG with enriched context</span></div>
+      <div class="flow-step"><span class="idx">09</span><span>If new answers trigger further ambiguity → cycle repeats (max 3 rounds)</span></div>
+      <div class="flow-step"><span class="idx">10</span><span>Completeness score ≥ threshold → roadmap generation proceeds</span></div>
+    </div>
+  </div>
+
+  <!-- Flow 3 -->
+  <div class="flow-card">
+    <div class="flow-card-title">
+      <div class="num" style="background:rgba(251,113,133,0.15);color:var(--mcp)">3</div>
+      <span>Real-Time Market Intelligence Flow</span>
+    </div>
+    <div class="flow-steps">
+      <div class="flow-step"><span class="idx">01</span><span>Market Intel Agent triggered by Orchestrator (or scheduled nightly job)</span></div>
+      <div class="flow-step"><span class="idx">02</span><span>Calls MCP Job Board Server → fetches live postings matching user target role</span></div>
+      <div class="flow-step"><span class="idx">03</span><span>Calls MCP GitHub Trends Server → trending repos in user's tech stack</span></div>
+      <div class="flow-step"><span class="idx">04</span><span>Calls MCP Social Signals Server → HN / Reddit / Twitter for skill signals</span></div>
+      <div class="flow-step"><span class="idx">05</span><span>Calls MCP Salary Server → compensation benchmarks by role + country</span></div>
+      <div class="flow-step"><span class="idx">06</span><span>Raw data normalised &amp; summarised by LLM (scoped prompt, no hallucination)</span></div>
+      <div class="flow-step"><span class="idx">07</span><span>MarketSignal object returned to Orchestrator / Roadmap Gen Agent</span></div>
+      <div class="flow-step"><span class="idx">08</span><span>New trends ingested into RAG pipeline → embedding → vector store upsert</span></div>
+      <div class="flow-step"><span class="idx">09</span><span>User-relevant alerts written to notifications table in PostgreSQL</span></div>
+      <div class="flow-step"><span class="idx">10</span><span>Progress Agent evaluates if plan update is warranted → proposes adaptation</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════ FOOTER ══════════ -->
+<div class="page-footer">
+  <div>
+    <span class="fw">Career Roadmap AI</span> — Backend Architecture v1.0
+    &nbsp;·&nbsp; Prepared by Roger Jeasy Bavibidila &nbsp;·&nbsp; April 2026
+  </div>
+  <div>
+    Layers: L1 Client/Gateway &nbsp;→&nbsp; L2 AI Orchestrator &nbsp;→&nbsp; L3 Specialist Agents &nbsp;→&nbsp; L4 MCP Servers &nbsp;→&nbsp; L5 RAG/Knowledge &nbsp;→&nbsp; L6 Data &nbsp;→&nbsp; L7 External
+  </div>
+  <div>Confidential Draft — All rights reserved</div>
+</div>
+
+</body>
+</html>

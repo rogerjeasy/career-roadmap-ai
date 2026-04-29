@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Career Roadmap AI — Backend Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;900&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#F7F2E8; --bg2:#EFE8D7; --paper:#FFFFFF;
+  --ink:#15140F; --ink2:#4D4639; --ink3:#8A8170;
+  --rule:#E0D7C2; --rule-s:#C9BFA7;
+  --green:#134E3A; --green2:#0E3A2B; --greensoft:#DCE7DC;
+  --terra:#C95A3D; --terra2:#AC4A30; --terrasoft:#F4DDD2;
+  --gold:#B68A2E; --goldsoft:#F5EDCC;
+  --client:#1a6b8a; --gateway:#6b4fa0;
+  --orch:var(--green); --agents:#1a6b8a;
+  --mcp:var(--terra); --rag:#2a5fa0;
+  --data:var(--gold); --ext:var(--ink3);
+  --r:8px;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Geist','Helvetica Neue',sans-serif;
+  --serif:'Fraunces',serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:11px;line-height:1.5;overflow-x:auto}
+
+/* HEADER */
+.hdr{padding:36px 48px 24px;border-bottom:1px solid var(--rule-s);background:var(--bg);position:relative}
+.hdr::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 700px 200px at 50% 0%,rgba(19,78,58,.05),transparent 70%);pointer-events:none}
+.hdr-eyebrow{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--terra);margin-bottom:8px;font-family:var(--mono)}
+.hdr-title{font-family:var(--serif);font-size:30px;font-weight:700;color:var(--ink);letter-spacing:-.02em;margin-bottom:4px}
+.hdr-title span{color:var(--green)}
+.hdr-sub{font-family:var(--sans);font-size:11.5px;color:var(--ink2)}
+.hdr-meta{position:absolute;top:40px;right:48px;text-align:right;font-size:9.5px;color:var(--ink3);line-height:2;font-family:var(--mono)}
+.tag{display:inline-block;background:var(--greensoft);border:1px solid rgba(19,78,58,.2);color:var(--green);padding:1px 7px;border-radius:4px;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;margin-left:3px}
+
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:12px 48px;border-bottom:1px solid var(--rule);background:var(--bg2);align-items:center}
+.legend-title{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink3);font-family:var(--sans)}
+.li{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--ink2);font-family:var(--sans)}
+.dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* CANVAS */
+.canvas{padding:32px 48px 40px;display:flex;flex-direction:column;min-width:1220px}
+
+/* LAYER */
+.layer{display:flex;align-items:stretch;min-height:110px}
+.lbl{width:116px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;padding:14px 12px 14px 0;border-right:2px solid var(--rule-s);position:relative}
+.lbl::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:var(--rule-s);border:2px solid var(--bg)}
+.lbl-name{font-family:var(--sans);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2);line-height:1.5}
+.lbl-id{font-size:8px;color:var(--ink3);margin-top:3px;letter-spacing:.07em}
+.lbody{flex:1;padding:16px 0 16px 26px;display:flex;flex-direction:column;gap:10px}
+
+/* layer tints */
+.l-client .lbody{background:linear-gradient(90deg,rgba(26,107,138,.05) 0%,transparent 55%)}
+.l-gateway .lbody{background:linear-gradient(90deg,rgba(107,79,160,.05) 0%,transparent 55%)}
+.l-orch .lbody{background:linear-gradient(90deg,rgba(19,78,58,.06) 0%,transparent 55%)}
+.l-agents .lbody{background:linear-gradient(90deg,rgba(26,107,138,.04) 0%,transparent 55%)}
+.l-mcp .lbody{background:linear-gradient(90deg,rgba(201,90,61,.05) 0%,transparent 55%)}
+.l-rag .lbody{background:linear-gradient(90deg,rgba(42,95,160,.05) 0%,transparent 55%)}
+.l-data .lbody{background:linear-gradient(90deg,rgba(182,138,46,.05) 0%,transparent 55%)}
+.l-ext .lbody{background:linear-gradient(90deg,rgba(138,129,112,.03) 0%,transparent 55%)}
+
+.sep{height:1px;background:linear-gradient(90deg,transparent 116px,var(--rule) 116px)}
+.row{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+
+/* NODE */
+.node{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r);padding:10px 13px;min-width:148px;position:relative;box-shadow:0 1px 4px rgba(21,20,15,.06)}
+.node:hover{border-color:var(--rule-s);box-shadow:0 3px 12px rgba(21,20,15,.1)}
+.nt{font-family:var(--sans);font-size:11px;font-weight:700;margin-bottom:3px;color:var(--ink)}
+.ns{font-size:9px;color:var(--ink2);line-height:1.6;font-family:var(--mono)}
+.nbadge{position:absolute;top:-8px;right:10px;font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px;font-weight:600;font-family:var(--sans)}
+.ntags{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.ntag{font-size:7.5px;padding:1px 5px;border-radius:3px;border:1px solid;letter-spacing:.04em;font-family:var(--mono)}
+.nwide{min-width:215px}
+
+/* COLOR SETS */
+.c-cl{color:var(--client)} .c-gw{color:var(--gateway)} .c-or{color:var(--green)}
+.c-ag{color:var(--agents)} .c-mc{color:var(--terra)} .c-rg{color:var(--rag)}
+.c-dt{color:var(--gold)} .c-ex{color:var(--ink3)}
+
+.b-cl{background:rgba(26,107,138,.04);border-color:rgba(26,107,138,.22)}
+.b-gw{background:rgba(107,79,160,.04);border-color:rgba(107,79,160,.22)}
+.b-or{background:rgba(19,78,58,.04);border-color:rgba(19,78,58,.22)}
+.b-ag{background:rgba(26,107,138,.04);border-color:rgba(26,107,138,.22)}
+.b-mc{background:rgba(201,90,61,.04);border-color:rgba(201,90,61,.22)}
+.b-rg{background:rgba(42,95,160,.04);border-color:rgba(42,95,160,.22)}
+.b-dt{background:rgba(182,138,46,.04);border-color:rgba(182,138,46,.22)}
+.b-ex{background:var(--bg2);border-color:var(--rule)}
+
+.bd-cl{background:rgba(26,107,138,.12);color:var(--client)}
+.bd-gw{background:rgba(107,79,160,.12);color:var(--gateway)}
+.bd-or{background:rgba(19,78,58,.12);color:var(--green)}
+.bd-ag{background:rgba(26,107,138,.12);color:var(--agents)}
+.bd-mc{background:rgba(201,90,61,.12);color:var(--terra2)}
+.bd-rg{background:rgba(42,95,160,.12);color:var(--rag)}
+.bd-dt{background:rgba(182,138,46,.12);color:var(--gold)}
+
+.tg-cl{border-color:rgba(26,107,138,.3);color:var(--client)}
+.tg-gw{border-color:rgba(107,79,160,.3);color:var(--gateway)}
+.tg-or{border-color:rgba(19,78,58,.3);color:var(--green)}
+.tg-ag{border-color:rgba(26,107,138,.3);color:var(--agents)}
+.tg-mc{border-color:rgba(201,90,61,.3);color:var(--terra2)}
+.tg-rg{border-color:rgba(42,95,160,.3);color:var(--rag)}
+.tg-dt{border-color:rgba(182,138,46,.3);color:var(--gold)}
+.tg-ex{border-color:var(--rule-s);color:var(--ink3)}
+
+/* ORCH CENTER */
+.orch-star{border:1.5px solid rgba(19,78,58,.35);box-shadow:0 2px 16px rgba(19,78,58,.08);min-width:255px}
+.orch-star .nt{font-size:12.5px;color:var(--green2)}
+
+/* BUS */
+.bus{background:var(--bg2);border:1px dashed var(--rule-s);border-radius:var(--r);padding:8px 13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bus-lbl{font-family:var(--sans);font-size:9.5px;font-weight:700;color:var(--green);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.bp{font-size:8.5px;padding:2px 7px;border-radius:3px;border:1px solid rgba(19,78,58,.2);color:var(--green);background:var(--greensoft);letter-spacing:.05em;font-family:var(--mono)}
+
+/* AGENT GRID */
+.agrid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;flex:1}
+.an{background:var(--paper);border:1px solid rgba(26,107,138,.18);border-radius:var(--r);padding:9px 11px;position:relative;box-shadow:0 1px 4px rgba(21,20,15,.05)}
+.an .nt{font-size:9.5px;color:var(--ink)}
+.an .ns{color:var(--ink2)}
+
+/* MCP GRID */
+.mgrid{display:flex;flex-wrap:wrap;gap:9px}
+.mn{background:var(--paper);border:1px solid rgba(201,90,61,.18);border-radius:var(--r);padding:8px 11px;min-width:128px;box-shadow:0 1px 3px rgba(21,20,15,.05)}
+.mn .nt{font-size:9.5px;color:var(--ink);margin-bottom:2px}
+.mn .ns{color:var(--ink2)}
+
+/* RAG */
+.rrow{display:flex;gap:9px;flex-wrap:wrap}
+.rn{background:var(--paper);border:1px solid rgba(42,95,160,.18);border-radius:var(--r);padding:8px 11px;min-width:128px;box-shadow:0 1px 3px rgba(21,20,15,.05)}
+.rn .nt{font-size:9.5px;color:var(--ink);margin-bottom:2px}
+.rn .ns{color:var(--ink2)}
+
+/* DATA */
+.drow{display:flex;flex-wrap:wrap;gap:9px}
+.dn{background:var(--paper);border:1px solid rgba(182,138,46,.2);border-radius:var(--r);padding:8px 11px;min-width:138px;box-shadow:0 1px 3px rgba(21,20,15,.05)}
+.dn .nt{font-size:9.5px;color:var(--ink);margin-bottom:2px}
+.dn .ns{color:var(--ink2)}
+
+/* CONNECTORS */
+.vcon{margin:0 0 0 142px;height:30px;display:flex;gap:44px;align-items:center;padding-left:54px}
+.vc{display:flex;flex-direction:column;align-items:center;gap:1px}
+.vline{width:1px;height:16px;background:var(--rule-s)}
+.vdot{width:5px;height:5px;border-radius:50%;background:var(--rule-s)}
+.vlbl{font-size:7px;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;font-family:var(--mono)}
+.arr{font-size:15px;color:var(--rule-s);display:flex;align-items:center;padding:0 3px;align-self:center}
+
+/* FLOW NOTE */
+.fnote{background:var(--bg2);border-left:2px solid var(--rag);padding:8px 10px;border-radius:0 4px 4px 0;font-size:8.5px;color:var(--ink2);line-height:1.7;max-width:270px;font-family:var(--mono)}
+.fnote strong{font-weight:600}
+
+/* SECTION HEADING */
+.sh{font-family:var(--sans);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3);margin-bottom:7px}
+
+/* KEY FLOWS */
+.kf-wrap{padding:0 48px 44px;position:relative}
+.kf-title{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--ink);border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:16px}
+.kf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.fc{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r);padding:15px 17px;box-shadow:0 1px 6px rgba(21,20,15,.06)}
+.fc-title{font-family:var(--sans);font-size:10.5px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px;color:var(--ink)}
+.fnum{width:19px;height:19px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;flex-shrink:0}
+.fsteps{display:flex;flex-direction:column;gap:4px}
+.fs{display:flex;gap:7px;font-size:9px;color:var(--ink2);line-height:1.5;font-family:var(--mono)}
+.fi{width:13px;color:var(--ink3);flex-shrink:0;font-size:8.5px}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--rule);padding:14px 48px;display:flex;align-items:center;justify-content:space-between;font-size:8.5px;color:var(--ink3);background:var(--bg2);font-family:var(--mono)}
+.footer .fw{color:var(--ink);font-weight:600;font-family:var(--sans)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-eyebrow">System Architecture — Backend Design</div>
+  <div class="hdr-title">Career Roadmap <span>AI</span></div>
+  <div class="hdr-sub">End-to-End Agentic Backend &middot; Multi-Agent Orchestration &middot; MCP Integration &middot; RAG Pipeline &middot; Real-Time Market Intelligence</div>
+  <div class="hdr-meta">
+    Roger Jeasy Bavibidila<br>April 2026 &middot; v1.0<br>
+    <span class="tag">Confidential</span><span class="tag">Draft</span>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="legend-title">Layer Key &mdash;</span>
+  <div class="li"><div class="dot" style="background:var(--client)"></div>Client &amp; Gateway</div>
+  <div class="li"><div class="dot" style="background:var(--green)"></div>AI Orchestrator</div>
+  <div class="li"><div class="dot" style="background:var(--agents)"></div>Specialist Agents</div>
+  <div class="li"><div class="dot" style="background:var(--terra)"></div>MCP Tool Servers</div>
+  <div class="li"><div class="dot" style="background:var(--rag)"></div>RAG &amp; Knowledge</div>
+  <div class="li"><div class="dot" style="background:var(--gold)"></div>Data &amp; Storage</div>
+  <div class="li"><div class="dot" style="background:var(--ink3)"></div>External Services</div>
+  <div class="li" style="margin-left:10px"><div style="width:18px;height:1px;border-top:1px solid var(--ink2);margin-right:4px"></div>Sync</div>
+  <div class="li"><div style="width:18px;height:1px;border-top:1px dashed var(--ink3);margin-right:4px"></div>Async</div>
+</div>
+
+<div class="canvas">
+
+<!-- L1 CLIENT -->
+<div class="layer l-client">
+  <div class="lbl"><div class="lbl-name c-cl">L1<br>Client &amp;<br>Gateway</div><div class="lbl-id">EDGE</div></div>
+  <div class="lbody">
+    <div class="row">
+      <div class="node b-cl nwide">
+        <div class="nbadge bd-cl">Frontend</div>
+        <div class="nt c-cl">Next.js 14 App</div>
+        <div class="ns">React TypeScript &middot; App Router<br>Tailwind CSS &middot; shadcn/ui &middot; Zustand<br>TanStack Query &middot; Zod</div>
+        <div class="ntags"><span class="ntag tg-cl">WebSocket</span><span class="ntag tg-cl">REST</span><span class="ntag tg-cl">SSE</span></div>
+      </div>
+      <div class="arr">&rarr;</div>
+      <div class="node b-gw nwide">
+        <div class="nbadge bd-gw">Gateway</div>
+        <div class="nt c-gw">FastAPI Gateway</div>
+        <div class="ns">JWT Auth &middot; Rate Limiting &middot; CORS<br>Pydantic v2 validation<br>OpenAPI schema &middot; Async ASGI</div>
+        <div class="ntags"><span class="ntag tg-gw">OAuth2</span><span class="ntag tg-gw">JWT</span><span class="ntag tg-gw">TLS</span></div>
+      </div>
+      <div class="arr">&rarr;</div>
+      <div class="node b-gw">
+        <div class="nt c-gw">Session &amp; Context Manager</div>
+        <div class="ns">Conversation state per user<br>Follow-up queue &middot; Clarification flags<br>User profile &amp; plan context cache</div>
+        <div class="ntags"><span class="ntag tg-gw">Redis</span><span class="ntag tg-gw">TTL</span></div>
+      </div>
+      <div class="arr">&rarr;</div>
+      <div class="node b-gw">
+        <div class="nt c-gw">Streaming Handler</div>
+        <div class="ns">SSE / WebSocket bridge<br>Token-by-token LLM stream<br>Agent status event push</div>
+        <div class="ntags"><span class="ntag tg-gw">SSE</span><span class="ntag tg-gw">WS</span></div>
+      </div>
+      <div class="fnote" style="align-self:center;border-left-color:var(--gateway)">
+        <strong style="color:var(--gateway)">Auth flow:</strong> JWT issued on login &rarr; httpOnly cookie &rarr; validated via FastAPI dependency on every request. WebSocket connections upgraded after token check.
+      </div>
+    </div>
+  </div>
+</div>
+<div class="sep"></div>
+
+<div class="vcon">
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">POST /api/roadmap/generate</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">WS /ws/agent-stream/{session}</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">POST /api/clarification/reply</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">GET /api/roadmap/{user_id}</div></div>
+</div>
+
+<!-- L2 ORCHESTRATOR -->
+<div class="layer l-orch">
+  <div class="lbl"><div class="lbl-name c-or">L2<br>AI<br>Orchestr.</div><div class="lbl-id">CORE</div></div>
+  <div class="lbody">
+    <div class="bus">
+      <div class="bus-lbl">&#x2B21; Inter-Agent Message Bus</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="bp">A2A protocol</span><span class="bp">JSON-RPC 2.0</span><span class="bp">Tool-use schema</span><span class="bp">Async task queue</span><span class="bp">Event callbacks</span><span class="bp">Celery / Redis</span>
+      </div>
+    </div>
+    <div class="row" style="align-items:flex-start">
+      <div class="node b-or orch-star">
+        <div class="nbadge bd-or">Master</div>
+        <div class="nt c-or">&#x1F9ED; Master Orchestrator Agent</div>
+        <div class="ns">
+          Central reasoning loop (ReAct / CoT)<br>
+          Decomposes user intent &rarr; sub-tasks<br>
+          Routes tasks to specialist agents<br>
+          Aggregates &amp; synthesises outputs<br>
+          <strong style="color:var(--green)">Decides when to request clarification</strong><br>
+          Manages multi-turn dialogue state<br>
+          Validates coherence before delivery
+        </div>
+        <div class="ntags">
+          <span class="ntag tg-or">claude-3-5-sonnet</span>
+          <span class="ntag tg-or">LangGraph</span>
+          <span class="ntag tg-or">ReAct</span>
+          <span class="ntag tg-or">Tool-use</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px 8px;gap:4px">
+        <div style="font-size:17px;color:var(--ink3)">&#x21C4;</div>
+        <div style="font-size:7.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;font-family:var(--sans)">dispatch</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+        <div class="node b-or nwide" style="border-style:dashed">
+          <div class="nbadge bd-or">Clarify</div>
+          <div class="nt c-or">&#x1F504; Clarification Engine</div>
+          <div class="ns">Detects ambiguity / missing inputs<br>Generates targeted follow-up Qs<br>Scores answer completeness (0-1)<br>Blocks generation until resolved<br>Supports up to 3 clarif. rounds</div>
+          <div class="ntags"><span class="ntag tg-or">ambiguity-score</span><span class="ntag tg-or">question-gen</span></div>
+        </div>
+        <div class="node b-or" style="border-style:dashed">
+          <div class="nt c-or">&#x2705; Output Validator</div>
+          <div class="ns">Checks realism &amp; grounding<br>Detects hallucinations vs RAG facts<br>Confidence scoring per roadmap step<br>Flags unverified claims</div>
+          <div class="ntags"><span class="ntag tg-or">grounding-check</span><span class="ntag tg-or">confidence</span></div>
+        </div>
+        <div class="node b-or" style="border-style:dashed">
+          <div class="nt c-or">&#x1F4CB; Task Planner</div>
+          <div class="ns">DAG of sub-tasks per user goal<br>Parallel vs sequential scheduling<br>Retry logic &amp; fallback paths</div>
+          <div class="ntags"><span class="ntag tg-or">DAG</span><span class="ntag tg-or">Celery</span></div>
+        </div>
+      </div>
+      <div class="fnote" style="align-self:flex-start;margin-top:2px">
+        <strong style="color:var(--green)">Orchestration loop:</strong><br>
+        1. Parse intent &amp; user profile<br>
+        2. Score completeness &rarr; ask Qs<br>
+        3. Build task DAG<br>
+        4. Dispatch to agents in parallel<br>
+        5. Collect all agent results<br>
+        6. Validate &amp; ground-check<br>
+        7. Synthesise final roadmap<br>
+        8. Stream response to client
+      </div>
+    </div>
+  </div>
+</div>
+<div class="sep"></div>
+
+<div class="vcon">
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">dispatch(CVAnalysisTask)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">dispatch(GapAnalysisTask)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">dispatch(MarketIntelTask)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">dispatch(RoadmapGenTask)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">A2A via message bus</div></div>
+</div>
+
+<!-- L3 AGENTS -->
+<div class="layer l-agents">
+  <div class="lbl"><div class="lbl-name c-ag">L3<br>Specialist<br>Agents</div><div class="lbl-id">WORKERS</div></div>
+  <div class="lbody">
+    <div class="sh" style="color:var(--agents)">Specialist Agent Pool &mdash; each exposes tool-use interface to Orchestrator via A2A bus</div>
+    <div class="agrid">
+      <div class="an">
+        <div class="nbadge bd-ag" style="font-size:7px">Intake</div>
+        <div class="nt c-ag">&#x1F399; Intake &amp; Profile Agent</div>
+        <div class="ns">Conducts discovery interview<br>Extracts: skills, goals,<br>constraints, location, timeline<br>Builds UserProfile JSON<br>Triggers clarif. if slots missing</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">NER</span><span class="ntag tg-ag">slot-fill</span></div>
+      </div>
+      <div class="an">
+        <div class="nbadge bd-ag" style="font-size:7px">CV</div>
+        <div class="nt c-ag">&#x1F4C4; CV Analysis Agent</div>
+        <div class="ns">Parses CV / LinkedIn export<br>Extracts skills, exp, edu,<br>projects, impact statements<br>Normalises to SkillGraph<br>Computes readiness score</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">PDF parse</span><span class="ntag tg-ag">NLP</span></div>
+      </div>
+      <div class="an">
+        <div class="nbadge bd-ag" style="font-size:7px">Gap</div>
+        <div class="nt c-ag">&#x1F50D; Gap Analysis Agent</div>
+        <div class="ns">Compares profile vs target role<br>Scores tech, soft skills,<br>certs, portfolio, keywords<br>Ranks gaps by ROI &amp; urgency<br>Feeds Roadmap Gen Agent</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">diff-score</span><span class="ntag tg-ag">priority</span></div>
+      </div>
+      <div class="an">
+        <div class="nbadge bd-ag" style="font-size:7px">Market</div>
+        <div class="nt c-ag">&#x1F4CA; Market Intelligence Agent</div>
+        <div class="ns">Polls MCP job-board servers<br>Identifies trending skills<br>Retrieves salary benchmarks<br>Summarises industry signals<br>Country-aware (CH/DE/FR&hellip;)</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">MCP-call</span><span class="ntag tg-ag">real-time</span></div>
+      </div>
+      <div class="an" style="border-color:rgba(26,107,138,.38);background:rgba(26,107,138,.04)">
+        <div class="nbadge bd-ag" style="font-size:7px">Core</div>
+        <div class="nt c-ag">&#x1F5FA; Roadmap Generation Agent</div>
+        <div class="ns">Receives: UserProfile +<br>GapReport + MarketSignals<br>+ RAG context<br>Generates: phases, milestones,<br>weekly plan, habits, resources</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">structured-out</span><span class="ntag tg-ag">grounded</span></div>
+      </div>
+      <div class="an">
+        <div class="nt c-ag">&#x1F4DA; Learning Resource Agent</div>
+        <div class="ns">Queries MCP course catalogue<br>Matches resources to gaps<br>Ranks by quality &amp; cost<br>Embeds in roadmap steps</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">MCP-course</span><span class="ntag tg-ag">rank</span></div>
+      </div>
+      <div class="an">
+        <div class="nt c-ag">&#x1F91D; Networking &amp; Outreach Agent</div>
+        <div class="ns">Drafts mentor outreach msgs<br>Finds events &amp; communities<br>Tracks relationship pipeline<br>LinkedIn profile review</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">drafts</span><span class="ntag tg-ag">events</span></div>
+      </div>
+      <div class="an">
+        <div class="nt c-ag">&#x1F4C8; Progress &amp; Adaptation Agent</div>
+        <div class="ns">Reads weekly scorecard logs<br>Detects drift from plan<br>Proposes plan adaptations<br>Habit streak analysis<br>Re-triggers generation if needed</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">adapt</span><span class="ntag tg-ag">analytics</span></div>
+      </div>
+      <div class="an">
+        <div class="nt c-ag">&#x1F4AC; Conversational Coach Agent</div>
+        <div class="ns">Always-on chat companion<br>Full plan + history context<br>Answers ad-hoc career Qs<br>Interview prep support<br>Challenges unrealistic timelines</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">coach</span><span class="ntag tg-ag">full-ctx</span></div>
+      </div>
+      <div class="an">
+        <div class="nt c-ag">&#x1F3AF; Opportunity Matching Agent</div>
+        <div class="ns">Monitors live job listings<br>Scores fit vs UserProfile<br>Alerts on high-match roles<br>Target company tracker<br>CV tailoring per job post</div>
+        <div class="ntags" style="margin-top:5px"><span class="ntag tg-ag">match</span><span class="ntag tg-ag">alerts</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="sep"></div>
+
+<div class="vcon">
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">mcp_call(job_board)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">rag_retrieve(career_kb)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">mcp_call(course_search)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">mcp_call(github_trends)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">mcp_call(salary_bench)</div></div>
+</div>
+
+<!-- L4 MCP -->
+<div class="layer l-mcp">
+  <div class="lbl"><div class="lbl-name c-mc">L4<br>MCP<br>Servers</div><div class="lbl-id">TOOLS</div></div>
+  <div class="lbody">
+    <div class="sh" style="color:var(--terra2)">MCP Tool Server Registry &mdash; agents compose at runtime via JSON-RPC 2.0, permission-scoped &amp; user-revocable</div>
+    <div class="mgrid">
+      <div class="mn"><div class="nt c-mc">&#x1F3E2; Job Board Server</div><div class="ns">LinkedIn Jobs &middot; Indeed<br>Glassdoor &middot; Swiss Job Portal<br>title, skills, salary, co.</div></div>
+      <div class="mn"><div class="nt c-mc">&#x1F4D6; Course Catalogue Server</div><div class="ns">Coursera &middot; Udemy &middot; edX<br>YouTube &middot; O'Reilly<br>Search by skill + level</div></div>
+      <div class="mn"><div class="nt c-mc">&#x1F419; GitHub Trends Server</div><div class="ns">Trending repos by topic<br>Good-first-issues finder<br>Activity signals per tech</div></div>
+      <div class="mn"><div class="nt c-mc">&#x1F517; LinkedIn Profile Server</div><div class="ns">Profile fetch (user-authed)<br>Job title normalisation<br>Connection suggestions</div></div>
+      <div class="mn"><div class="nt c-mc">&#x1F4AC; Social Signals Server</div><div class="ns">HackerNews &middot; Reddit<br>Twitter/X &middot; Dev.to<br>Trending topics per stack</div></div>
+      <div class="mn"><div class="nt c-mc">&#x1F4C5; Calendar Server</div><div class="ns">Google Cal &middot; Outlook<br>Write weekly tasks<br>Set milestone reminders</div></div>
+      <div class="mn"><div class="nt c-mc">&#x1F4B0; Salary Benchmark Server</div><div class="ns">Levels.fyi &middot; Glassdoor<br>Country + role + seniority<br>Compensation ranges</div></div>
+      <div class="mn"><div class="nt c-mc">&#x1F4F0; Industry News Server</div><div class="ns">RSS feeds &middot; newsletters<br>Conference schedules<br>Weekly digest assembly</div></div>
+      <div class="mn"><div class="nt c-mc">&#x1F4C1; Document Store Server</div><div class="ns">CV / resume storage<br>Portfolio uploads<br>Evidence vault access</div></div>
+    </div>
+    <div style="margin-top:8px">
+      <div class="fnote" style="border-left-color:var(--terra);max-width:100%">
+        <strong style="color:var(--terra2)">MCP protocol:</strong> All servers expose JSON-RPC 2.0 via stdio or HTTP transport. The agent runtime maintains a tool registry &mdash; agents call <code>mcp.call(server_id, tool, params)</code>. Runtime resolves, authenticates, rate-limits, and proxies. All integrations are permission-based, transparent, and user-revocable.
+      </div>
+    </div>
+  </div>
+</div>
+<div class="sep"></div>
+
+<div class="vcon">
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">embed(query) &rarr; vector_search</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">retrieve(top-k chunks)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">rerank &rarr; inject context</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">citation attach</div></div>
+</div>
+
+<!-- L5 RAG -->
+<div class="layer l-rag">
+  <div class="lbl"><div class="lbl-name c-rg">L5<br>RAG &amp;<br>Knowledge</div><div class="lbl-id">MEMORY</div></div>
+  <div class="lbody">
+    <div class="sh" style="color:var(--rag)">Retrieval-Augmented Generation Pipeline &mdash; grounds all agent outputs in verified knowledge, eliminating hallucination</div>
+    <div class="rrow">
+      <div class="rn"><div class="nt c-rg">&#x1F4E5; Ingestion Pipeline</div><div class="ns">Career KB articles<br>Job market reports<br>ESCO / O*NET taxonomy<br>Role requirement templates<br>Swiss / EU market data<br>&rarr; chunk &rarr; embed &rarr; upsert</div></div>
+      <div class="arr">&rarr;</div>
+      <div class="rn"><div class="nt c-rg">&#x1F9EE; Embedding Service</div><div class="ns">text-embedding-3-large<br>Semantic chunking strategy<br>Metadata: role/industry/country<br>Batch + real-time indexing</div></div>
+      <div class="arr">&rarr;</div>
+      <div class="rn" style="border-color:rgba(42,95,160,.35);background:rgba(42,95,160,.04)"><div class="nt c-rg">&#x1F5C4; Vector Store</div><div class="ns">Pinecone / pgvector<br>Namespaces per knowledge type<br>Hybrid: dense + sparse (BM25)<br>Metadata filtering<br>~1M+ career knowledge chunks</div></div>
+      <div class="arr">&rarr;</div>
+      <div class="rn"><div class="nt c-rg">&#x1F50E; Retrieval Engine</div><div class="ns">Query &rarr; embed &rarr; ANN search<br>Top-k candidate chunks<br>Reranker (cross-encoder)<br>Diversity &amp; MMR filtering<br>Returns scored cited chunks</div></div>
+      <div class="arr">&rarr;</div>
+      <div class="rn"><div class="nt c-rg">&#x1F4DD; Context Injector</div><div class="ns">Builds agent prompt context<br>Inserts retrieved passages<br>Source citations attached<br>Token budget management<br>Anti-hallucination grounding</div></div>
+      <div class="fnote" style="align-self:flex-start;border-left-color:var(--rag)">
+        <strong style="color:var(--rag)">Anti-hallucination:</strong> Every roadmap step must cite a RAG chunk OR verified MCP data point. Output Validator checks this &mdash; uncited claims are flagged and either grounded or removed before delivery.
+      </div>
+    </div>
+  </div>
+</div>
+<div class="sep"></div>
+
+<div class="vcon">
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">db.write(roadmap, user_id)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">cache.set(session_ctx)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">queue.push(bg_task)</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">blob.store(cv_file)</div></div>
+</div>
+
+<!-- L6 DATA -->
+<div class="layer l-data">
+  <div class="lbl"><div class="lbl-name c-dt">L6<br>Data &amp;<br>Storage</div><div class="lbl-id">PERSIST</div></div>
+  <div class="lbody">
+    <div class="sh" style="color:var(--gold)">Persistence &amp; State Layer</div>
+    <div class="drow">
+      <div class="dn" style="border-color:rgba(182,138,46,.32)"><div class="nt c-dt">&#x1F418; PostgreSQL 16</div><div class="ns">Primary relational store<br>Users &middot; Profiles &middot; Roadmaps<br>Milestones &middot; Habits &middot; Progress<br>Networking &middot; Plans<br>SQLAlchemy async + Alembic</div></div>
+      <div class="dn"><div class="nt c-dt">&#x26A1; Redis 7</div><div class="ns">Session &amp; conversation cache<br>Agent task queue (Celery)<br>Rate limit counters<br>Real-time pub/sub<br>TTL-based context expiry</div></div>
+      <div class="dn"><div class="nt c-dt">&#x1F5C3; Vector DB</div><div class="ns">Pinecone / pgvector<br>Career knowledge embeddings<br>User skill embeddings<br>Job posting embeddings<br>ANN search index</div></div>
+      <div class="dn"><div class="nt c-dt">&#x1FAA3; Azure Blob / S3</div><div class="ns">CV &amp; resume file storage<br>Portfolio artefacts<br>Encrypted at rest<br>Scoped to user account<br>GDPR-compliant deletion</div></div>
+      <div class="dn"><div class="nt c-dt">&#x1F4DC; Audit Log Store</div><div class="ns">All agent actions logged<br>MCP tool calls + results<br>LLM prompt/response hashes<br>User consent records<br>SIEM-ready format</div></div>
+      <div class="dn"><div class="nt c-dt">&#x1F4CA; Analytics Warehouse</div><div class="ns">Weekly review history<br>Habit streak data<br>Progress analytics<br>Platform usage metrics<br>BigQuery / DuckDB</div></div>
+    </div>
+  </div>
+</div>
+<div class="sep"></div>
+
+<div class="vcon">
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">HTTPS API calls</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">OAuth2 user-scoped</div></div>
+  <div class="vc"><div class="vdot"></div><div class="vline"></div><div class="vdot"></div><div class="vlbl">scheduled polling</div></div>
+</div>
+
+<!-- L7 EXTERNAL -->
+<div class="layer l-ext">
+  <div class="lbl"><div class="lbl-name c-ex">L7<br>External<br>Services</div><div class="lbl-id">3RD PARTY</div></div>
+  <div class="lbody">
+    <div class="sh">External APIs &mdash; accessed exclusively via MCP Tool Servers, never directly by agents</div>
+    <div class="row">
+      <div class="node b-ex"><div class="nt c-ex" style="font-size:9.5px">&#x1F916; LLM Providers</div><div class="ns">Anthropic Claude API<br>OpenAI (fallback)<br>Streaming &middot; Tool-use<br>claude-3-5-sonnet</div></div>
+      <div class="node b-ex"><div class="nt c-ex" style="font-size:9.5px">&#x1F4BC; Job Platforms</div><div class="ns">LinkedIn Jobs API<br>Indeed &middot; Glassdoor<br>Swiss Job Portal<br>Company career pages</div></div>
+      <div class="node b-ex"><div class="nt c-ex" style="font-size:9.5px">&#x1F393; Learning Platforms</div><div class="ns">Coursera &middot; Udemy<br>edX &middot; YouTube Data API<br>O'Reilly &middot; Pluralsight</div></div>
+      <div class="node b-ex"><div class="nt c-ex" style="font-size:9.5px">&#x1F419; Developer Signals</div><div class="ns">GitHub API (trends)<br>HackerNews API<br>Dev.to RSS &middot; Stack Overflow</div></div>
+      <div class="node b-ex"><div class="nt c-ex" style="font-size:9.5px">&#x1F4F1; Social Networks</div><div class="ns">LinkedIn Profile API<br>Twitter/X v2 API<br>Reddit (careers/tech)</div></div>
+      <div class="node b-ex"><div class="nt c-ex" style="font-size:9.5px">&#x1F3DB; Taxonomy &amp; Data</div><div class="ns">ESCO Skill Taxonomy<br>O*NET Occupational DB<br>Levels.fyi &middot; Swiss Stats</div></div>
+      <div class="node b-ex"><div class="nt c-ex" style="font-size:9.5px">&#x1F4C5; Productivity</div><div class="ns">Google Calendar API<br>Microsoft Outlook API<br>Notion (optional)<br>Webhook delivery</div></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /canvas -->
+
+<!-- KEY FLOWS -->
+<div class="kf-wrap">
+  <div class="kf-title">Key End-to-End Data Flows</div>
+  <div class="kf-grid">
+
+    <div class="fc">
+      <div class="fc-title"><div class="fnum" style="background:var(--greensoft);color:var(--green)">1</div>Roadmap Generation Flow</div>
+      <div class="fsteps">
+        <div class="fs"><span class="fi">01</span>User submits goal + uploads CV &rarr; REST POST to FastAPI gateway</div>
+        <div class="fs"><span class="fi">02</span>Gateway validates JWT, deserialises payload, creates Redis session</div>
+        <div class="fs"><span class="fi">03</span>Master Orchestrator scores completeness &rarr; <strong style="color:var(--green)">Clarification Engine fires follow-up Qs via SSE if ambiguous</strong></div>
+        <div class="fs"><span class="fi">04</span>User answers &rarr; PATCH /api/session/clarify &rarr; Orchestrator resumes</div>
+        <div class="fs"><span class="fi">05</span>Task DAG: CV Agent + Gap Agent + Market Intel Agent run in parallel</div>
+        <div class="fs"><span class="fi">06</span>Each agent calls RAG Retrieval Engine for grounded context chunks</div>
+        <div class="fs"><span class="fi">07</span>Market Intel Agent calls MCP Job Board + Salary + GitHub servers</div>
+        <div class="fs"><span class="fi">08</span>Results aggregate &rarr; Roadmap Gen Agent synthesises structured plan</div>
+        <div class="fs"><span class="fi">09</span>Output Validator checks grounding &amp; realism; flags hallucinations</div>
+        <div class="fs"><span class="fi">10</span>Roadmap written to PostgreSQL; streamed to client via WebSocket</div>
+      </div>
+    </div>
+
+    <div class="fc">
+      <div class="fc-title"><div class="fnum" style="background:var(--terrasoft);color:var(--terra2)">2</div>Follow-Up Clarification Flow</div>
+      <div class="fsteps">
+        <div class="fs"><span class="fi">01</span>Orchestrator invokes Clarification Engine when slot score &lt; threshold</div>
+        <div class="fs"><span class="fi">02</span>Engine identifies missing slots: country? weekly hours? salary goal?</div>
+        <div class="fs"><span class="fi">03</span>Generates &le;3 focused questions ranked by blocking priority</div>
+        <div class="fs"><span class="fi">04</span>Questions pushed to client via SSE: <code>type: clarification_required</code></div>
+        <div class="fs"><span class="fi">05</span>Frontend renders interactive Q UI &mdash; not free-text chat</div>
+        <div class="fs"><span class="fi">06</span>User responds &rarr; POST /api/clarification/{session_id}</div>
+        <div class="fs"><span class="fi">07</span>Answers validated &amp; merged into UserProfile JSON in Redis</div>
+        <div class="fs"><span class="fi">08</span>Orchestrator resumes paused task DAG with enriched context</div>
+        <div class="fs"><span class="fi">09</span>New answers may trigger further clarification (max 3 rounds)</div>
+        <div class="fs"><span class="fi">10</span>Completeness score &ge; threshold &rarr; generation proceeds</div>
+      </div>
+    </div>
+
+    <div class="fc">
+      <div class="fc-title"><div class="fnum" style="background:var(--goldsoft);color:var(--gold)">3</div>Real-Time Market Intelligence Flow</div>
+      <div class="fsteps">
+        <div class="fs"><span class="fi">01</span>Market Intel Agent triggered by Orchestrator or nightly Celery job</div>
+        <div class="fs"><span class="fi">02</span>Calls MCP Job Board Server &rarr; live postings matching user target role</div>
+        <div class="fs"><span class="fi">03</span>Calls MCP GitHub Trends Server &rarr; trending repos in user's tech stack</div>
+        <div class="fs"><span class="fi">04</span>Calls MCP Social Signals Server &rarr; HN / Reddit / Twitter signals</div>
+        <div class="fs"><span class="fi">05</span>Calls MCP Salary Server &rarr; compensation benchmarks by role + country</div>
+        <div class="fs"><span class="fi">06</span>Raw data normalised &amp; summarised by LLM (scoped, grounded prompt)</div>
+        <div class="fs"><span class="fi">07</span>MarketSignal object returned to Orchestrator / Roadmap Gen Agent</div>
+        <div class="fs"><span class="fi">08</span>New trends ingested into RAG pipeline &rarr; embed &rarr; vector store upsert</div>
+        <div class="fs"><span class="fi">09</span>User alerts written to notifications table in PostgreSQL</div>
+        <div class="fs"><span class="fi">10</span>Progress Agent evaluates if plan update warranted &rarr; proposes adapt.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">
+  <div><span class="fw">Career Roadmap AI</span> &mdash; Backend Architecture v1.0 &middot; Roger Jeasy Bavibidila &middot; April 2026</div>
+  <div>L1 Gateway &rarr; L2 Orchestrator &rarr; L3 Agents &rarr; L4 MCP &rarr; L5 RAG &rarr; L6 Data &rarr; L7 External</div>
+  <div>Confidential Draft</div>
+</div>
+
+</body>
+</html>

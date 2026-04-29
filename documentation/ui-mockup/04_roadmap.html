@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Roadmap · Full-Stack → AI Systems Engineer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #F7F2E8;
+    --bg-2:         #EFE8D7;
+    --bg-3:         #E8E0C8;
+    --paper:        #FFFFFF;
+    --ink:          #15140F;
+    --ink-2:        #4D4639;
+    --ink-3:        #8A8170;
+    --rule:         #E0D7C2;
+    --rule-strong:  #C9BFA7;
+
+    --green:        #134E3A;
+    --green-2:      #0E3A2B;
+    --green-soft:   #DCE7DC;
+    --green-faint:  #E9F0E5;
+
+    --terra:        #C95A3D;
+    --terra-2:      #AC4A30;
+    --terra-soft:   #F4DDD2;
+    --terra-faint:  #F9E8DD;
+
+    --gold:         #B68A2E;
+    --gold-soft:    #F2E2BD;
+    --gold-faint:  #F8EFD7;
+
+    --blue:         #2A4F6E;
+    --blue-soft:    #D4DFE9;
+
+    --serif: 'Fraunces', 'Times New Roman', serif;
+    --sans:  'Geist', 'Helvetica Neue', sans-serif;
+    --mono:  'Geist Mono', 'SF Mono', monospace;
+
+    --side-w: 248px;
+    --inspect-w: 380px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; -webkit-font-smoothing: antialiased; }
+  body { display: grid; grid-template-columns: var(--side-w) 1fr; min-height: 100vh; }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--ink); color: var(--bg); }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+  /* ============ SIDEBAR (compact, identical to dashboard) ============ */
+  aside.sidebar {
+    background: var(--bg-2);
+    border-right: 1px solid var(--rule);
+    padding: 22px 16px 16px;
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+  }
+  aside.sidebar::-webkit-scrollbar { width: 5px; }
+  aside.sidebar::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
+
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 18px; font-weight: 500; letter-spacing: -0.01em; padding: 0 8px 4px; margin-bottom: 18px; }
+  .brand .mark { width: 24px; height: 24px; flex-shrink: 0; }
+
+  .cmd-search { width: 100%; background: var(--paper); border: 1px solid var(--rule); padding: 8px 12px; border-radius: 7px; display: flex; align-items: center; gap: 9px; color: var(--ink-3); font-size: 13px; margin-bottom: 22px; }
+  .cmd-search svg { width: 13px; height: 13px; opacity: 0.7; }
+  .cmd-search .kbd { margin-left: auto; font-family: var(--mono); font-size: 11px; background: var(--bg-2); border: 1px solid var(--rule); padding: 1px 6px; border-radius: 4px; }
+
+  .nav-section { margin-bottom: 22px; }
+  .nav-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); padding: 0 10px 8px; }
+  .nav-link { display: flex; align-items: center; gap: 11px; padding: 7px 10px; margin-bottom: 1px; border-radius: 6px; font-size: 13.5px; color: var(--ink-2); font-weight: 500; transition: all .12s ease; }
+  .nav-link:hover { background: var(--bg-3); color: var(--ink); }
+  .nav-link.active { background: var(--ink); color: var(--bg); }
+  .nav-link.active .icon { color: var(--terra-soft); }
+  .nav-link .icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.85; }
+  .nav-link .badge { margin-left: auto; font-size: 10px; font-weight: 600; background: var(--terra); color: #fff; padding: 1px 5px; border-radius: 3px; line-height: 1.5; }
+  .nav-link.dimmed { color: var(--ink-3); }
+
+  .user-card { margin-top: auto; background: var(--paper); border: 1px solid var(--rule); border-radius: 9px; padding: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .user-card .avatar { width: 32px; height: 32px; border-radius: 7px; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 500; font-size: 14px; flex-shrink: 0; }
+  .user-card .who { flex: 1; min-width: 0; }
+  .user-card .name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .user-card .plan { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+  .user-card .chev { color: var(--ink-3); font-size: 14px; }
+
+  /* ============ MAIN ============ */
+  .main-wrap { min-width: 0; }
+
+  .topbar {
+    height: 60px; background: var(--bg);
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topbar .crumbs { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+  .topbar .crumbs .home { color: var(--ink-3); }
+  .topbar .crumbs .sep { color: var(--rule-strong); }
+  .topbar .crumbs .here { color: var(--ink); font-weight: 600; }
+
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  .iconbtn { width: 34px; height: 34px; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: var(--ink-2); transition: all .12s; }
+  .iconbtn:hover { background: var(--bg-2); color: var(--ink); }
+  .iconbtn svg { width: 16px; height: 16px; }
+  .quick-add { display: inline-flex; align-items: center; gap: 7px; background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 500; margin-left: 4px; }
+  .quick-add:hover { background: var(--green-2); }
+  .quick-add svg { width: 12px; height: 12px; }
+
+  /* ============ HEADER STRIP ============ */
+  .roadmap-header {
+    padding: 28px 28px 22px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--bg);
+  }
+  .rh-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 32px; margin-bottom: 22px;
+  }
+  .rh-title-block .breadcrumb-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--terra); font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .rh-title-block .breadcrumb-tag .num {
+    font-family: var(--serif); font-style: italic; font-weight: 400;
+    color: var(--ink-3); text-transform: none; letter-spacing: 0;
+  }
+  .rh-title-block h1 {
+    font-family: var(--serif); font-weight: 350;
+    font-size: 36px; line-height: 1.05; letter-spacing: -0.025em;
+    color: var(--ink); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .rh-title-block h1 .arrow {
+    color: var(--terra); font-weight: 300; font-style: italic;
+    margin: 0 4px;
+  }
+  .rh-title-block h1 em { font-style: italic; color: var(--green); }
+  .rh-title-block h1 .edit-title {
+    width: 24px; height: 24px;
+    border-radius: 5px; background: var(--bg-2);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink-3); margin-left: 4px;
+    transition: all .15s;
+  }
+  .rh-title-block h1 .edit-title:hover { background: var(--ink); color: var(--bg); }
+  .rh-title-block h1 .edit-title svg { width: 11px; height: 11px; }
+  .rh-title-block .meta-row {
+    display: flex; align-items: center; gap: 14px;
+    font-size: 13px; color: var(--ink-2);
+  }
+  .rh-title-block .meta-row b { color: var(--ink); font-weight: 600; }
+  .rh-title-block .meta-row .sep { color: var(--rule-strong); }
+  .rh-title-block .meta-row .ai-stamp {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; color: var(--ink-3);
+    background: var(--bg-2); padding: 3px 9px; border-radius: 999px;
+    border: 1px solid var(--rule);
+  }
+  .rh-title-block .meta-row .ai-stamp svg { width: 10px; height: 10px; color: var(--terra); }
+
+  .rh-actions {
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  .rh-actions .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 14px;
+    border-radius: 7px;
+    font-size: 12.5px; font-weight: 500;
+    transition: all .15s;
+  }
+  .rh-actions .btn.outline {
+    background: var(--paper); color: var(--ink-2); border: 1px solid var(--rule-strong);
+  }
+  .rh-actions .btn.outline:hover { color: var(--ink); border-color: var(--ink); }
+  .rh-actions .btn.outline svg { width: 12px; height: 12px; }
+  .rh-actions .btn.regen {
+    background: var(--terra); color: #fff;
+  }
+  .rh-actions .btn.regen:hover { background: var(--terra-2); }
+  .rh-actions .btn.regen svg { width: 12px; height: 12px; }
+
+  /* Big progress strip */
+  .prog-strip {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+    align-items: stretch;
+    gap: 0;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .prog-cell {
+    padding: 16px 20px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .prog-cell .lab {
+    font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+  }
+  .prog-cell .v {
+    font-family: var(--serif); font-size: 22px; font-weight: 400;
+    letter-spacing: -0.01em; color: var(--ink); line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .prog-cell .v em { font-style: italic; color: var(--green); }
+  .prog-cell .v.t em { color: var(--terra); }
+  .prog-cell .v .unit { font-size: 13px; font-weight: 400; color: var(--ink-3); margin-left: 3px; font-style: normal; font-family: var(--sans); }
+  .prog-cell .sub {
+    font-size: 11px; color: var(--ink-2); margin-top: 1px;
+  }
+  .prog-cell .sub .pct { color: var(--green); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .prog-cell .sub .pct::before { content: '▲ '; font-size: 8px; }
+  .prog-divider {
+    width: 1px; background: var(--rule); margin: 14px 0;
+  }
+
+  /* ============ TOOLBAR ============ */
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--bg);
+    position: sticky; top: 60px; z-index: 30;
+  }
+  .view-switch {
+    display: inline-flex; gap: 0;
+    background: var(--bg-2);
+    border-radius: 8px; padding: 3px;
+    border: 1px solid var(--rule);
+  }
+  .view-switch button {
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--ink-3);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all .15s;
+  }
+  .view-switch button:hover { color: var(--ink); }
+  .view-switch button svg { width: 12px; height: 12px; }
+  .view-switch button.on { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+
+  .filter-group { display: flex; align-items: center; gap: 10px; }
+  .filter-pill {
+    padding: 6px 12px 6px 11px;
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-size: 12px; color: var(--ink-2); font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all .15s;
+  }
+  .filter-pill:hover { border-color: var(--rule-strong); color: var(--ink); }
+  .filter-pill svg { width: 11px; height: 11px; opacity: 0.6; }
+  .filter-pill.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .filter-pill .x { color: var(--ink-3); margin-left: 2px; font-size: 11px; }
+  .filter-pill.active .x { color: rgba(247,242,232,0.7); }
+
+  .toolbar-right {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  /* ============ LAYOUT WITH INSPECTOR ============ */
+  .roadmap-stage {
+    display: grid;
+    grid-template-columns: 1fr var(--inspect-w);
+    min-height: calc(100vh - 60px);
+  }
+
+  .canvas-area {
+    padding: 28px;
+    overflow: auto;
+    min-width: 0;
+  }
+
+  /* ============ TIMELINE VIEW ============ */
+  .timeline {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  /* Phase header */
+  .phase {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color .15s;
+  }
+  .phase:hover { border-color: var(--rule-strong); }
+
+  .phase-hd {
+    padding: 18px 22px;
+    display: grid;
+    grid-template-columns: 22px 60px 1fr auto;
+    gap: 18px;
+    align-items: center;
+    cursor: pointer;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    position: relative;
+  }
+  .phase-hd .drag-handle {
+    color: var(--rule-strong); font-size: 14px;
+    opacity: 0; transition: opacity .15s;
+    user-select: none;
+  }
+  .phase:hover .drag-handle { opacity: 1; }
+  .phase-hd .drag-handle svg { width: 14px; height: 14px; }
+
+  .phase-hd .num {
+    font-family: var(--serif); font-style: italic; font-weight: 350;
+    font-size: 32px; line-height: 1; color: var(--terra);
+    text-align: center;
+  }
+
+  .phase-hd .info {
+    display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  }
+  .phase-hd .info .title-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .phase-hd .info .title-row h3 {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 20px; letter-spacing: -0.01em; color: var(--ink);
+    line-height: 1.15;
+  }
+  .phase-hd .info .title-row .status {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 600;
+    padding: 3px 8px; border-radius: 4px;
+  }
+  .status.done { background: var(--green-soft); color: var(--green-2); }
+  .status.current { background: var(--terra); color: #fff; }
+  .status.future { background: var(--bg-2); color: var(--ink-3); }
+  .status.locked { background: var(--bg-3); color: var(--ink-3); }
+
+  .phase-hd .info .meta {
+    font-size: 12px; color: var(--ink-3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .phase-hd .info .meta b { color: var(--ink-2); font-weight: 600; }
+  .phase-hd .info .meta .sep { color: var(--rule-strong); }
+  .phase-hd .info .meta em { color: var(--terra); font-style: italic; font-family: var(--serif); font-size: 13px; }
+
+  .phase-hd .right-col {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  }
+  .phase-hd .right-col .pct {
+    font-family: var(--serif); font-size: 22px; font-weight: 400;
+    letter-spacing: -0.01em;
+    color: var(--ink); line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .phase-hd .right-col .pct .ofw { font-size: 12px; color: var(--ink-3); margin-left: 2px; font-weight: 400; }
+  .phase-hd .right-col .pct em { font-style: italic; color: var(--green); }
+  .phase.is-future .right-col .pct em { color: var(--ink-3); }
+  .phase.is-current .right-col .pct em { color: var(--terra); }
+
+  .phase-progress {
+    height: 100%; width: 110px;
+    display: flex; align-items: center;
+  }
+  .phase-progress .track {
+    width: 100%; height: 3px;
+    background: var(--bg-2); border-radius: 999px; overflow: hidden;
+  }
+  .phase-progress .fill {
+    height: 100%; background: var(--green); border-radius: 999px;
+  }
+  .phase.is-current .phase-progress .fill { background: var(--terra); }
+  .phase.is-future .phase-progress .fill { display: none; }
+
+  /* Phase body / milestones */
+  .phase-body {
+    padding: 18px 22px 22px;
+    display: flex; flex-direction: column;
+    background:
+      linear-gradient(to right, var(--bg) 0px, var(--bg) 1px, transparent 1px, transparent 100%) 32px 0/40px 100% no-repeat;
+  }
+  .phase.is-current .phase-body { background: var(--terra-faint); }
+  .phase.is-current .phase-body { padding-top: 22px; }
+
+  .phase-body .body-meta {
+    display: flex; gap: 20px; padding: 0 0 16px;
+    border-bottom: 1px dashed var(--rule);
+    margin-bottom: 18px;
+    font-size: 12.5px;
+  }
+  .phase-body .body-meta .b-cell .lbl {
+    font-family: var(--mono); font-size: 9.5px;
+    color: var(--ink-3); letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 3px;
+  }
+  .phase-body .body-meta .b-cell .v {
+    font-size: 12.5px; color: var(--ink); font-weight: 500;
+  }
+  .phase-body .body-meta .b-cell .v em { font-style: italic; color: var(--terra); font-family: var(--serif); font-size: 13px; }
+
+  .ms-list { display: flex; flex-direction: column; }
+  .ms {
+    display: grid;
+    grid-template-columns: 22px 28px 1fr 90px 80px;
+    gap: 14px; align-items: center;
+    padding: 12px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .12s;
+    border: 1px solid transparent;
+  }
+  .ms:hover { background: var(--paper); border-color: var(--rule); }
+  .ms.is-selected { background: var(--paper); border-color: var(--terra); box-shadow: 0 0 0 3px var(--terra-faint); }
+  .ms .check {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--rule-strong);
+    border-radius: 5px;
+    background: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .ms.done .check { background: var(--green); border-color: var(--green); color: #fff; }
+  .ms .ms-num {
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-3); letter-spacing: 0.04em;
+    font-weight: 500;
+  }
+  .ms .ms-body { min-width: 0; }
+  .ms .ms-body .ttl {
+    font-size: 13.5px; font-weight: 500; color: var(--ink);
+    margin-bottom: 3px; line-height: 1.3;
+  }
+  .ms.done .ms-body .ttl {
+    text-decoration: line-through;
+    text-decoration-color: var(--rule-strong);
+    color: var(--ink-3);
+  }
+  .ms .ms-body .desc {
+    font-size: 11.5px; color: var(--ink-3); line-height: 1.4;
+  }
+  .ms .ms-body .tags {
+    display: flex; gap: 6px; margin-top: 5px;
+  }
+  .ms .ms-body .tag {
+    font-size: 10px; font-weight: 600;
+    padding: 1px 6px; border-radius: 3px;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .tag.build { background: var(--green-soft); color: var(--green-2); }
+  .tag.skill { background: var(--terra-soft); color: var(--terra-2); }
+  .tag.network { background: var(--gold-soft); color: var(--gold); }
+  .tag.read { background: var(--blue-soft); color: var(--blue); }
+
+  .ms .ms-due {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--ink-3); letter-spacing: 0.02em;
+    text-align: right;
+  }
+  .ms .ms-due b { color: var(--ink-2); font-weight: 600; }
+  .ms.is-due-soon .ms-due b { color: var(--terra-2); }
+
+  .ms .ms-effort {
+    display: flex; align-items: center; justify-content: flex-end; gap: 5px;
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-3);
+  }
+  .ms .ms-effort .effort-bars {
+    display: flex; gap: 2px;
+  }
+  .ms .ms-effort .effort-bars span {
+    width: 4px; height: 9px; background: var(--rule-strong); border-radius: 1px;
+    opacity: 0.4;
+  }
+  .ms .ms-effort .effort-bars span.on { opacity: 1; background: var(--ink-2); }
+
+  .add-ms {
+    display: flex; align-items: center; gap: 9px;
+    padding: 10px 12px;
+    margin-top: 4px;
+    color: var(--ink-3);
+    font-size: 12.5px; font-weight: 500;
+    border-radius: 8px;
+    border: 1px dashed var(--rule);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .add-ms:hover { color: var(--terra); border-color: var(--terra); background: var(--terra-faint); }
+  .add-ms svg { width: 12px; height: 12px; }
+
+  /* Phase connector visual */
+  .phase-connector {
+    height: 28px;
+    margin: -8px 0;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .phase-connector::before {
+    content: ''; width: 1px; height: 100%;
+    background: linear-gradient(to bottom, var(--rule-strong), transparent);
+  }
+  .phase-connector .arrow-down {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--bg-2); border: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-3); font-size: 10px;
+  }
+
+  /* ============ INSPECTOR PANEL ============ */
+  .inspector {
+    border-left: 1px solid var(--rule);
+    background: var(--bg);
+    padding: 24px 24px 100px;
+    overflow-y: auto;
+    max-height: calc(100vh - 60px);
+    position: sticky; top: 60px;
+  }
+  .inspector::-webkit-scrollbar { width: 5px; }
+  .inspector::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
+
+  .ins-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 14px; border-bottom: 1px solid var(--rule);
+    margin-bottom: 18px;
+  }
+  .ins-head .crumb {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+  }
+  .ins-head .ix-actions { display: flex; gap: 4px; }
+  .ins-head .ix-actions button {
+    width: 26px; height: 26px; border-radius: 5px;
+    color: var(--ink-3); display: flex; align-items: center; justify-content: center;
+    transition: all .12s;
+  }
+  .ins-head .ix-actions button:hover { background: var(--bg-2); color: var(--ink); }
+  .ins-head .ix-actions svg { width: 12px; height: 12px; }
+
+  .ins-status {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 600;
+    background: var(--terra); color: #fff;
+    padding: 4px 9px; border-radius: 4px;
+    margin-bottom: 12px;
+  }
+  .ins-status .blip { width: 6px; height: 6px; background: #fff; border-radius: 50%; box-shadow: 0 0 0 0 rgba(255,255,255,0.7); animation: blip 1.6s infinite; }
+  @keyframes blip { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.7); } 50% { box-shadow: 0 0 0 4px rgba(255,255,255,0); } }
+
+  .ins-title {
+    font-family: var(--serif); font-weight: 450;
+    font-size: 24px; line-height: 1.15; letter-spacing: -0.018em;
+    color: var(--ink); margin-bottom: 8px;
+  }
+  .ins-num {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--ink-3); letter-spacing: 0.06em; margin-bottom: 12px;
+  }
+  .ins-desc {
+    font-size: 13px; color: var(--ink-2); line-height: 1.55;
+    margin-bottom: 18px;
+  }
+
+  /* Quick stats */
+  .ix-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-bottom: 22px;
+  }
+  .ix-stat {
+    background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 11px 13px;
+  }
+  .ix-stat .lbl {
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; margin-bottom: 4px;
+  }
+  .ix-stat .v {
+    font-family: var(--serif); font-size: 17px; font-weight: 500;
+    letter-spacing: -0.01em; color: var(--ink);
+    line-height: 1.05;
+  }
+  .ix-stat .v em { font-style: italic; color: var(--terra); }
+  .ix-stat .v .u { font-size: 11px; color: var(--ink-3); font-weight: 400; margin-left: 2px; font-style: normal; font-family: var(--sans); }
+
+  .ix-section { margin-bottom: 22px; }
+  .ix-section h6 {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+    margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .ix-section h6 .add {
+    color: var(--terra); text-transform: none; letter-spacing: 0;
+    font-size: 11px; font-style: italic; font-weight: 500; font-family: var(--serif);
+  }
+
+  /* Skills list with delta */
+  .skill-row {
+    display: grid; grid-template-columns: 1fr auto;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--rule);
+    font-size: 12.5px;
+    align-items: center;
+  }
+  .skill-row:last-child { border-bottom: none; }
+  .skill-row .nm { color: var(--ink); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .skill-row .nm .lvl {
+    display: inline-flex; gap: 1px;
+  }
+  .skill-row .nm .lvl span {
+    width: 4px; height: 9px; background: var(--rule-strong); border-radius: 1px; opacity: 0.5;
+  }
+  .skill-row .nm .lvl span.on { background: var(--green); opacity: 1; }
+  .skill-row .delta {
+    font-family: var(--mono); font-size: 10.5px;
+    font-weight: 600;
+    color: var(--green); text-align: right;
+  }
+  .skill-row .delta.warn { color: var(--terra-2); }
+
+  /* Resources */
+  .res {
+    display: flex; gap: 11px; align-items: flex-start;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--rule);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .res:last-child { border-bottom: none; }
+  .res:hover .nm { color: var(--terra); }
+  .res .res-ic {
+    width: 26px; height: 26px; border-radius: 6px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper); border: 1px solid var(--rule);
+  }
+  .res .res-ic svg { width: 12px; height: 12px; color: var(--ink-2); }
+  .res .b { flex: 1; min-width: 0; }
+  .res .b .nm {
+    font-size: 12.5px; font-weight: 500; color: var(--ink);
+    margin-bottom: 2px; line-height: 1.3;
+    transition: color .12s;
+  }
+  .res .b .meta {
+    font-size: 10.5px; color: var(--ink-3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .res .b .meta .typ { font-family: var(--mono); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+  .res .b .meta em { font-style: italic; color: var(--terra-2); font-family: var(--serif); font-size: 11px; }
+
+  /* Coach reasoning */
+  .coach-block {
+    background: var(--ink); color: var(--bg);
+    border-radius: 12px; padding: 18px;
+    position: relative; overflow: hidden;
+  }
+  .coach-block::before {
+    content: ''; position: absolute;
+    top: -30px; right: -30px; width: 100px; height: 100px;
+    background: radial-gradient(circle, var(--terra-faint) 0%, transparent 60%);
+    opacity: 0.15;
+  }
+  .coach-block .lab {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--terra-soft); font-weight: 600;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .coach-block .lab svg { width: 11px; height: 11px; }
+  .coach-block .body {
+    font-family: var(--serif); font-style: italic; font-weight: 350;
+    font-size: 14.5px; line-height: 1.5;
+    color: rgba(247,242,232,0.92);
+    position: relative;
+  }
+  .coach-block .body em { color: var(--terra-soft); font-style: italic; font-weight: 400; }
+  .coach-block .actions {
+    display: flex; gap: 8px;
+    margin-top: 14px;
+    position: relative;
+  }
+  .coach-block .ca {
+    background: rgba(255,255,255,0.1); color: var(--bg);
+    padding: 6px 11px; border-radius: 5px;
+    font-size: 11.5px; font-weight: 500;
+    transition: background .15s;
+  }
+  .coach-block .ca:hover { background: rgba(255,255,255,0.18); }
+  .coach-block .ca.primary {
+    background: var(--terra); color: #fff;
+  }
+  .coach-block .ca.primary:hover { background: var(--terra-2); }
+
+  /* Activity / dependents */
+  .dep-row {
+    display: flex; gap: 9px; padding: 8px 0;
+    font-size: 12.5px; color: var(--ink-2);
+    align-items: center;
+  }
+  .dep-row .dep-ic {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .dep-row .dep-ic.unblocks { background: var(--green); }
+  .dep-row .dep-ic.blocked-by { background: var(--terra); }
+  .dep-row .dep-ic.relates { background: var(--gold); }
+  .dep-row .dep-lab {
+    font-family: var(--mono); font-size: 9.5px;
+    color: var(--ink-3); letter-spacing: 0.08em;
+    text-transform: uppercase; min-width: 70px;
+  }
+  .dep-row .dep-name { color: var(--ink); font-weight: 500; }
+
+  /* responsive */
+  @media (max-width: 1280px) {
+    :root { --inspect-w: 340px; }
+  }
+  @media (max-width: 1100px) {
+    .roadmap-stage { grid-template-columns: 1fr; }
+    .inspector { display: none; }
+    .prog-strip { grid-template-columns: 1fr 1fr; }
+    .prog-divider { display: none; }
+  }
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; }
+    aside.sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================== SIDEBAR ================== -->
+<aside class="sidebar">
+  <a href="#" class="brand">
+    <svg class="mark" viewBox="0 0 28 28" fill="none">
+      <path d="M3 22 C 8 22, 8 6, 14 6 S 20 22, 25 22" stroke="#15140F" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="3" cy="22" r="2.2" fill="#C95A3D"/>
+      <circle cx="14" cy="6" r="2.2" fill="#134E3A"/>
+      <circle cx="25" cy="22" r="2.2" fill="#15140F"/>
+    </svg>
+    Roadmap
+  </a>
+
+  <button class="cmd-search">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3" stroke-linecap="round"/></svg>
+    Search anything…
+    <span class="kbd">⌘K</span>
+  </button>
+
+  <div class="nav-section">
+    <div class="nav-eyebrow">Planning</div>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M3 13l1.5-1.5M11.5 4.5L13 3" stroke-linecap="round"/></svg>
+      Today
+    </a>
+    <a href="#" class="nav-link active">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 13c2 0 2-8 4-8s2 8 4 8 2-8 4-8"/><circle cx="2" cy="13" r="1.4" fill="currentColor"/><circle cx="14" cy="5" r="1.4" fill="currentColor"/></svg>
+      Roadmap
+    </a>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="4" cy="4" r="1.8"/><circle cx="12" cy="4" r="1.8"/><circle cx="8" cy="12" r="1.8"/><circle cx="13" cy="11" r="1.4"/><path d="M5.5 4h5M5 5.5l2 5M11 5.5l-2 5M9 12h2.5"/></svg>
+      Skill Graph
+    </a>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6l-3 2v-2H4a2 2 0 0 1-2-2z"/><path d="M8 5l1 2 2 .5-1.5 1.4.4 2L8 9.9 6.1 11l.4-2L5 7.5l2-.5z" fill="currentColor" stroke="none"/></svg>
+      AI Coach
+      <span class="badge">2</span>
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-eyebrow">Intelligence</div>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 12l3-4 3 2 4-6 2 3"/><circle cx="2" cy="12" r="1" fill="currentColor"/><circle cx="14" cy="7" r="1" fill="currentColor"/></svg>
+      Market Pulse
+    </a>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3"/><circle cx="8" cy="8" r="1" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/></svg>
+      Opportunities
+      <span class="badge">5</span>
+    </a>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 5l6 4 6-4"/></svg>
+      Newsletter
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-eyebrow">Assets</div>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>
+      CV &amp; Profile
+    </a>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="4" width="12" height="9" rx="1.2"/><path d="M2 7h12M5 4V2.5h6V4"/><circle cx="8" cy="10" r="1" fill="currentColor"/></svg>
+      Evidence Vault
+    </a>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 10l3-3 3 3 5-5"/></svg>
+      Portfolio
+    </a>
+    <a href="#" class="nav-link">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6" cy="6" r="2.4"/><circle cx="11" cy="5" r="1.8"/><path d="M2 13c0-2.2 2-3.6 4-3.6s4 1.4 4 3.6M9 13c0-1.6 1.5-2.6 3-2.6s2 .8 2 2.4"/></svg>
+      Network
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-eyebrow">Account</div>
+    <a href="#" class="nav-link dimmed">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2"/><path d="M13 8.7l1.4-.4-.4-1.4-1.4-.2-.4-1.4 1-1L11.6 3l-1 1-1.4-.4-.2-1.4-1.4-.4L7.2 3l-1.4.4-1-1L3.4 3.6l1 1-.4 1.4L2.6 6.4 2.2 7.8l1.4.4.4 1.4-1 1L4.4 12l1-1 1.4.4.2 1.4 1.4.4.4-1.4 1.4-.4 1 1L12.6 11.4l-1-1z"/></svg>
+      Settings
+    </a>
+  </div>
+
+  <div style="flex:1"></div>
+
+  <div class="user-card">
+    <div class="avatar">L</div>
+    <div class="who">
+      <div class="name">Léa Schneider</div>
+      <div class="plan">Pro · Zürich, CH</div>
+    </div>
+    <span class="chev">⌄</span>
+  </div>
+</aside>
+
+
+<!-- ================== MAIN ================== -->
+<div class="main-wrap">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="crumbs">
+      <span class="home">Home</span>
+      <span class="sep">/</span>
+      <span class="here">Roadmap</span>
+    </div>
+    <div class="top-actions">
+      <button class="iconbtn" title="History"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2" stroke-linecap="round"/></svg></button>
+      <button class="iconbtn" title="Share"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="8" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><path d="M6 7l4-2M6 9l4 2"/></svg></button>
+      <button class="iconbtn" title="Print / Export"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 6V2h6v4M3 6h10v6h-2v2H5v-2H3z"/><circle cx="11" cy="9" r=".7" fill="currentColor"/></svg></button>
+      <button class="quick-add">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 1v10M1 6h10" stroke-linecap="round"/></svg>
+        Add milestone
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ HEADER ============ -->
+  <section class="roadmap-header">
+    <div class="rh-top">
+      <div class="rh-title-block">
+        <div class="breadcrumb-tag">
+          <span class="num">№ 01</span>
+          · Active roadmap
+        </div>
+        <h1>
+          Full-Stack Engineer
+          <span class="arrow">→</span>
+          <em>AI Systems Engineer</em>
+          <button class="edit-title" title="Edit title">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10l1-3 6-6 2 2-6 6-3 1z" stroke-linejoin="round"/></svg>
+          </button>
+        </h1>
+        <div class="meta-row">
+          <span><b>18-month</b> track</span>
+          <span class="sep">·</span>
+          <span>Started <b>Jan 3, 2026</b></span>
+          <span class="sep">·</span>
+          <span>4 phases · <b>26 milestones</b></span>
+          <span class="sep">·</span>
+          <span class="ai-stamp">
+            <svg viewBox="0 0 12 12" fill="currentColor"><path d="M6 1l1.2 3.4L10.6 6 7.2 7.6 6 11l-1.2-3.4L1.4 6l3.4-1.6z"/></svg>
+            AI-generated · last tuned 2 days ago
+          </span>
+        </div>
+      </div>
+
+      <div class="rh-actions">
+        <button class="btn outline">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="5"/><path d="M6 3v3l2 1.5" stroke-linecap="round"/></svg>
+          Version history
+        </button>
+        <button class="btn outline">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8.5h6M3 5.5h6M2 2.5h8v7H2z"/></svg>
+          Compare scenarios
+        </button>
+        <button class="btn regen">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 6a4 4 0 0 1 7-2.6M10 6a4 4 0 0 1-7 2.6M9 1v3h-3M3 11V8h3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Regenerate with AI
+        </button>
+      </div>
+    </div>
+
+    <!-- Progress strip -->
+    <div class="prog-strip">
+      <div class="prog-cell">
+        <div class="lab">Overall progress</div>
+        <div class="v"><em>46%</em><span class="unit">complete</span></div>
+        <div class="sub"><span class="pct">+12</span> in last 30 days</div>
+      </div>
+      <div class="prog-divider"></div>
+      <div class="prog-cell">
+        <div class="lab">Current phase</div>
+        <div class="v t"><em>Phase 2</em></div>
+        <div class="sub">Specialisation · 4 of 7 milestones</div>
+      </div>
+      <div class="prog-divider"></div>
+      <div class="prog-cell">
+        <div class="lab">Next milestone</div>
+        <div class="v">M-08<span class="unit">Eval framework</span></div>
+        <div class="sub">Due in <b style="color:var(--terra-2)">14 days</b></div>
+      </div>
+      <div class="prog-divider"></div>
+      <div class="prog-cell">
+        <div class="lab">Target date</div>
+        <div class="v"><em>Oct 2027</em></div>
+        <div class="sub">On track · 2 days ahead of plan</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TOOLBAR ============ -->
+  <div class="toolbar">
+    <div class="view-switch">
+      <button class="on">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="3" cy="7" r="1.5"/><circle cx="11" cy="7" r="1.5"/><path d="M4.5 7h5"/></svg>
+        Timeline
+      </button>
+      <button>
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="3" height="10"/><rect x="6" y="2" width="3" height="6"/><rect x="10" y="2" width="2" height="8"/></svg>
+        Kanban
+      </button>
+      <button>
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h10M2 7h10M2 10h7"/></svg>
+        List
+      </button>
+      <button>
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="10" height="10" rx="1"/><path d="M2 5h10M5 2v10"/></svg>
+        Calendar
+      </button>
+    </div>
+
+    <div class="filter-group">
+      <button class="filter-pill">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h8l-3 4v3l-2 1V7z" stroke-linejoin="round"/></svg>
+        All categories
+        <span class="x">⌄</span>
+      </button>
+      <button class="filter-pill active">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="4"/><path d="M6 4v2l1.5 1" stroke-linecap="round"/></svg>
+        This phase
+        <span class="x">×</span>
+      </button>
+      <button class="filter-pill">
+        Hide completed
+        <span class="x">⌄</span>
+      </button>
+    </div>
+
+    <div class="toolbar-right">
+      <button class="filter-pill">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h8M3 6h6M5 8h2"/></svg>
+        Sort: Phase order
+      </button>
+      <button class="iconbtn" title="More"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg></button>
+    </div>
+  </div>
+
+  <!-- ============ STAGE ============ -->
+  <div class="roadmap-stage">
+
+    <!-- ======== TIMELINE CANVAS ======== -->
+    <div class="canvas-area">
+      <div class="timeline">
+
+        <!-- ========== PHASE 1 (DONE) ========== -->
+        <div class="phase is-done">
+          <div class="phase-hd">
+            <span class="drag-handle"><svg viewBox="0 0 14 14" fill="currentColor"><circle cx="5" cy="3" r="1"/><circle cx="9" cy="3" r="1"/><circle cx="5" cy="7" r="1"/><circle cx="9" cy="7" r="1"/><circle cx="5" cy="11" r="1"/><circle cx="9" cy="11" r="1"/></svg></span>
+            <div class="num">01</div>
+            <div class="info">
+              <div class="title-row">
+                <h3>Foundation in machine learning</h3>
+                <span class="status done">Complete</span>
+              </div>
+              <div class="meta">
+                <b>Jan 3</b> – <b>Mar 28, 2026</b>
+                <span class="sep">·</span>
+                <span>12 weeks</span>
+                <span class="sep">·</span>
+                <span><b>8 of 8</b> milestones</span>
+                <span class="sep">·</span>
+                <em>Finished 4 days ahead</em>
+              </div>
+            </div>
+            <div class="phase-progress"><div class="track"><div class="fill" style="width:100%"></div></div></div>
+            <div class="right-col">
+              <div class="pct"><em>100</em><span class="ofw">%</span></div>
+            </div>
+          </div>
+          <div class="phase-body" style="display:none;"></div>
+        </div>
+
+        <div class="phase-connector"><span class="arrow-down">↓</span></div>
+
+        <!-- ========== PHASE 2 (CURRENT) ========== -->
+        <div class="phase is-current">
+          <div class="phase-hd">
+            <span class="drag-handle"><svg viewBox="0 0 14 14" fill="currentColor"><circle cx="5" cy="3" r="1"/><circle cx="9" cy="3" r="1"/><circle cx="5" cy="7" r="1"/><circle cx="9" cy="7" r="1"/><circle cx="5" cy="11" r="1"/><circle cx="9" cy="11" r="1"/></svg></span>
+            <div class="num">02</div>
+            <div class="info">
+              <div class="title-row">
+                <h3>Specialisation in applied ML</h3>
+                <span class="status current">You are here</span>
+              </div>
+              <div class="meta">
+                <b>Mar 29</b> – <b>Jun 27, 2026</b>
+                <span class="sep">·</span>
+                <span>13 weeks</span>
+                <span class="sep">·</span>
+                <span><b>4 of 7</b> milestones</span>
+                <span class="sep">·</span>
+                <em>2 days ahead of pace</em>
+              </div>
+            </div>
+            <div class="phase-progress"><div class="track"><div class="fill" style="width:57%"></div></div></div>
+            <div class="right-col">
+              <div class="pct"><em>57</em><span class="ofw">%</span></div>
+            </div>
+          </div>
+
+          <div class="phase-body">
+            <div class="body-meta">
+              <div class="b-cell">
+                <div class="lbl">Anchor goal</div>
+                <div class="v">Ship a production-grade RAG system end-to-end</div>
+              </div>
+              <div class="b-cell">
+                <div class="lbl">Weekly load</div>
+                <div class="v"><em>~12 h</em> · 60% build, 25% read, 15% network</div>
+              </div>
+              <div class="b-cell">
+                <div class="lbl">Phase exit criteria</div>
+                <div class="v">All 7 milestones · Health ≥ 70</div>
+              </div>
+            </div>
+
+            <div class="ms-list">
+              <!-- M-05 done -->
+              <div class="ms done">
+                <span class="check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="ms-num">M-05</span>
+                <div class="ms-body">
+                  <div class="ttl">Build a baseline RAG with LangChain &amp; pgvector</div>
+                  <div class="desc">Indexed docs, retriever, simple eval harness — ship to GitHub.</div>
+                  <div class="tags"><span class="tag build">Build</span><span class="tag skill">Skill</span></div>
+                </div>
+                <div class="ms-due">Done <b>Apr 2</b></div>
+                <div class="ms-effort"><span class="effort-bars"><span class="on"></span><span class="on"></span><span></span></span> 6h</div>
+              </div>
+
+              <!-- M-06 done -->
+              <div class="ms done">
+                <span class="check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="ms-num">M-06</span>
+                <div class="ms-body">
+                  <div class="ttl">Read &amp; annotate "Building Effective Agents" (Anthropic)</div>
+                  <div class="desc">Internalise the patterns. Write a 1-page summary in your second-brain.</div>
+                  <div class="tags"><span class="tag read">Read</span></div>
+                </div>
+                <div class="ms-due">Done <b>Apr 9</b></div>
+                <div class="ms-effort"><span class="effort-bars"><span class="on"></span><span></span><span></span></span> 3h</div>
+              </div>
+
+              <!-- M-07 done -->
+              <div class="ms done">
+                <span class="check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="ms-num">M-07</span>
+                <div class="ms-body">
+                  <div class="ttl">Production-grade retrieval pipeline</div>
+                  <div class="desc">Hybrid search, re-ranking, latency &lt; 300ms p95. Public repo with README.</div>
+                  <div class="tags"><span class="tag build">Build</span><span class="tag skill">Skill</span></div>
+                </div>
+                <div class="ms-due">Done <b>Apr 22</b></div>
+                <div class="ms-effort"><span class="effort-bars"><span class="on"></span><span class="on"></span><span class="on"></span></span> 14h</div>
+              </div>
+
+              <!-- M-08 in progress / selected -->
+              <div class="ms is-selected is-due-soon">
+                <span class="check"></span>
+                <span class="ms-num">M-08</span>
+                <div class="ms-body">
+                  <div class="ttl">Build &amp; demo an LLM eval framework</div>
+                  <div class="desc">Define metrics for your RAG system. Harness, dashboard, write-up. Ship publicly.</div>
+                  <div class="tags"><span class="tag build">Build</span><span class="tag skill">Skill</span></div>
+                </div>
+                <div class="ms-due">Due <b>May 13</b></div>
+                <div class="ms-effort"><span class="effort-bars"><span class="on"></span><span class="on"></span><span class="on"></span></span> 12h</div>
+              </div>
+
+              <!-- M-09 todo -->
+              <div class="ms">
+                <span class="check"></span>
+                <span class="ms-num">M-09</span>
+                <div class="ms-body">
+                  <div class="ttl">Open-source contribution to a leading RAG library</div>
+                  <div class="desc">One meaningful PR merged. Pre-screened "good first issue" list ready.</div>
+                  <div class="tags"><span class="tag build">Build</span><span class="tag network">Network</span></div>
+                </div>
+                <div class="ms-due">Due <b>May 27</b></div>
+                <div class="ms-effort"><span class="effort-bars"><span class="on"></span><span class="on"></span><span></span></span> 6h</div>
+              </div>
+
+              <!-- M-10 todo -->
+              <div class="ms">
+                <span class="check"></span>
+                <span class="ms-num">M-10</span>
+                <div class="ms-body">
+                  <div class="ttl">Coffee chat with 3 Senior ML engineers in Zürich</div>
+                  <div class="desc">Coach has shortlisted 8 from your 2nd-degree network. Auto-drafted intros.</div>
+                  <div class="tags"><span class="tag network">Network</span></div>
+                </div>
+                <div class="ms-due">Due <b>Jun 3</b></div>
+                <div class="ms-effort"><span class="effort-bars"><span class="on"></span><span></span><span></span></span> 3h</div>
+              </div>
+
+              <!-- M-11 todo -->
+              <div class="ms">
+                <span class="check"></span>
+                <span class="ms-num">M-11</span>
+                <div class="ms-body">
+                  <div class="ttl">Phase 2 retrospective &amp; portfolio polish</div>
+                  <div class="desc">Update CV, GitHub README, LinkedIn. Record short walkthrough of RAG project.</div>
+                  <div class="tags"><span class="tag build">Build</span></div>
+                </div>
+                <div class="ms-due">Due <b>Jun 24</b></div>
+                <div class="ms-effort"><span class="effort-bars"><span class="on"></span><span></span><span></span></span> 4h</div>
+              </div>
+
+              <button class="add-ms">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v8M2 6h8" stroke-linecap="round"/></svg>
+                Add a milestone to this phase
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="phase-connector"><span class="arrow-down">↓</span></div>
+
+        <!-- ========== PHASE 3 (FUTURE) ========== -->
+        <div class="phase is-future">
+          <div class="phase-hd">
+            <span class="drag-handle"><svg viewBox="0 0 14 14" fill="currentColor"><circle cx="5" cy="3" r="1"/><circle cx="9" cy="3" r="1"/><circle cx="5" cy="7" r="1"/><circle cx="9" cy="7" r="1"/><circle cx="5" cy="11" r="1"/><circle cx="9" cy="11" r="1"/></svg></span>
+            <div class="num">03</div>
+            <div class="info">
+              <div class="title-row">
+                <h3>Portfolio &amp; visibility</h3>
+                <span class="status future">Upcoming</span>
+              </div>
+              <div class="meta">
+                <b>Jun 28</b> – <b>Sep 26, 2026</b>
+                <span class="sep">·</span>
+                <span>13 weeks</span>
+                <span class="sep">·</span>
+                <span><b>0 of 6</b> milestones</span>
+                <span class="sep">·</span>
+                <em>Unlocks when Phase 2 closes</em>
+              </div>
+            </div>
+            <div class="phase-progress"><div class="track"><div class="fill" style="width:0%"></div></div></div>
+            <div class="right-col">
+              <div class="pct"><em>0</em><span class="ofw">%</span></div>
+            </div>
+          </div>
+          <div class="phase-body" style="display:none;"></div>
+        </div>
+
+        <div class="phase-connector"><span class="arrow-down">↓</span></div>
+
+        <!-- ========== PHASE 4 (LOCKED) ========== -->
+        <div class="phase is-future">
+          <div class="phase-hd">
+            <span class="drag-handle"><svg viewBox="0 0 14 14" fill="currentColor"><circle cx="5" cy="3" r="1"/><circle cx="9" cy="3" r="1"/><circle cx="5" cy="7" r="1"/><circle cx="9" cy="7" r="1"/><circle cx="5" cy="11" r="1"/><circle cx="9" cy="11" r="1"/></svg></span>
+            <div class="num">04</div>
+            <div class="info">
+              <div class="title-row">
+                <h3>Interviews &amp; offers</h3>
+                <span class="status locked">Locked · Q4 2026</span>
+              </div>
+              <div class="meta">
+                <b>Sep 27, 2026</b> – <b>Mar 28, 2027</b>
+                <span class="sep">·</span>
+                <span>~26 weeks</span>
+                <span class="sep">·</span>
+                <span><b>0 of 5</b> milestones</span>
+                <span class="sep">·</span>
+                <em>Mock interviews · applications · negotiation</em>
+              </div>
+            </div>
+            <div class="phase-progress"><div class="track"><div class="fill" style="width:0%"></div></div></div>
+            <div class="right-col">
+              <div class="pct"><em>0</em><span class="ofw">%</span></div>
+            </div>
+          </div>
+          <div class="phase-body" style="display:none;"></div>
+        </div>
+
+        <!-- After last phase -->
+        <div class="phase-connector"><span class="arrow-down">🎯</span></div>
+
+        <div class="phase" style="background: var(--ink); color: var(--bg); border-color: var(--ink); text-align: center; padding: 28px 22px;">
+          <div style="font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--terra-soft); margin-bottom: 6px;">— Target outcome —</div>
+          <div style="font-family: var(--serif); font-size: 26px; font-weight: 400; letter-spacing: -0.018em; line-height: 1.15;">AI Systems Engineer · <span style="font-style:italic; color:var(--terra-soft);">EU or remote</span></div>
+          <div style="font-size: 12.5px; color: rgba(247,242,232,0.6); margin-top: 8px;">Median TC <strong style="color:var(--bg);">CHF 158k</strong> · 92% match against your CV by end of plan</div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ======== INSPECTOR PANEL ======== -->
+    <aside class="inspector">
+      <div class="ins-head">
+        <div class="crumb">Phase 02 · Milestone</div>
+        <div class="ix-actions">
+          <button title="Pin"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1v6M3 7h6l-1 3H4z M6 7v4"/></svg></button>
+          <button title="Edit"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10l1-3 6-6 2 2-6 6-3 1z" stroke-linejoin="round"/></svg></button>
+          <button title="Close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3l6 6M9 3l-6 6" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+
+      <div class="ins-status">
+        <span class="blip"></span>
+        Active · due in 14 days
+      </div>
+
+      <div class="ins-num">№ M-08 · Phase 02</div>
+      <div class="ins-title">Build &amp; demo an LLM eval framework</div>
+      <div class="ins-desc">Define metrics that matter for your RAG system (faithfulness, context precision, latency, cost). Build a small harness, dashboard, write-up. Ship publicly so it doubles as portfolio evidence.</div>
+
+      <!-- Quick stats -->
+      <div class="ix-stats">
+        <div class="ix-stat">
+          <div class="lbl">Effort</div>
+          <div class="v"><em>~12</em><span class="u">hours</span></div>
+        </div>
+        <div class="ix-stat">
+          <div class="lbl">Due</div>
+          <div class="v">May 13<span class="u">· 14 d</span></div>
+        </div>
+        <div class="ix-stat">
+          <div class="lbl">Difficulty</div>
+          <div class="v">Stretch</div>
+        </div>
+        <div class="ix-stat">
+          <div class="lbl">Health impact</div>
+          <div class="v"><em>+6</em><span class="u">pts</span></div>
+        </div>
+      </div>
+
+      <!-- Coach reasoning -->
+      <div class="coach-block">
+        <div class="lab">
+          <svg viewBox="0 0 12 12" fill="currentColor"><path d="M6 1l1.2 3.4L10.6 6 7.2 7.6 6 11l-1.2-3.4L1.4 6l3.4-1.6z"/></svg>
+          Why this is here
+        </div>
+        <div class="body">
+          You're <em>strong on building</em>, but recruiters for AI Systems roles want to see <em>rigorous evaluation thinking</em>. This milestone closes that gap and gives you a portfolio artefact that's rare in your candidate pool.
+        </div>
+        <div class="actions">
+          <button class="ca primary">Ask the Twin</button>
+          <button class="ca">Suggest alternatives</button>
+        </div>
+      </div>
+
+      <!-- Skills built -->
+      <div class="ix-section" style="margin-top: 22px;">
+        <h6>Skills you'll build <a class="add" href="#">+ Add</a></h6>
+        <div class="skill-row">
+          <div class="nm">LLM eval design <span class="lvl"><span class="on"></span><span class="on"></span><span></span></span></div>
+          <div class="delta">+71% demand</div>
+        </div>
+        <div class="skill-row">
+          <div class="nm">RAG observability <span class="lvl"><span class="on"></span><span></span><span></span></span></div>
+          <div class="delta">+44% demand</div>
+        </div>
+        <div class="skill-row">
+          <div class="nm">Statistical thinking <span class="lvl"><span class="on"></span><span class="on"></span><span class="on"></span></span></div>
+          <div class="delta warn">−2% demand</div>
+        </div>
+      </div>
+
+      <!-- Resources -->
+      <div class="ix-section">
+        <h6>Resources <a class="add" href="#">+ Add</a></h6>
+        <div class="res">
+          <div class="res-ic"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="8" height="8" rx="1"/><path d="M4 5h4M4 7h2"/></svg></div>
+          <div class="b">
+            <div class="nm">"RAG Evaluation: a practical guide" — RAGAS team</div>
+            <div class="meta"><span class="typ">Article</span><span>·</span><em>~25 min read</em></div>
+          </div>
+        </div>
+        <div class="res">
+          <div class="res-ic"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="5"/><path d="M6 3v3l2 1" stroke-linecap="round"/></svg></div>
+          <div class="b">
+            <div class="nm">DeepLearning.AI · Building &amp; Evaluating LLM Apps</div>
+            <div class="meta"><span class="typ">Course</span><span>·</span><em>3.5 hrs</em></div>
+          </div>
+        </div>
+        <div class="res">
+          <div class="res-ic"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 9h8M2 5l4-3 4 3v4H2z"/></svg></div>
+          <div class="b">
+            <div class="nm">Starter template · ragas + Streamlit dashboard</div>
+            <div class="meta"><span class="typ">Repo</span><span>·</span><em>fork &amp; go</em></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dependencies -->
+      <div class="ix-section">
+        <h6>Connections</h6>
+        <div class="dep-row">
+          <span class="dep-ic blocked-by"></span>
+          <span class="dep-lab">Builds on</span>
+          <span class="dep-name">M-07 · Production retrieval</span>
+        </div>
+        <div class="dep-row">
+          <span class="dep-ic unblocks"></span>
+          <span class="dep-lab">Unblocks</span>
+          <span class="dep-name">M-09 · Open-source PR</span>
+        </div>
+        <div class="dep-row">
+          <span class="dep-ic relates"></span>
+          <span class="dep-lab">Relates to</span>
+          <span class="dep-name">Phase 3 · Portfolio polish</span>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+</div>
+
+<script>
+  // View switch
+  document.querySelectorAll('.view-switch button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.view-switch button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+
+  // Click-to-toggle phase body for completed/future phases
+  document.querySelectorAll('.phase').forEach(p => {
+    if (p.classList.contains('is-current')) return;
+    const hd = p.querySelector('.phase-hd');
+    const body = p.querySelector('.phase-body');
+    if (hd && body && body.style.display === 'none') {
+      hd.addEventListener('click', () => {
+        body.style.display = body.style.display === 'none' ? '' : 'none';
+      });
+    }
+  });
+
+  // Milestone selection (visual only)
+  document.querySelectorAll('.ms').forEach(m => {
+    m.addEventListener('click', e => {
+      if (e.target.closest('.check')) {
+        m.classList.toggle('done');
+        return;
+      }
+      document.querySelectorAll('.ms').forEach(x => x.classList.remove('is-selected'));
+      m.classList.add('is-selected');
+    });
+  });
+
+  // Filter pill toggling (single demo)
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      if (p.querySelector('.x') && p.querySelector('.x').textContent === '×') {
+        p.classList.toggle('active');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Career Roadmap AI — Logo Mark
+    A career path curve: start point (terra), peak (green), end (ink).
+    Use as <img src="/logo-mark.svg"> or import as a React component.
+  -->
+  <path
+    d="M3 22 C 8 22, 8 6, 14 6 S 20 22, 25 22"
+    stroke="#15140F"
+    stroke-width="1.6"
+    stroke-linecap="round"
+  />
+  <circle cx="3"  cy="22" r="2.2" fill="#C95A3D"/>
+  <circle cx="14" cy="6"  r="2.2" fill="#134E3A"/>
+  <circle cx="25" cy="22" r="2.2" fill="#15140F"/>
+</svg>

@@ -27,11 +27,14 @@ def setup_tracing(app: FastAPI) -> None:
     )
 
     provider = TracerProvider(resource=resource)
-    exporter = OTLPSpanExporter(
-        endpoint=settings.otel_exporter_otlp_endpoint,
-        insecure=True,
-    )
-    provider.add_span_processor(BatchSpanProcessor(exporter))
+
+    if settings.otel_exporter_otlp_endpoint:
+        exporter = OTLPSpanExporter(
+            endpoint=settings.otel_exporter_otlp_endpoint,
+            insecure=True,
+        )
+        provider.add_span_processor(BatchSpanProcessor(exporter))
+
     trace.set_tracer_provider(provider)
 
     # Auto-instrument — these wrap the libraries automatically.

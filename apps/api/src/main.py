@@ -1,15 +1,20 @@
 """FastAPI application entrypoint."""
 from contextlib import asynccontextmanager
 
+import httpx
+import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.requests import Request
+from fastapi.responses import JSONResponse
 
 from src.config import settings
+from src.core.auth import init_firebase_app
 from src.core.exceptions import AppException
 from src.core.healthcheck import router as health_router
 from src.core.logging import configure_logging, get_logger
+from src.core.middleware import CaseConversionMiddleware, setup_rate_limiter
+from src.endpoints.v1 import router as api_v1_router
 from src.observability import setup_prometheus, setup_sentry, setup_tracing
 
 # Init Sentry BEFORE the app so it captures startup errors.
@@ -21,8 +26,21 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Shared Redis connection pool
+    pool = aioredis.ConnectionPool.from_url(str(settings.redis_url), decode_responses=True)
+    app.state.redis = aioredis.Redis(connection_pool=pool)
+
+    # Shared async HTTP client (used by UserService for Firebase REST API calls)
+    app.state.http_client = httpx.AsyncClient(timeout=10.0)
+
+    # Firebase Admin SDK — idempotent, safe to call multiple times
+    init_firebase_app()
+
     logger.info("api.startup", env=settings.environment, app=settings.app_name)
     yield
+
+    await app.state.redis.aclose()
+    await app.state.http_client.aclose()
     logger.info("api.shutdown")
 
 
@@ -40,6 +58,9 @@ if settings.prometheus_metrics_enabled:
     setup_prometheus(app)
 setup_tracing(app)
 
+# Rate limiting — before CORS so 429 responses also carry CORS headers
+setup_rate_limiter(app)
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +69,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Case conversion — outermost layer so it sees every request first and every
+# response last: camelCase→snake_case on the way in, snake_case→camelCase out.
+app.add_middleware(CaseConversionMiddleware)
 
 
 @app.exception_handler(AppException)
@@ -65,9 +90,13 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     )
 
 
-# Routers
-app.include_router(health_router)
+# ── Routers ───────────────────────────────────────────────────────────────────
 
+app.include_router(health_router)
+app.include_router(api_v1_router)
+
+
+# ── Meta ──────────────────────────────────────────────────────────────────────
 
 @app.get("/", tags=["meta"])
 async def root() -> dict[str, str]:

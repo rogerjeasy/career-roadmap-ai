@@ -11,8 +11,7 @@ from src.config import settings
 from src.db.base import Base
 
 # Import all domain models here so Alembic's autogenerate sees them.
-# We'll uncomment these as we build each domain in later steps.
-# from src.domains.user.model import User  # noqa: F401
+from src.domains.user.model import User  # noqa: F401
 # from src.domains.roadmap.model import Roadmap  # noqa: F401
 # (etc.)
 

@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     )
 
     # ── Database ──────────────────────────────────────────
-    database_url: PostgresDsn
+    database_url: PostgresDsn | None = None
     db_pool_size: int = 10
     db_max_overflow: int = 20
     db_echo: bool = False
@@ -48,11 +48,16 @@ class Settings(BaseSettings):
     celery_broker_url: RedisDsn
     celery_result_backend: RedisDsn
 
-    # ── Auth ──────────────────────────────────────────────
-    jwt_secret_key: SecretStr
-    jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
-    bcrypt_rounds: int = 12
+    # ── Firebase Auth ─────────────────────────────────────
+    firebase_project_id: str | None = None
+    firebase_credentials_path: str | None = None   # path to service account JSON (dev)
+    firebase_credentials_json: str | None = None   # JSON string (CI / cloud env var)
+    # Web API Key — Firebase Console → Project Settings → General → Web API Key
+    # Required for server-side email/password sign-in and token refresh via REST API
+    firebase_web_api_key: str | None = None
+
+    # ── Rate limiting ─────────────────────────────────────
+    rate_limit_per_minute: int = 60
 
     # ── LLM providers ─────────────────────────────────────
     anthropic_api_key: SecretStr

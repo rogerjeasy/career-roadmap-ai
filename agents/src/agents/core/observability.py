@@ -527,3 +527,78 @@ NET_CONTACTS_TRACKED = Histogram(
     "Number of contacts seeded into the relationship pipeline per run",
     buckets=[0, 1, 2, 3, 5, 8, 12, 16, 20],
 )
+
+# ── Coach agent metrics ──────────────────────────────────────────────────────
+
+COACH_LLM_DURATION = Histogram(
+    "career_agents_coach_llm_duration_seconds",
+    "Wall-clock time for coach LLM inference calls",
+    buckets=[0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 30.0],
+)
+
+COACH_LLM_TOTAL = Counter(
+    "career_agents_coach_llm_total",
+    "Total coach LLM calls by outcome",
+    ["status"],  # llm | fallback
+)
+
+COACH_TIMELINE_CONCERNS_TOTAL = Counter(
+    "career_agents_coach_timeline_concerns_total",
+    "Total coach responses where an unrealistic timeline was flagged",
+)
+
+COACH_CONFIDENCE_SCORE = Histogram(
+    "career_agents_coach_confidence_score",
+    "Coach response confidence score distribution",
+    buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+)
+
+# ── Opportunity Matching agent metrics ───────────────────────────────────────
+
+OPP_JOB_FETCH_DURATION = Histogram(
+    "career_agents_opp_job_fetch_duration_seconds",
+    "Wall-clock time for job-board MCP fetch calls",
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0],
+)
+
+OPP_JOB_FETCH_TOTAL = Counter(
+    "career_agents_opp_job_fetch_total",
+    "Total job-board MCP fetch calls by outcome",
+    ["status"],  # success | error
+)
+
+OPP_SCORE_DURATION = Histogram(
+    "career_agents_opp_score_duration_seconds",
+    "Wall-clock time for LLM job-scoring enrichment calls",
+    buckets=[0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 30.0],
+)
+
+OPP_SCORE_TOTAL = Counter(
+    "career_agents_opp_score_total",
+    "Total job scoring enrichment calls by method",
+    ["status"],  # llm | fallback
+)
+
+OPP_TAILOR_DURATION = Histogram(
+    "career_agents_opp_tailor_duration_seconds",
+    "Wall-clock time for CV tailoring LLM calls",
+    buckets=[0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 30.0],
+)
+
+OPP_TAILOR_TOTAL = Counter(
+    "career_agents_opp_tailor_total",
+    "Total CV tailoring calls by outcome",
+    ["status"],  # llm | fallback
+)
+
+OPP_MATCH_SCORE = Histogram(
+    "career_agents_opp_match_score",
+    "Job match score distribution across all scored listings",
+    buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.65, 0.7, 0.8, 0.9, 1.0],
+)
+
+OPP_HIGH_MATCH_COUNT = Histogram(
+    "career_agents_opp_high_match_count",
+    "Number of high-match jobs (score ≥ 0.65) per opportunity run",
+    buckets=[0, 1, 2, 3, 5, 8, 12, 16, 20],
+)

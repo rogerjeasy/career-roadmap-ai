@@ -98,3 +98,6 @@ class OrchestratorTaskInput(BaseModel):
     previous_clarification_questions: list[dict[str, Any]] = Field(
         default_factory=list
     )
+    # When set, the intent parser skips LLM detection and uses this value directly.
+    # Used by the coach endpoint to force ``coach_query`` without an extra LLM hop.
+    forced_intent: str | None = None

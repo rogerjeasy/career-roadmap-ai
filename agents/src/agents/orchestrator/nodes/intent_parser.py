@@ -41,6 +41,19 @@ class IntentParserNode:
         self._llm = llm
 
     async def __call__(self, state: OrchestratorState) -> dict:
+        # Short-circuit: caller already classified the intent (e.g. coach endpoint)
+        if forced := state.get("forced_intent"):
+            logger.info(
+                "node.intent_forced",
+                intent_type=forced,
+                session_id=state["session_id"],
+            )
+            return {
+                "parsed_intent": state["user_message"],
+                "intent_type": forced,
+                "messages": [HumanMessage(content=state["user_message"])],
+            }
+
         profile = state["user_profile"]
         profile_summary = (
             f"Current role: {profile.current_role or 'unknown'}. "

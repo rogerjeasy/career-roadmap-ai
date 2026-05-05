@@ -125,6 +125,7 @@ class MasterOrchestrator:
                 "user_message": task_input.user_message,
                 "user_profile": task_input.user_profile,
                 "messages": [],
+                "forced_intent": task_input.forced_intent,
                 "parsed_intent": None,
                 "intent_type": None,
                 "completeness_score": 0.0,

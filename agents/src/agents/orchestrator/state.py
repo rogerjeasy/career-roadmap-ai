@@ -58,6 +58,8 @@ class OrchestratorState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
     # ── Intent parsing (Node 1) ───────────────────────────────
+    # When forced_intent is set at entry, the intent parser skips LLM detection.
+    forced_intent: str | None
     parsed_intent: str | None
     intent_type: str | None  # e.g. "roadmap_generation", "coach_query", "cv_review"
 

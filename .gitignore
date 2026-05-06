@@ -46,3 +46,5 @@ __pycache__/
 
 # Poetry local virtualenv
 .venv/
+
+.claude/settings.local.json

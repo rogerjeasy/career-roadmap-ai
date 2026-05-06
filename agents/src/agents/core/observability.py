@@ -527,3 +527,46 @@ NET_CONTACTS_TRACKED = Histogram(
     "Number of contacts seeded into the relationship pipeline per run",
     buckets=[0, 1, 2, 3, 5, 8, 12, 16, 20],
 )
+
+# ── Progress & Adaptation agent metrics ─────────────────────────────────────
+
+PROGRESS_DRIFT_SCORE = Histogram(
+    "career_agents_progress_drift_score",
+    "Drift score distribution across progress analysis runs",
+    buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+)
+
+PROGRESS_DRIFT_DETECTION_DURATION = Histogram(
+    "career_agents_progress_drift_detection_duration_seconds",
+    "Wall-clock time for drift detection (pure computation)",
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5],
+)
+
+PROGRESS_HABIT_ANALYSIS_DURATION = Histogram(
+    "career_agents_progress_habit_analysis_duration_seconds",
+    "Wall-clock time for habit streak analysis (pure computation)",
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5],
+)
+
+PROGRESS_ADAPT_DURATION = Histogram(
+    "career_agents_progress_adapt_duration_seconds",
+    "Wall-clock time for adaptation proposal LLM calls",
+    buckets=[0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 30.0],
+)
+
+PROGRESS_ADAPT_TOTAL = Counter(
+    "career_agents_progress_adapt_total",
+    "Total adaptation proposal calls by resolution method",
+    ["status"],  # llm | fallback
+)
+
+PROGRESS_ADAPT_COUNT = Histogram(
+    "career_agents_progress_adapt_count",
+    "Number of adaptation proposals generated per progress run",
+    buckets=[0, 1, 2, 3, 4, 5],
+)
+
+PROGRESS_REGEN_TOTAL = Counter(
+    "career_agents_progress_regen_total",
+    "Total progress runs where full roadmap regeneration was recommended",
+)

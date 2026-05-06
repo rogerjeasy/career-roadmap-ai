@@ -62,7 +62,13 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\User\\\\Documents\\\\career-roadmap-ai\\\\documentation\\\\implementation_summaries\" | ForEach-Object { \"$\\($_.Name\\) — $\\([math]::Round\\($_.Length/1024,1\\)\\) KB\" })",
       "Bash(dir pyproject.toml)",
       "Bash(py -3.12 -m poetry run python -c ' *)",
-      "Bash(py -3.12 -m poetry --version)"
+      "Bash(py -3.12 -m poetry --version)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(python3.12 -m pytest --version 2>&1)",
+      "PowerShell(python3.12 -c \"import pytest; print\\(pytest.__version__\\)\" 2>&1)",
+      "PowerShell(python3.12 -c \"import sys; print\\(sys.version\\); import site; print\\(site.getsitepackages\\(\\)\\)\" 2>&1)",
+      "PowerShell($result = & python3.12 -c \"import sys; print\\(sys.version\\)\" ; Write-Host \"Result: $result\" ; Write-Host \"Exit: $LASTEXITCODE\")",
+      "PowerShell(Get-Content *)"
     ]
   }
 }

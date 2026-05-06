@@ -148,38 +148,18 @@ class CoachAgent(BaseAgent):
 
     # ── LLM call ──────────────────────────────────────────────────────────────
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=0.5, min=1, max=8),
-        retry=retry_if_exception_type(Exception),
-        reraise=True,
-    )
     async def _call_llm(
         self,
         bundle: CoachContextBundle,
         *,
         correlation_id: str = "",
     ) -> CoachResponse:
-        user_prompt = _build_user_prompt(bundle)
+        """Attempt the LLM call with retries; fall back deterministically on total failure."""
         t0 = time.monotonic()
-
         try:
-            response = await self._llm.ainvoke([
-                SystemMessage(content=self._system_prompt),
-                HumanMessage(content=user_prompt),
-            ])
-            raw_text = str(response.content).strip()
-
-            # Strip markdown code fences if the model wraps the JSON
-            if raw_text.startswith("```"):
-                raw_text = raw_text.split("```")[1]
-                if raw_text.startswith("json"):
-                    raw_text = raw_text[4:]
-                raw_text = raw_text.strip()
-
-            parsed = json.loads(raw_text)
-            result = _validate_llm_output(parsed)
+            result = await self._call_llm_with_retry(bundle)
             COACH_LLM_TOTAL.labels(status="llm").inc()
+            return result
         except Exception as exc:
             logger.warning(
                 "coach.llm_failed",
@@ -188,11 +168,34 @@ class CoachAgent(BaseAgent):
                 correlation_id=correlation_id,
             )
             COACH_LLM_TOTAL.labels(status="fallback").inc()
-            result = _fallback_response(bundle)
+            return _fallback_response(bundle)
         finally:
             COACH_LLM_DURATION.observe(time.monotonic() - t0)
 
-        return result
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=1, max=8),
+        retry=retry_if_exception_type(Exception),
+        reraise=True,
+    )
+    async def _call_llm_with_retry(self, bundle: CoachContextBundle) -> CoachResponse:
+        """Raw LLM call — retried up to 3 times before the caller falls back."""
+        user_prompt = _build_user_prompt(bundle)
+        response = await self._llm.ainvoke([
+            SystemMessage(content=self._system_prompt),
+            HumanMessage(content=user_prompt),
+        ])
+        raw_text = str(response.content).strip()
+
+        # Strip markdown code fences if the model wraps the JSON
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("```")[1]
+            if raw_text.startswith("json"):
+                raw_text = raw_text[4:]
+            raw_text = raw_text.strip()
+
+        parsed = json.loads(raw_text)
+        return _validate_llm_output(parsed)
 
     # ── Private helpers ────────────────────────────────────────────────────────
 

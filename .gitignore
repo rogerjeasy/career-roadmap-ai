@@ -31,3 +31,18 @@ playwright-report/
 
 # Misc
 .turbo/
+
+*.pyc
+*/__pycache__/**
+*.pem
+*.key
+*.crt
+/__pycache__/**
+firebase-service-account.json
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Poetry local virtualenv
+.venv/

@@ -13,7 +13,7 @@ from src.core.auth import init_firebase_app
 from src.core.exceptions import AppException
 from src.core.healthcheck import router as health_router
 from src.core.logging import configure_logging, get_logger
-from src.core.middleware import CaseConversionMiddleware, setup_rate_limiter
+from src.core.middleware import CaseConversionMiddleware, TraceContextMiddleware, setup_rate_limiter
 from src.endpoints.v1 import router as api_v1_router
 from src.observability import setup_prometheus, setup_sentry, setup_tracing
 
@@ -73,6 +73,10 @@ app.add_middleware(
 # Case conversion — outermost layer so it sees every request first and every
 # response last: camelCase→snake_case on the way in, snake_case→camelCase out.
 app.add_middleware(CaseConversionMiddleware)
+
+# Trace context — added last = runs outermost inside Starlette, just under the
+# OTel ASGI wrapper. Binds trace_id/span_id into structlog for every log line.
+app.add_middleware(TraceContextMiddleware)
 
 
 @app.exception_handler(AppException)

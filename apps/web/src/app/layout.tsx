@@ -1,15 +1,8 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/providers";
-import { Header } from "@/components/layout/header";
+import { ConditionalShell } from "@/components/layout/conditional-shell";
 import "./globals.css";
-
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  axes: ["opsz"],
-  display: "swap",
-});
 
 const geist = Geist({
   subsets: ["latin"],
@@ -33,12 +26,11 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${fraunces.variable} ${geist.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
         <Providers>
-          <Header />
-          {children}
+          <ConditionalShell>
+            {children}
+          </ConditionalShell>
         </Providers>
       </body>
     </html>

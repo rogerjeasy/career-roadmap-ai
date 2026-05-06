@@ -65,10 +65,16 @@ class Settings(BaseSettings):
     default_llm_model: str = "claude-3-5-sonnet-20241022"
 
     # ── Observability ─────────────────────────────────────
+    # Override log format: "json" forces structured output even in dev (useful
+    # when testing the full Loki pipeline locally — set LOG_FORMAT=json in .env).
+    log_format: Literal["console", "json"] | None = None
     sentry_dsn: str | None = None
     sentry_traces_sample_rate: float = 1.0
     sentry_send_default_pii: bool = False  # toggle ON only after privacy review
-    otel_exporter_otlp_endpoint: str = "http://localhost:4317"
+    # Set OTEL_TRACING_ENABLED=true + OTEL_EXPORTER_OTLP_ENDPOINT=<url> to enable.
+    # Defaults off so dev servers don't spam "UNAVAILABLE" errors to localhost:4317.
+    otel_tracing_enabled: bool = False
+    otel_exporter_otlp_endpoint: str | None = None
     otel_service_name: str = "career-roadmap-api"
     prometheus_metrics_enabled: bool = True
 

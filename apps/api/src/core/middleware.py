@@ -1,8 +1,10 @@
-"""Application middleware — rate limiting and case conversion."""
+"""Application middleware — rate limiting, case conversion, and trace context."""
 import json
 from urllib.parse import parse_qsl, urlencode
 
+import structlog
 from fastapi import FastAPI
+from opentelemetry import trace as otel_trace
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -24,6 +26,32 @@ def setup_rate_limiter(app: FastAPI) -> None:
     """Mount limiter state and 429 handler onto the app."""
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# ── Trace context middleware ──────────────────────────────────────────────────
+
+
+class TraceContextMiddleware:
+    """Bind the active OTel trace_id/span_id into structlog context vars.
+
+    Runs inside the OTel ASGI wrapper so the span is already active. Clears
+    context vars first to prevent leakage between concurrent async requests.
+    When tracing is disabled the span context is invalid and nothing is bound.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            structlog.contextvars.clear_contextvars()
+            ctx = otel_trace.get_current_span().get_span_context()
+            if ctx.is_valid:
+                structlog.contextvars.bind_contextvars(
+                    trace_id=format(ctx.trace_id, "032x"),
+                    span_id=format(ctx.span_id, "016x"),
+                )
+        await self.app(scope, receive, send)
 
 
 # ── Case conversion middleware ────────────────────────────────────────────────

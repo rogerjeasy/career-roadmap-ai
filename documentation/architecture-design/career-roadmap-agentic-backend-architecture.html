@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Career Roadmap AI · Agentic Backend Architecture</title>
+  <style>
+    :root {
+      --bg: #F7F2E8;
+      --bg-2: #EFE8D7;
+      --bg-3: #E8E0C8;
+      --paper: #FFFFFF;
+      --ink: #15140F;
+      --ink-2: #4D4639;
+      --ink-3: #837967;
+      --rule: #E0D7C2;
+      --rule-strong: #C9BFA7;
+      --green: #134E3A;
+      --green-2: #0E3A2B;
+      --green-soft: #DCE7DC;
+      --green-faint: #E9F0E5;
+      --terra: #C95A3D;
+      --terra-2: #AC4A30;
+      --terra-soft: #F4DDD2;
+      --terra-faint: #F9E8DD;
+      --gold: #B68A2E;
+      --gold-soft: #F2E2BD;
+      --blue: #2E5E88;
+      --blue-soft: #DCE7F2;
+      --purple: #6D5D91;
+      --purple-soft: #E8E2F0;
+      --shadow: 0 20px 60px rgba(21,20,15,.08);
+      --radius: 18px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --serif: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at top left, rgba(201,90,61,.13), transparent 34rem),
+        radial-gradient(circle at top right, rgba(19,78,58,.12), transparent 35rem),
+        var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    a { color: inherit; text-decoration: none; }
+    code, pre { font-family: var(--mono); }
+    .layout { display: grid; grid-template-columns: 288px minmax(0, 1fr); min-height: 100vh; }
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 20px;
+      border-right: 1px solid var(--rule);
+      background: rgba(239,232,215,.82);
+      backdrop-filter: blur(16px);
+      overflow: auto;
+    }
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: var(--bg);
+      font-weight: 800;
+      box-shadow: var(--shadow);
+    }
+    .brand h1 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+    .brand p { margin: 2px 0 0; color: var(--ink-3); font-size: 12px; }
+    .nav-title {
+      margin: 22px 0 8px;
+      padding-left: 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: var(--ink-3);
+      font-weight: 800;
+    }
+    nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      color: var(--ink-2);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    nav a:hover { background: var(--bg-3); color: var(--ink); }
+    .nav-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--terra); flex: 0 0 auto; }
+    .side-note {
+      margin-top: 24px;
+      padding: 14px;
+      border: 1px solid var(--rule);
+      border-radius: 14px;
+      background: var(--paper);
+      font-size: 12px;
+      color: var(--ink-2);
+    }
+    .side-note strong { color: var(--ink); }
+
+    main { padding: 36px; max-width: 1400px; width: 100%; }
+    .hero {
+      padding: 38px;
+      border: 1px solid var(--rule);
+      border-radius: 28px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.94), rgba(255,255,255,.72)),
+        radial-gradient(circle at 10% 10%, var(--terra-faint), transparent 28rem),
+        radial-gradient(circle at 90% 20%, var(--green-faint), transparent 28rem);
+      box-shadow: var(--shadow);
+      margin-bottom: 26px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: var(--green-2);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+    .hero h2 {
+      max-width: 980px;
+      margin: 0;
+      font-family: var(--serif);
+      font-size: clamp(36px, 5.4vw, 72px);
+      letter-spacing: -.045em;
+      line-height: .95;
+      font-weight: 500;
+    }
+    .hero h2 em { color: var(--green); font-style: italic; }
+    .hero .lead {
+      margin: 22px 0 0;
+      max-width: 940px;
+      font-size: 18px;
+      color: var(--ink-2);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .hero-chip {
+      padding: 14px;
+      border-radius: 15px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+    }
+    .hero-chip b { display:block; font-size: 13px; }
+    .hero-chip span { display:block; margin-top: 4px; font-size: 12px; color: var(--ink-3); }
+
+    section {
+      margin: 26px 0;
+      padding: 28px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.86);
+      box-shadow: 0 10px 34px rgba(21,20,15,.04);
+    }
+    section h2 {
+      margin: 0 0 8px;
+      font-family: var(--serif);
+      font-size: 32px;
+      letter-spacing: -.025em;
+      line-height: 1.08;
+    }
+    section > p.section-lead {
+      margin: 0 0 22px;
+      max-width: 980px;
+      color: var(--ink-2);
+      font-size: 15.5px;
+    }
+    h3 { margin: 0 0 10px; font-size: 17px; letter-spacing: -.01em; }
+    h4 { margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+    p { margin: 0 0 12px; }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .card {
+      padding: 18px;
+      border: 1px solid var(--rule);
+      border-radius: 16px;
+      background: var(--paper);
+    }
+    .card.tint-green { background: var(--green-faint); border-color: #C6D7C8; }
+    .card.tint-terra { background: var(--terra-faint); border-color: #E7C5B7; }
+    .card.tint-blue { background: var(--blue-soft); border-color: #B8CEE4; }
+    .card.tint-purple { background: var(--purple-soft); border-color: #CFC3DF; }
+    .mini {
+      font-size: 12px;
+      color: var(--ink-3);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      font-weight: 800;
+    }
+    .kpi {
+      padding: 18px;
+      border-radius: 16px;
+      border: 1px solid var(--rule);
+      background: var(--paper);
+    }
+    .kpi .num { font-family: var(--serif); font-size: 36px; line-height: 1; color: var(--green); }
+    .kpi .label { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+    .flow-step {
+      position: relative;
+      min-height: 170px;
+      padding: 16px;
+      border: 1px solid var(--rule);
+      border-radius: 16px;
+      background: var(--paper);
+    }
+    .flow-step::after {
+      content: "→";
+      position: absolute;
+      right: -15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--terra);
+      font-weight: 900;
+      font-size: 20px;
+      z-index: 2;
+    }
+    .flow-step:last-child::after { content: ""; }
+    .flow-step .n { font-family: var(--mono); font-size: 11px; color: var(--terra); font-weight: 800; }
+    .flow-step strong { display: block; margin: 6px 0; }
+    .flow-step span { display: block; font-size: 12.5px; color: var(--ink-2); }
+
+    .diagram-wrap {
+      background: var(--ink);
+      color: var(--bg);
+      border-radius: 20px;
+      padding: 22px;
+      overflow-x: auto;
+    }
+    .diagram {
+      min-width: 980px;
+      display: grid;
+      grid-template-columns: 1fr .9fr 1.4fr 1.1fr 1.1fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+    .lane {
+      border: 1px solid rgba(247,242,232,.17);
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(255,255,255,.04);
+    }
+    .lane h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      color: var(--bg);
+      margin-bottom: 12px;
+    }
+    .box {
+      border: 1px solid rgba(247,242,232,.2);
+      border-radius: 12px;
+      padding: 11px 12px;
+      margin: 8px 0;
+      background: rgba(247,242,232,.07);
+      font-size: 12.5px;
+    }
+    .box.hot { border-color: rgba(201,90,61,.65); background: rgba(201,90,61,.18); }
+    .box.green { border-color: rgba(126,210,164,.65); background: rgba(19,78,58,.32); }
+    .arrow-note {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(247,242,232,.08);
+      color: rgba(247,242,232,.78);
+      font-size: 12px;
+    }
+
+    .agent-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .agent {
+      border: 1px solid var(--rule);
+      border-radius: 16px;
+      background: var(--paper);
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .agent::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: var(--green);
+    }
+    .agent:nth-child(2n)::before { background: var(--terra); }
+    .agent:nth-child(3n)::before { background: var(--gold); }
+    .agent .role { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .1em; font-weight: 800; }
+    .agent h3 { margin-top: 8px; }
+    .agent ul { margin: 10px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border: 1px solid var(--rule);
+      border-radius: 16px;
+      background: var(--paper);
+      font-size: 13px;
+    }
+    th, td { padding: 13px 14px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+    th { text-align: left; background: var(--bg-2); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--ink-3); }
+    tr:last-child td { border-bottom: none; }
+    td strong { color: var(--ink); }
+
+    .code-block {
+      background: #15140F;
+      color: #F7F2E8;
+      border-radius: 16px;
+      padding: 16px;
+      overflow: auto;
+      font-size: 12.5px;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--bg-2);
+      border: 1px solid var(--rule);
+      color: var(--ink-2);
+      font-size: 11px;
+      font-weight: 700;
+      margin: 2px 3px 2px 0;
+    }
+    .tag.green { background: var(--green-soft); color: var(--green-2); border-color: #BFD2BF; }
+    .tag.terra { background: var(--terra-soft); color: var(--terra-2); border-color: #E7BFAE; }
+    .tag.blue { background: var(--blue-soft); color: var(--blue); border-color: #B8CEE4; }
+    .tag.gold { background: var(--gold-soft); color: #805E14; border-color: #E7D095; }
+
+    .decision {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+    }
+    .decision .card { min-height: 210px; }
+    .checklist { list-style: none; padding: 0; margin: 0; }
+    .checklist li {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 8px;
+      margin: 10px 0;
+      color: var(--ink-2);
+      font-size: 13.5px;
+    }
+    .checklist li::before {
+      content: "✓";
+      display: inline-grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 7px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .risk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .risk {
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--rule);
+      background: var(--paper);
+    }
+    .risk .level { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--terra); font-weight: 900; }
+
+    .footer {
+      margin: 26px 0 40px;
+      padding: 20px 28px;
+      border-radius: 18px;
+      border: 1px solid var(--rule);
+      background: var(--bg-2);
+      color: var(--ink-2);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      nav { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 2px 8px; }
+      .hero-grid, .grid-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .grid-3, .agent-grid, .decision { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 760px) {
+      main { padding: 18px; }
+      .hero { padding: 24px; border-radius: 20px; }
+      section { padding: 20px; }
+      .grid-2, .grid-3, .grid-4, .hero-grid, .agent-grid, .decision, .risk-grid { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; overflow: visible; }
+      .flow-step::after { content: "↓"; right: 18px; top: auto; bottom: -18px; transform: none; }
+      nav { grid-template-columns: 1fr; }
+    }
+    @media print {
+      body { background: white; }
+      .layout { display: block; }
+      aside { display: none; }
+      main { padding: 0; max-width: none; }
+      section, .hero { break-inside: avoid; box-shadow: none; }
+      .diagram { min-width: 0; }
+      a[href]::after { content: ""; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand">
+        <div class="brand-mark">CR</div>
+        <div>
+          <h1>Career Roadmap AI</h1>
+          <p>Agentic backend architecture</p>
+        </div>
+      </div>
+      <nav>
+        <div class="nav-title">Architecture</div>
+        <a href="#summary"><span class="nav-dot"></span>Executive summary</a>
+        <a href="#system-context"><span class="nav-dot"></span>System context</a>
+        <a href="#orchestration"><span class="nav-dot"></span>Agent orchestration</a>
+        <a href="#agents"><span class="nav-dot"></span>Specialist agents</a>
+        <a href="#generation-flow"><span class="nav-dot"></span>Generation lifecycle</a>
+        <a href="#clarification"><span class="nav-dot"></span>Clarification engine</a>
+        <a href="#rag"><span class="nav-dot"></span>RAG architecture</a>
+        <a href="#mcp"><span class="nav-dot"></span>MCP layer</a>
+        <a href="#grounding"><span class="nav-dot"></span>Hallucination controls</a>
+        <a href="#data"><span class="nav-dot"></span>Data model</a>
+        <a href="#apis"><span class="nav-dot"></span>API contracts</a>
+        <a href="#infra"><span class="nav-dot"></span>Infrastructure</a>
+        <a href="#security"><span class="nav-dot"></span>Security & privacy</a>
+        <a href="#evals"><span class="nav-dot"></span>Evaluation</a>
+        <a href="#implementation"><span class="nav-dot"></span>Implementation plan</a>
+      </nav>
+      <div class="side-note">
+        <strong>Design intent:</strong> transform Career Roadmap AI from a static roadmap generator into a verifiable, agentic career operating system that asks clarifying questions, retrieves evidence, uses tools safely, validates claims, and produces realistic plans.
+      </div>
+    </aside>
+
+    <main>
+      <header class="hero" id="summary">
+        <div class="eyebrow">Backend Architecture · Agentic AI · MCP · RAG</div>
+        <h2>End-to-end design for a <em>trustworthy career roadmap generator</em>.</h2>
+        <p class="lead">
+          This architecture defines the backend system that generates personalised, realistic career roadmaps from user goals, CV evidence, market signals, learning resources, and progress history. It is designed to avoid made-up advice by requiring structured evidence, explicit uncertainty, human approval, source-aware retrieval, and automated validation before any roadmap becomes active.
+        </p>
+        <div class="hero-grid">
+          <div class="hero-chip"><b>Primary backend</b><span>FastAPI, Python 3.12, Pydantic v2, SQLAlchemy</span></div>
+          <div class="hero-chip"><b>Agent runtime</b><span>Planner, RAG, market, validator, roadmap, coach agents</span></div>
+          <div class="hero-chip"><b>Knowledge layer</b><span>PostgreSQL, pgvector/vector DB, object store, Redis</span></div>
+          <div class="hero-chip"><b>Tool layer</b><span>MCP gateway with scoped, auditable external connectors</span></div>
+        </div>
+      </header>
+
+      <section>
+        <h2>1. Design objective</h2>
+        <p class="section-lead">
+          The system must generate a living career roadmap for any user, not only Roger's AI Systems Engineer case. Roger's roadmap becomes a seed template and validation example, while the production system uses dynamic user discovery, CV analysis, market intelligence, and continuous tracking to produce a tailored plan.
+        </p>
+        <div class="grid-4">
+          <div class="kpi"><div class="num">01</div><div class="label">Ask before assuming when critical user information is missing.</div></div>
+          <div class="kpi"><div class="num">02</div><div class="label">Ground every important recommendation in user evidence, retrieved knowledge, or live market data.</div></div>
+          <div class="kpi"><div class="num">03</div><div class="label">Generate structured roadmap artifacts: phases, milestones, weekly plan, resources, evidence targets, metrics.</div></div>
+          <div class="kpi"><div class="num">04</div><div class="label">Continuously adapt the roadmap as the user progresses and the market changes.</div></div>
+        </div>
+      </section>
+
+      <section id="system-context">
+        <h2>2. System context</h2>
+        <p class="section-lead">
+          The backend should be organised as a clean domain architecture. The existing application modules remain as product surfaces, while the new AI architecture sits behind them as a generation, validation, and adaptation engine.
+        </p>
+        <div class="diagram-wrap">
+          <div class="diagram">
+            <div class="lane">
+              <h3>Client Layer</h3>
+              <div class="box">Next.js Web App</div>
+              <div class="box">Onboarding Wizard</div>
+              <div class="box">AI Coach Chat</div>
+              <div class="box">Roadmap Dashboard</div>
+              <div class="box">CV Upload & Job Target UI</div>
+            </div>
+            <div class="lane">
+              <h3>API Layer</h3>
+              <div class="box green">FastAPI REST API</div>
+              <div class="box">Auth Middleware</div>
+              <div class="box">Rate Limit Middleware</div>
+              <div class="box">Request Validation</div>
+              <div class="box">Streaming Responses</div>
+            </div>
+            <div class="lane">
+              <h3>Agentic AI Core</h3>
+              <div class="box hot">Orchestrator Agent</div>
+              <div class="box">Clarification Agent</div>
+              <div class="box">Profile & CV Agent</div>
+              <div class="box">RAG Evidence Agent</div>
+              <div class="box">Market Intelligence Agent</div>
+              <div class="box">Roadmap Synthesis Agent</div>
+              <div class="box">Validator / Critic Agent</div>
+            </div>
+            <div class="lane">
+              <h3>Data & Knowledge</h3>
+              <div class="box green">PostgreSQL</div>
+              <div class="box">pgvector / Vector DB</div>
+              <div class="box">Object Store for CVs</div>
+              <div class="box">Redis Cache</div>
+              <div class="box">Audit Logs</div>
+              <div class="box">Evaluation Datasets</div>
+            </div>
+            <div class="lane">
+              <h3>MCP Tool Layer</h3>
+              <div class="box hot">MCP Gateway</div>
+              <div class="box">Job Board Tools</div>
+              <div class="box">GitHub Tools</div>
+              <div class="box">Course Catalog Tools</div>
+              <div class="box">Calendar / CRM Tools</div>
+              <div class="box">Salary / Market APIs</div>
+            </div>
+          </div>
+          <div class="arrow-note">
+            Main flow: User request → API validation → orchestration job → specialist agents → RAG + MCP evidence → validated roadmap artifact → user review → persisted execution plan.
+          </div>
+        </div>
+      </section>
+
+      <section id="principles">
+        <h2>3. Architecture principles</h2>
+        <p class="section-lead">These principles prevent the AI layer from becoming a black-box chatbot and keep the output practical, reviewable, and safe.</p>
+        <div class="grid-3">
+          <div class="card tint-green"><h3>Evidence-first generation</h3><p>The LLM may reason and compose, but it cannot invent market facts, salary ranges, role requirements, certifications, or company-specific claims without evidence records.</p></div>
+          <div class="card tint-terra"><h3>Clarify before planning</h3><p>If target role, country, timeline, weekly availability, skill level, constraints, or CV evidence are missing, the system produces clarification questions instead of a final roadmap.</p></div>
+          <div class="card tint-blue"><h3>Human-approved actions</h3><p>Roadmap updates, outreach drafts, CV rewrites, calendar writes, and external account actions require user review and explicit approval unless the action is read-only.</p></div>
+          <div class="card tint-purple"><h3>Agent separation</h3><p>One agent should not collect evidence, generate a plan, and validate itself. Specialist agents communicate through typed messages and audited shared state.</p></div>
+          <div class="card tint-green"><h3>Structured outputs only</h3><p>Roadmaps, gap analyses, tasks, milestones, and resource recommendations are generated as JSON matching Pydantic schemas before being rendered in the UI.</p></div>
+          <div class="card tint-terra"><h3>Continuous adaptation</h3><p>The plan is not a one-time artifact. Weekly reviews, completed milestones, new CVs, job-market changes, and user preference changes trigger re-evaluation.</p></div>
+        </div>
+      </section>
+
+      <section id="orchestration">
+        <h2>4. Agentic orchestration backend</h2>
+        <p class="section-lead">
+          The orchestration service is the control plane. It receives user intent, creates a roadmap generation job, decides which agents are needed, enforces policies, streams progress back to the client, and persists only validated outputs.
+        </p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Core services</h3>
+            <ul class="checklist">
+              <li><strong>AgentOrchestratorService</strong> creates and supervises generation runs.</li>
+              <li><strong>AgentMemoryService</strong> stores run state, user profile snapshots, and agent outputs.</li>
+              <li><strong>ToolPolicyService</strong> decides which MCP tools an agent may call for the current user.</li>
+              <li><strong>EvidenceService</strong> stores retrieved evidence, citations, freshness, and source quality.</li>
+              <li><strong>RoadmapMaterializerService</strong> converts an approved roadmap into phases, tasks, habits, metrics, and reminders.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Run states</h3>
+            <p><span class="tag">created</span><span class="tag blue">intake_started</span><span class="tag terra">needs_clarification</span><span class="tag gold">retrieving_evidence</span><span class="tag blue">generating</span><span class="tag gold">validating</span><span class="tag green">awaiting_user_approval</span><span class="tag green">materialized</span></p>
+            <p>Every state transition is written to an immutable audit log with user ID, run ID, triggering agent, input hash, output hash, token usage, tool calls, and validation result.</p>
+          </div>
+        </div>
+
+        <h3 style="margin-top:22px;">Orchestration pseudocode</h3>
+        <pre class="code-block"><code>async def generate_career_roadmap(user_id: UUID, request: RoadmapGenerationRequest):
+    run = await runs.create(user_id=user_id, request=request)
+
+    profile = await profile_agent.extract_profile(user_id, request)
+    completeness = await clarification_agent.score(profile, request)
+
+    if completeness.requires_clarification:
+        questions = await clarification_agent.generate_questions(completeness.missing_slots)
+        return RoadmapRunResult(status="needs_clarification", questions=questions)
+
+    evidence_pack = await rag_agent.retrieve_context(profile, request)
+    market_pack = await market_agent.fetch_market_signals(profile, request)
+    gap_report = await gap_agent.compare(profile, request.target, evidence_pack, market_pack)
+
+    draft = await roadmap_agent.synthesize(profile, gap_report, evidence_pack, market_pack)
+    validation = await validator_agent.validate(draft, evidence_pack, market_pack)
+
+    if not validation.passed:
+        repaired = await roadmap_agent.repair(draft, validation.issues)
+        validation = await validator_agent.validate(repaired, evidence_pack, market_pack)
+
+    return RoadmapRunResult(
+        status="awaiting_user_approval",
+        roadmap=draft,
+        evidence=evidence_pack.public_summary,
+        validation=validation.public_summary,
+    )</code></pre>
+      </section>
+
+      <section id="agents">
+        <h2>5. Specialist agents and responsibilities</h2>
+        <p class="section-lead">Each agent has a narrow responsibility, typed inputs, typed outputs, a tool permission profile, and a validation boundary.</p>
+        <div class="agent-grid">
+          <div class="agent"><div class="role">Control plane</div><h3>Orchestrator Agent</h3><ul><li>Plans the workflow.</li><li>Routes tasks to specialist agents.</li><li>Maintains run state.</li><li>Enforces stop conditions.</li></ul></div>
+          <div class="agent"><div class="role">Conversation</div><h3>Clarification Agent</h3><ul><li>Detects missing slots.</li><li>Scores user-intent completeness.</li><li>Asks concise follow-up questions.</li><li>Blocks generation when risk is high.</li></ul></div>
+          <div class="agent"><div class="role">Profile intelligence</div><h3>Profile & CV Agent</h3><ul><li>Parses CVs and resumes.</li><li>Extracts skills, roles, projects, education.</li><li>Normalises evidence into structured profile data.</li><li>Flags low-confidence extractions.</li></ul></div>
+          <div class="agent"><div class="role">Career reasoning</div><h3>Skill Graph Agent</h3><ul><li>Maps current skills to target-role skills.</li><li>Builds prerequisite chains.</li><li>Detects transferable skills.</li><li>Recommends evidence-building projects.</li></ul></div>
+          <div class="agent"><div class="role">Grounding</div><h3>RAG Evidence Agent</h3><ul><li>Retrieves internal product knowledge.</li><li>Retrieves user documents and prior plans.</li><li>Retrieves curated career frameworks.</li><li>Returns source-scored evidence cards.</li></ul></div>
+          <div class="agent"><div class="role">Live data</div><h3>Market Intelligence Agent</h3><ul><li>Uses MCP tools for job market data.</li><li>Aggregates role requirements.</li><li>Finds trending skills and resources.</li><li>Attaches freshness metadata.</li></ul></div>
+          <div class="agent"><div class="role">Planning</div><h3>Roadmap Synthesis Agent</h3><ul><li>Generates phase plan.</li><li>Creates weekly schedule and milestones.</li><li>Defines measurable outcomes.</li><li>Produces strict JSON roadmap schema.</li></ul></div>
+          <div class="agent"><div class="role">Quality gate</div><h3>Validator / Critic Agent</h3><ul><li>Checks evidence coverage.</li><li>Rejects unsupported claims.</li><li>Checks realism of timeline and workload.</li><li>Produces fix instructions.</li></ul></div>
+          <div class="agent"><div class="role">Lifecycle</div><h3>Adaptation Agent</h3><ul><li>Monitors progress and market changes.</li><li>Suggests roadmap revisions.</li><li>Detects stalled milestones.</li><li>Triggers weekly review insights.</li></ul></div>
+        </div>
+      </section>
+
+      <section id="generation-flow">
+        <h2>6. End-to-end roadmap generation lifecycle</h2>
+        <p class="section-lead">A roadmap generation run should be deterministic at the workflow level, even though LLM reasoning is probabilistic. The workflow below defines the minimum reliable path.</p>
+        <div class="flow">
+          <div class="flow-step"><div class="n">STEP 01</div><strong>Intake</strong><span>User enters goals, uploads CV, selects target role, country, timeline, weekly availability, constraints, learning preferences.</span></div>
+          <div class="flow-step"><div class="n">STEP 02</div><strong>Clarification gate</strong><span>System checks required slots and asks follow-up questions instead of guessing when data is missing.</span></div>
+          <div class="flow-step"><div class="n">STEP 03</div><strong>Evidence retrieval</strong><span>RAG agent retrieves user profile, prior plans, internal career frameworks, job-market context, and learning-resource metadata.</span></div>
+          <div class="flow-step"><div class="n">STEP 04</div><strong>Gap analysis</strong><span>Profile agent and market agent compare current evidence against target-role requirements.</span></div>
+          <div class="flow-step"><div class="n">STEP 05</div><strong>Roadmap synthesis</strong><span>Roadmap agent creates phases, milestones, projects, weekly plan, resources, metrics, and risk flags.</span></div>
+          <div class="flow-step"><div class="n">STEP 06</div><strong>Validation & approval</strong><span>Critic agent verifies evidence, realism, constraints, and uncertainty. User approves before materialization.</span></div>
+        </div>
+      </section>
+
+      <section id="clarification">
+        <h2>7. Clarification question engine</h2>
+        <p class="section-lead">The system should not generate a final roadmap when it lacks essential inputs. It should ask the smallest number of high-value questions needed to proceed safely.</p>
+        <div class="decision">
+          <div class="card tint-terra">
+            <h3>Required slots</h3>
+            <ul class="checklist">
+              <li>Current role or background</li>
+              <li>Target role, industry, or exploration mode</li>
+              <li>Country or target market</li>
+              <li>Timeline and urgency</li>
+              <li>Weekly time budget</li>
+              <li>Skill level and CV evidence</li>
+              <li>Constraints: work, study, budget, visa, family</li>
+            </ul>
+          </div>
+          <div class="card tint-blue">
+            <h3>Question policy</h3>
+            <ul class="checklist">
+              <li>Ask at most 3–5 questions per turn.</li>
+              <li>Prioritise blockers before preferences.</li>
+              <li>Offer multiple-choice answers when useful.</li>
+              <li>Explain why a question matters.</li>
+              <li>Allow “use a reasonable default” for non-critical fields.</li>
+            </ul>
+          </div>
+          <div class="card tint-green">
+            <h3>Proceed conditions</h3>
+            <ul class="checklist">
+              <li>All critical slots present.</li>
+              <li>Completeness score ≥ 0.82.</li>
+              <li>No high-risk contradiction in user profile.</li>
+              <li>At least one target or exploration objective exists.</li>
+              <li>Timeline and workload are feasible enough for a draft.</li>
+            </ul>
+          </div>
+        </div>
+        <h3 style="margin-top:22px;">Example clarification response</h3>
+        <pre class="code-block"><code>{
+  "status": "needs_clarification",
+  "reason": "Target role and weekly time budget are required to create a realistic roadmap.",
+  "questions": [
+    {
+      "id": "target_role",
+      "question": "Which role should the roadmap optimise for?",
+      "type": "single_choice_or_free_text",
+      "options": ["Machine Learning Engineer", "Data Engineer", "Product Manager", "Explore options"]
+    },
+    {
+      "id": "weekly_hours",
+      "question": "How many hours per week can you realistically commit?",
+      "type": "single_choice",
+      "options": ["3–5", "6–10", "11–15", "16+"]
+    }
+  ]
+}</code></pre>
+      </section>
+
+      <section id="rag">
+        <h2>8. RAG architecture</h2>
+        <p class="section-lead">RAG is not only for documents. In this product it becomes the grounding system for user history, CV evidence, career frameworks, job market evidence, learning resources, and prior roadmap decisions.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Indexing pipeline</h3>
+            <table>
+              <thead><tr><th>Source</th><th>Chunking strategy</th><th>Metadata</th></tr></thead>
+              <tbody>
+                <tr><td><strong>CV / Resume</strong></td><td>Section-aware chunks: experience, skills, education, projects</td><td>user_id, doc_id, sensitivity, extraction_confidence</td></tr>
+                <tr><td><strong>Job descriptions</strong></td><td>Requirement-aware chunks: responsibilities, must-have skills, nice-to-have skills</td><td>role, company, region, posting_date, source_url</td></tr>
+                <tr><td><strong>Roadmap artifacts</strong></td><td>Phase, milestone, task, habit, weekly review</td><td>plan_id, status, completion, created_at</td></tr>
+                <tr><td><strong>Learning resources</strong></td><td>Course/module/book-level chunks</td><td>level, cost, duration, provider, skill_tags</td></tr>
+                <tr><td><strong>Market signals</strong></td><td>Aggregated evidence cards, not raw noise</td><td>source_quality, freshness, geography, confidence</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3>Retrieval pipeline</h3>
+            <ul class="checklist">
+              <li><strong>Query rewriting:</strong> convert user goal into role, region, seniority, skill, and constraint queries.</li>
+              <li><strong>Hybrid search:</strong> use keyword + vector retrieval to avoid missing exact tool names or job titles.</li>
+              <li><strong>Re-ranking:</strong> rank by relevance, freshness, source quality, and user-fit.</li>
+              <li><strong>Evidence cards:</strong> return compact facts with source, timestamp, confidence, and permissible usage.</li>
+              <li><strong>Citation map:</strong> every generated recommendation points back to one or more evidence card IDs.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3 style="margin-top:22px;">Evidence card schema</h3>
+        <pre class="code-block"><code>class EvidenceCard(BaseModel):
+    id: UUID
+    user_id: UUID | None
+    source_type: Literal["user_cv", "job_posting", "course", "market_report", "roadmap_history", "manual_input"]
+    source_ref: str
+    claim: str
+    extracted_facts: list[str]
+    confidence: float
+    freshness_date: date | None
+    sensitivity: Literal["public", "user_private", "restricted"]
+    allowed_usage: list[Literal["reasoning", "display", "export", "tool_input"]]</code></pre>
+      </section>
+
+      <section id="mcp">
+        <h2>9. MCP tool layer</h2>
+        <p class="section-lead">MCP should be treated as a controlled tool gateway, not a free-for-all plugin system. Tools are registered, permissioned, audited, and called only through policy checks.</p>
+        <div class="grid-3">
+          <div class="card tint-green"><h3>Read tools</h3><p><span class="tag green">job.search</span><span class="tag green">github.trends</span><span class="tag green">course.search</span><span class="tag green">salary.lookup</span></p><p>Allowed during evidence retrieval when the user has accepted data-source terms.</p></div>
+          <div class="card tint-terra"><h3>Write tools</h3><p><span class="tag terra">calendar.create</span><span class="tag terra">crm.add_contact</span><span class="tag terra">task.create</span><span class="tag terra">draft_message</span></p><p>Require explicit user approval. The system must show the proposed action before execution.</p></div>
+          <div class="card tint-blue"><h3>Restricted tools</h3><p><span class="tag blue">linkedin.connect</span><span class="tag blue">email.send</span><span class="tag blue">application.submit</span></p><p>Disabled by default. Enable only with scoped OAuth and explicit confirmation per action.</p></div>
+        </div>
+
+        <h3 style="margin-top:22px;">Tool call governance</h3>
+        <table>
+          <thead><tr><th>Control</th><th>Purpose</th><th>Implementation</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Consent scope</strong></td><td>Prevents unexpected access to external accounts.</td><td>Store user-granted scopes per integration and check before tool call.</td></tr>
+            <tr><td><strong>Purpose binding</strong></td><td>Prevents tools being used outside the active workflow.</td><td>Each call includes run_id, agent_id, purpose, and policy decision.</td></tr>
+            <tr><td><strong>Rate limits</strong></td><td>Protects APIs and user accounts.</td><td>Redis counters per user, tool, and integration.</td></tr>
+            <tr><td><strong>Data minimisation</strong></td><td>Limits sensitive data exposure.</td><td>Tool inputs receive only needed fields, not full user profile dumps.</td></tr>
+            <tr><td><strong>Auditability</strong></td><td>Makes AI actions reviewable.</td><td>Persist request hash, response hash, timestamp, status, and user-visible summary.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="communication">
+        <h2>10. Agent-to-agent communication</h2>
+        <p class="section-lead">Agents communicate through a shared run state and typed messages. This avoids brittle prompt chaining and allows each output to be inspected, retried, validated, or replaced.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Message envelope</h3>
+            <pre class="code-block"><code>{
+  "message_id": "uuid",
+  "run_id": "uuid",
+  "from_agent": "profile_agent",
+  "to_agent": "gap_analysis_agent",
+  "message_type": "PROFILE_EXTRACTED",
+  "payload_schema": "ProfileSnapshotV1",
+  "payload": {},
+  "evidence_refs": ["ev_123", "ev_456"],
+  "confidence": 0.91,
+  "created_at": "2026-04-29T10:30:00Z"
+}</code></pre>
+          </div>
+          <div class="card">
+            <h3>Shared memory boundaries</h3>
+            <ul class="checklist">
+              <li><strong>Short-term run memory:</strong> current workflow state and intermediate artifacts.</li>
+              <li><strong>User memory:</strong> profile, goals, preferences, active plans, completed milestones.</li>
+              <li><strong>Evidence memory:</strong> retrieved source cards with confidence and freshness.</li>
+              <li><strong>Tool memory:</strong> MCP calls and returned structured data.</li>
+              <li><strong>Decision memory:</strong> why a roadmap item was created, changed, rejected, or approved.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="grounding">
+        <h2>11. Hallucination prevention and realism controls</h2>
+        <p class="section-lead">The system must make it difficult for unsupported claims to survive. Validation is done before the user sees a final roadmap and again before persistence.</p>
+        <div class="risk-grid">
+          <div class="risk"><div class="level">Guardrail</div><h3>No source, no claim</h3><p>Company hiring claims, salary ranges, trending skills, visa guidance, certification value, course metadata, and local event recommendations must reference evidence cards or be labelled as assumptions.</p></div>
+          <div class="risk"><div class="level">Guardrail</div><h3>Timeline feasibility scoring</h3><p>The validator checks milestone volume against weekly hours, current skill level, target difficulty, and user constraints. Unrealistic plans are returned for repair.</p></div>
+          <div class="risk"><div class="level">Guardrail</div><h3>Contradiction detection</h3><p>The validator compares user statements, CV evidence, prior preferences, and generated plan. Contradictions trigger clarification or a visible warning.</p></div>
+          <div class="risk"><div class="level">Guardrail</div><h3>Freshness policy</h3><p>Market-sensitive data must include retrieved_at and source_date. Stale market signals are downgraded or excluded from high-impact recommendations.</p></div>
+          <div class="risk"><div class="level">Guardrail</div><h3>Uncertainty display</h3><p>Recommendations include confidence labels: high, medium, low. Low-confidence recommendations require explanation and optional user confirmation.</p></div>
+          <div class="risk"><div class="level">Guardrail</div><h3>Schema validation</h3><p>All LLM output is parsed into Pydantic schemas. Invalid output is rejected, repaired, and logged. Free-form text is never directly persisted as roadmap state.</p></div>
+        </div>
+
+        <h3 style="margin-top:22px;">Validation checklist</h3>
+        <table>
+          <thead><tr><th>Check</th><th>Pass condition</th><th>Failure action</th></tr></thead>
+          <tbody>
+            <tr><td>Evidence coverage</td><td>Every major roadmap recommendation has evidence or a declared assumption.</td><td>Ask RAG/market agent for more evidence or mark as assumption.</td></tr>
+            <tr><td>Personal fit</td><td>Plan respects time budget, learning style, location, budget, and constraints.</td><td>Regenerate constrained section.</td></tr>
+            <tr><td>Role alignment</td><td>Milestones map to target-role skill graph and gap report.</td><td>Remove or re-rank irrelevant milestones.</td></tr>
+            <tr><td>Measurability</td><td>Each phase has concrete success metrics and evidence artifacts.</td><td>Add metrics or reject phase.</td></tr>
+            <tr><td>Safety and bias</td><td>Advice avoids protected-attribute assumptions and does not limit ambition unfairly.</td><td>Escalate to responsible-AI rewrite.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="data">
+        <h2>12. Data architecture</h2>
+        <p class="section-lead">PostgreSQL remains the transactional source of truth. The vector index supports retrieval, Redis supports session/rate-limit/job caching, and object storage keeps uploaded files outside the relational database.</p>
+        <div class="grid-3">
+          <div class="card"><h3>User & profile</h3><p><span class="tag">users</span><span class="tag">user_profiles</span><span class="tag">user_goals</span><span class="tag">user_constraints</span><span class="tag">career_preferences</span></p></div>
+          <div class="card"><h3>Documents & evidence</h3><p><span class="tag">uploaded_documents</span><span class="tag">parsed_cv_profiles</span><span class="tag">evidence_cards</span><span class="tag">source_citations</span><span class="tag">embedding_chunks</span></p></div>
+          <div class="card"><h3>Roadmap</h3><p><span class="tag">career_plans</span><span class="tag">roadmap_phases</span><span class="tag">milestones</span><span class="tag">weekly_tasks</span><span class="tag">habits</span><span class="tag">resources</span></p></div>
+          <div class="card"><h3>Agent runtime</h3><p><span class="tag">agent_runs</span><span class="tag">agent_messages</span><span class="tag">agent_artifacts</span><span class="tag">validation_reports</span><span class="tag">decision_logs</span></p></div>
+          <div class="card"><h3>MCP tools</h3><p><span class="tag">integrations</span><span class="tag">user_oauth_grants</span><span class="tag">tool_registry</span><span class="tag">tool_call_logs</span><span class="tag">tool_permissions</span></p></div>
+          <div class="card"><h3>Progress</h3><p><span class="tag">weekly_reviews</span><span class="tag">metric_entries</span><span class="tag">habit_logs</span><span class="tag">application_events</span><span class="tag">outcomes</span></p></div>
+        </div>
+
+        <h3 style="margin-top:22px;">Key entities</h3>
+        <table>
+          <thead><tr><th>Entity</th><th>Purpose</th><th>Important fields</th></tr></thead>
+          <tbody>
+            <tr><td><strong>CareerPlan</strong></td><td>Top-level living roadmap owned by the user.</td><td>user_id, target_role, target_market, horizon_months, status, version</td></tr>
+            <tr><td><strong>RoadmapPhase</strong></td><td>Long-horizon phase of the plan.</td><td>title, objective, start_date, end_date, success_metrics, confidence</td></tr>
+            <tr><td><strong>Milestone</strong></td><td>Trackable unit of progress.</td><td>phase_id, title, evidence_required, due_date, priority, status</td></tr>
+            <tr><td><strong>EvidenceCard</strong></td><td>Grounding unit for recommendations.</td><td>source_type, claim, confidence, freshness_date, sensitivity</td></tr>
+            <tr><td><strong>AgentRun</strong></td><td>One orchestration workflow.</td><td>run_type, status, input_hash, output_hash, started_at, completed_at</td></tr>
+            <tr><td><strong>ValidationReport</strong></td><td>Quality gate result.</td><td>passed, score, unsupported_claims, realism_score, repair_instructions</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="apis">
+        <h2>13. Backend API contracts</h2>
+        <p class="section-lead">The existing REST conventions can remain. Add an AI namespace for roadmap generation, chat, evidence, validation, and adaptation.</p>
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/v1/ai/roadmaps/generate</code></td><td>Start a roadmap generation run from profile, CV, target role, or exploration request.</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/ai/runs/{run_id}</code></td><td>Return run status, current step, messages, validation state, and partial artifacts.</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/ai/runs/{run_id}/stream</code></td><td>SSE stream for progress updates and agent step summaries.</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/ai/runs/{run_id}/clarifications</code></td><td>Submit answers to clarification questions and resume the run.</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/ai/runs/{run_id}/evidence</code></td><td>Return evidence cards used by the generated roadmap.</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/ai/roadmaps/{draft_id}/approve</code></td><td>Approve draft roadmap and materialize phases, milestones, habits, and tasks.</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/ai/roadmaps/{plan_id}/adapt</code></td><td>Regenerate or adjust sections based on new goals, progress, or market changes.</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/ai/chat</code></td><td>Conversational career coach endpoint with tool- and RAG-aware grounding.</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/ai/tool-permissions</code></td><td>Show the user which integrations and MCP tools are enabled.</td></tr>
+            <tr><td>PATCH</td><td><code>/api/v1/ai/tool-permissions</code></td><td>Update MCP tool consent and permission scopes.</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-top:22px;">Roadmap draft response shape</h3>
+        <pre class="code-block"><code>{
+  "success": true,
+  "data": {
+    "run_id": "uuid",
+    "status": "awaiting_user_approval",
+    "draft_roadmap": {
+      "target_role": "Machine Learning Engineer",
+      "target_market": "Switzerland / Remote EU",
+      "horizon_months": 18,
+      "phases": [
+        {
+          "title": "Foundation and diagnostic cleanup",
+          "duration_weeks": 8,
+          "objective": "Close core ML and portfolio evidence gaps",
+          "milestones": [],
+          "weekly_time_budget": {},
+          "success_metrics": []
+        }
+      ]
+    },
+    "validation": {
+      "passed": true,
+      "realism_score": 0.87,
+      "evidence_coverage": 0.93,
+      "warnings": []
+    }
+  },
+  "message": "Roadmap draft generated and ready for review."
+}</code></pre>
+      </section>
+
+      <section id="infra">
+        <h2>14. Infrastructure and deployment architecture</h2>
+        <p class="section-lead">Roadmap generation can be slow because it may parse documents, retrieve evidence, call tools, and run multiple LLM steps. Use asynchronous workers instead of blocking HTTP requests.</p>
+        <div class="grid-3">
+          <div class="card tint-green"><h3>FastAPI app</h3><p>Handles auth, REST APIs, streaming endpoints, validation, and orchestration job creation. Keeps request latency low.</p></div>
+          <div class="card tint-terra"><h3>Agent workers</h3><p>Consume jobs from a queue and run orchestration workflows. Workers can be scaled independently from the API.</p></div>
+          <div class="card tint-blue"><h3>Scheduler</h3><p>Runs weekly review prompts, market refresh jobs, roadmap adaptation scans, and stale-evidence cleanup.</p></div>
+          <div class="card"><h3>Queue</h3><p>Use Celery/RQ/Arq with Redis or a production broker. Store job status in PostgreSQL for reliability.</p></div>
+          <div class="card"><h3>Storage</h3><p>PostgreSQL for state, object store for documents, vector store for embeddings, Redis for cache/rate limiting/session data.</p></div>
+          <div class="card"><h3>Kubernetes-ready</h3><p>Separate deployments for API, worker, scheduler, MCP gateway, embedding service, and observability stack.</p></div>
+        </div>
+
+        <h3 style="margin-top:22px;">Recommended services</h3>
+        <table>
+          <thead><tr><th>Service</th><th>Responsibility</th><th>Scale trigger</th></tr></thead>
+          <tbody>
+            <tr><td><strong>api-service</strong></td><td>FastAPI routes, auth, input validation, SSE streaming.</td><td>HTTP RPS and latency.</td></tr>
+            <tr><td><strong>agent-worker</strong></td><td>LLM orchestration, RAG, roadmap generation, validation.</td><td>Queue depth and run duration.</td></tr>
+            <tr><td><strong>ingestion-worker</strong></td><td>CV parsing, document chunking, embeddings.</td><td>Upload volume.</td></tr>
+            <tr><td><strong>mcp-gateway</strong></td><td>Tool registry, permission checks, tool execution, audit logs.</td><td>Tool-call volume.</td></tr>
+            <tr><td><strong>scheduler</strong></td><td>Recurring market refresh, weekly reviews, adaptation checks.</td><td>Number of active plans.</td></tr>
+            <tr><td><strong>eval-runner</strong></td><td>Offline quality tests and regression checks for agents/prompts.</td><td>Release cadence and dataset size.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="security">
+        <h2>15. Security, privacy, and responsible AI</h2>
+        <p class="section-lead">The system handles CVs, career goals, progress history, and connected accounts. Security must be designed into every layer, especially agent tools and generated decisions.</p>
+        <div class="grid-2">
+          <div class="card tint-green">
+            <h3>Security controls</h3>
+            <ul class="checklist">
+              <li>JWT access tokens, refresh tokens in HttpOnly Secure SameSite cookies.</li>
+              <li>Per-user row-level isolation in repositories and service methods.</li>
+              <li>Encryption at rest for uploaded documents and sensitive fields.</li>
+              <li>Tool-call audit logs for MCP actions.</li>
+              <li>Rate limiting on auth, chat, generation, and tool endpoints.</li>
+              <li>Secrets managed outside code through environment or secret manager.</li>
+            </ul>
+          </div>
+          <div class="card tint-terra">
+            <h3>Responsible AI controls</h3>
+            <ul class="checklist">
+              <li>Do not infer protected attributes or reduce ambition based on them.</li>
+              <li>Expose uncertainty and assumptions to users.</li>
+              <li>Allow users to delete documents and derived analyses.</li>
+              <li>Require consent for external account connections.</li>
+              <li>Keep a human approval gate for write actions and critical plan changes.</li>
+              <li>Provide explanations for important recommendations.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="evals">
+        <h2>16. Evaluation and observability</h2>
+        <p class="section-lead">The product should be evaluated like a serious AI system, not a prompt demo. Track correctness, usefulness, safety, realism, and user outcomes over time.</p>
+        <div class="grid-3">
+          <div class="card"><h3>Agent quality metrics</h3><p><span class="tag">evidence coverage</span><span class="tag">unsupported claim rate</span><span class="tag">clarification precision</span><span class="tag">schema failure rate</span><span class="tag">repair rate</span></p></div>
+          <div class="card"><h3>User outcome metrics</h3><p><span class="tag">milestone completion</span><span class="tag">weekly review completion</span><span class="tag">plan adherence</span><span class="tag">interviews earned</span><span class="tag">offers / transitions</span></p></div>
+          <div class="card"><h3>System metrics</h3><p><span class="tag">P95 API latency</span><span class="tag">run duration</span><span class="tag">queue depth</span><span class="tag">tool latency</span><span class="tag">LLM cost per run</span></p></div>
+        </div>
+        <h3 style="margin-top:22px;">Observability stack</h3>
+        <table>
+          <thead><tr><th>Layer</th><th>What to log</th><th>Why it matters</th></tr></thead>
+          <tbody>
+            <tr><td>API</td><td>request_id, user_id, endpoint, status, latency, validation errors</td><td>Debug user-facing backend issues.</td></tr>
+            <tr><td>Agent</td><td>run_id, agent_id, prompt version, model, output schema, confidence</td><td>Trace agent behaviour and regressions.</td></tr>
+            <tr><td>RAG</td><td>queries, retrieved evidence IDs, re-rank score, freshness</td><td>Diagnose grounding failures.</td></tr>
+            <tr><td>MCP</td><td>tool name, policy decision, execution time, result summary</td><td>Audit external actions.</td></tr>
+            <tr><td>Validation</td><td>unsupported claims, realism score, repair instructions</td><td>Measure hallucination prevention.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="repo">
+        <h2>17. Recommended backend folder structure</h2>
+        <p class="section-lead">Keep the existing clean feature boundaries while adding a dedicated AI domain. Do not scatter prompts, tools, and schemas across unrelated modules.</p>
+        <pre class="code-block"><code>career-roadmap-api/
+  app/
+    api/v1/
+      routes_ai.py
+      routes_roadmap.py
+      routes_profile.py
+      routes_integrations.py
+    core/
+      config.py
+      security.py
+      rate_limit.py
+      logging.py
+    domains/
+      users/
+      roadmap/
+      progress/
+      networking/
+      documents/
+      integrations/
+      ai/
+        agents/
+          orchestrator.py
+          clarification_agent.py
+          profile_cv_agent.py
+          rag_evidence_agent.py
+          market_agent.py
+          gap_analysis_agent.py
+          roadmap_synthesis_agent.py
+          validator_agent.py
+          adaptation_agent.py
+        schemas/
+          run.py
+          messages.py
+          evidence.py
+          roadmap_draft.py
+          validation.py
+        services/
+          orchestration_service.py
+          evidence_service.py
+          prompt_registry.py
+          agent_memory_service.py
+          roadmap_materializer.py
+        prompts/
+          roadmap_synthesis_v1.md
+          validator_v1.md
+          clarification_v1.md
+        evals/
+          fixtures/
+          test_roadmap_quality.py
+    infrastructure/
+      db/
+      vector_store/
+      object_store/
+      queue/
+      mcp/
+        gateway.py
+        registry.py
+        policies.py
+        tools/
+    workers/
+      agent_worker.py
+      ingestion_worker.py
+      scheduler.py
+  tests/
+    unit/
+    integration/
+    e2e/
+    evals/</code></pre>
+      </section>
+
+      <section id="implementation">
+        <h2>18. Implementation roadmap</h2>
+        <p class="section-lead">Build the AI architecture incrementally. The first version should optimise for correctness, auditability, and user trust before adding many external integrations.</p>
+        <table>
+          <thead><tr><th>Phase</th><th>Scope</th><th>Deliverable</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Phase 1</strong></td><td>Core data model, CV upload, profile extraction, manual target-role input, clarification gate.</td><td>Generate a validated roadmap using only user profile + curated internal knowledge.</td></tr>
+            <tr><td><strong>Phase 2</strong></td><td>RAG index, evidence cards, source-aware generation, validator agent, roadmap materialization.</td><td>Every roadmap recommendation has evidence references or declared assumptions.</td></tr>
+            <tr><td><strong>Phase 3</strong></td><td>MCP gateway for read-only tools: job search, course search, GitHub trends, market reports.</td><td>Market-aware roadmap generation with tool audit logs and freshness metadata.</td></tr>
+            <tr><td><strong>Phase 4</strong></td><td>Progress tracking, weekly reviews, adaptation agent, stale-plan detection.</td><td>Roadmap updates based on user behaviour and market changes.</td></tr>
+            <tr><td><strong>Phase 5</strong></td><td>Write tools with approval: calendar tasks, CRM contacts, draft messages, application tracker.</td><td>Agent assists execution while user remains in control.</td></tr>
+            <tr><td><strong>Phase 6</strong></td><td>Evaluation datasets, prompt versioning, A/B testing, outcome analytics, enterprise controls.</td><td>Scalable trustworthy career intelligence platform.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="final-blueprint">
+        <h2>19. Final backend blueprint</h2>
+        <p class="section-lead">The production backend should combine your existing product modules with a new agentic AI core. The key decision is to treat AI outputs as draft artifacts that need evidence, validation, and user approval before they become persistent product state.</p>
+        <div class="grid-2">
+          <div class="card tint-green">
+            <h3>What the system generates</h3>
+            <ul class="checklist">
+              <li>Career diagnosis and readiness score.</li>
+              <li>Skill gap report with evidence.</li>
+              <li>Multi-phase roadmap.</li>
+              <li>Monthly milestones and weekly execution plan.</li>
+              <li>Portfolio/project recommendations.</li>
+              <li>Learning resources and reading plan.</li>
+              <li>Networking and opportunity strategy.</li>
+              <li>Progress metrics and review cadence.</li>
+            </ul>
+          </div>
+          <div class="card tint-terra">
+            <h3>What the system must never do</h3>
+            <ul class="checklist">
+              <li>Invent job-market facts or company requirements.</li>
+              <li>Assume personal constraints that the user did not provide.</li>
+              <li>Present uncertain career advice as guaranteed truth.</li>
+              <li>Use external accounts without scoped consent.</li>
+              <li>Send messages, apply to jobs, or modify calendars without approval.</li>
+              <li>Persist unvalidated LLM free text as source-of-truth state.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">
+        <strong>Source basis:</strong> This architecture is derived from the uploaded Career Roadmap AI merged concept, the Roger-specific functional specification, and the provided dashboard/UI HTML. It converts those product requirements into an implementable backend architecture for the agentic roadmap generation system.
+      </div>
+    </main>
+  </div>
+</body>
+</html>

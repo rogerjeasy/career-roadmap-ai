@@ -17,7 +17,13 @@ from src.config import settings
 
 
 def setup_tracing(app: FastAPI) -> None:
-    """Configure OTel tracer provider and instrument frameworks."""
+    """Configure OTel tracer provider and instrument frameworks.
+
+    The OTLP exporter is only enabled when ``OTEL_TRACING_ENABLED=true`` and
+    ``OTEL_EXPORTER_OTLP_ENDPOINT`` are both set. In development neither is
+    required — the tracer provider is still created (so instrumentation works)
+    but no spans are exported.
+    """
     resource = Resource.create(
         {
             "service.name": settings.otel_service_name,
@@ -28,7 +34,7 @@ def setup_tracing(app: FastAPI) -> None:
 
     provider = TracerProvider(resource=resource)
 
-    if settings.otel_exporter_otlp_endpoint:
+    if settings.otel_tracing_enabled and settings.otel_exporter_otlp_endpoint:
         exporter = OTLPSpanExporter(
             endpoint=settings.otel_exporter_otlp_endpoint,
             insecure=True,

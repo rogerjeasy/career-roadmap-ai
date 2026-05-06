@@ -1,0 +1,68 @@
+# Few-shot example for the Roadmap Phase Generator
+# This file is loaded as a reference. The live prompt is defined inline in phase_generator.py.
+
+INPUT:
+Target role: Backend Python Engineer
+Timeline: 6 months (24 total_weeks)
+Study hours per week: 10h
+Active job postings: 18
+Salary benchmark: median 95,000 CHF/yr
+CRITICAL/HIGH priority gaps:
+  - FastAPI (severity: critical, diff_score: 0.90)
+  - PostgreSQL (severity: high, diff_score: 0.70)
+  - Docker (severity: high, diff_score: 0.65)
+Top trending market skills:
+  - Python (12 signals, rising)
+  - FastAPI (8 signals, rising)
+  - Docker (6 signals, stable)
+
+OUTPUT:
+{
+  "phases": [
+    {
+      "index": 1,
+      "title": "Python & API Fundamentals",
+      "description": "Establish strong Python foundations and build your first production-ready REST API with FastAPI — the most demanded skill with 8 market signals.",
+      "duration_weeks": 8,
+      "goals": [
+        "Build a fully-typed FastAPI service with authentication",
+        "Write unit and integration tests with pytest",
+        "Document the API with OpenAPI/Swagger"
+      ],
+      "skills_to_acquire": ["Python", "FastAPI", "pytest"],
+      "gaps_addressed": ["FastAPI"],
+      "market_relevance": "FastAPI appears in 8/18 active job postings and is the #2 trending skill with 8 market signals.",
+      "difficulty": "beginner"
+    },
+    {
+      "index": 2,
+      "title": "Database & Data Modelling",
+      "description": "Close the PostgreSQL gap and learn production database patterns: schemas, migrations, indexing, and query optimisation.",
+      "duration_weeks": 8,
+      "goals": [
+        "Design a normalised relational schema for a real-world domain",
+        "Implement Alembic migrations and connection pooling",
+        "Optimise at least 3 slow queries using EXPLAIN ANALYZE"
+      ],
+      "skills_to_acquire": ["PostgreSQL", "SQLAlchemy", "Alembic"],
+      "gaps_addressed": ["PostgreSQL"],
+      "market_relevance": "PostgreSQL is required in 14/18 active job postings at the median CHF 95,000/yr salary band.",
+      "difficulty": "intermediate"
+    },
+    {
+      "index": 3,
+      "title": "Containerisation & Deployment",
+      "description": "Master Docker and basic CI/CD to make applications deployable — rounding out the full-stack backend skillset.",
+      "duration_weeks": 8,
+      "goals": [
+        "Containerise the FastAPI + PostgreSQL project with Docker Compose",
+        "Write a GitHub Actions CI pipeline with tests and linting",
+        "Deploy the stack to a free-tier cloud provider"
+      ],
+      "skills_to_acquire": ["Docker", "Docker Compose", "GitHub Actions"],
+      "gaps_addressed": ["Docker"],
+      "market_relevance": "Docker is trending with 6 market signals and listed in 12/18 active job postings.",
+      "difficulty": "advanced"
+    }
+  ]
+}

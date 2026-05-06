@@ -23,12 +23,11 @@ def configure_logging() -> None:
         structlog.processors.format_exc_info,
     ]
 
-    if settings.environment == "development":
-        renderers: list[structlog.types.Processor] = [
-            structlog.dev.ConsoleRenderer(colors=True),
-        ]
+    use_json = settings.log_format == "json" or settings.environment != "development"
+    if use_json:
+        renderers: list[structlog.types.Processor] = [structlog.processors.JSONRenderer()]
     else:
-        renderers = [structlog.processors.JSONRenderer()]
+        renderers = [structlog.dev.ConsoleRenderer(colors=True)]
 
     structlog.configure(
         processors=[*shared_processors, *renderers],

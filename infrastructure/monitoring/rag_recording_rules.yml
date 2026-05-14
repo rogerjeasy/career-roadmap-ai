@@ -1,0 +1,93 @@
+groups:
+  - name: rag_pipeline_recording_rules
+    interval: 60s
+    rules:
+      # ── Cache efficiency ──────────────────────────────────────────────────────
+
+      - record: career_agents:rag_cache_hit_ratio:rate5m
+        expr: |
+          rate(career_agents_rag_cache_hit_total[5m])
+          /
+          (
+            rate(career_agents_rag_cache_hit_total[5m])
+            + rate(career_agents_rag_cache_miss_total[5m])
+          )
+
+      # ── Retrieval error rate ──────────────────────────────────────────────────
+
+      - record: career_agents:rag_query_error_ratio:rate5m
+        expr: |
+          sum(rate(career_agents_rag_query_total{status="error"}[5m])) by (namespace)
+          /
+          sum(rate(career_agents_rag_query_total[5m])) by (namespace)
+
+      # ── Embedding error rate ──────────────────────────────────────────────────
+
+      - record: career_agents:rag_embed_error_ratio:rate5m
+        expr: |
+          rate(career_agents_rag_embed_total{status="error"}[5m])
+          /
+          rate(career_agents_rag_embed_total[5m])
+
+      # ── Ingestion success rate ────────────────────────────────────────────────
+
+      - record: career_agents:rag_ingestion_success_ratio:rate30m
+        expr: |
+          sum(rate(career_agents_rag_ingestion_task_total{status="success"}[30m])) by (doc_type)
+          /
+          sum(rate(career_agents_rag_ingestion_task_total[30m])) by (doc_type)
+
+      # ── Reranker error rate ───────────────────────────────────────────────────
+
+      - record: career_agents:rag_rerank_error_ratio:rate5m
+        expr: |
+          sum(rate(career_agents_rag_rerank_total{status="error"}[5m])) by (backend)
+          /
+          sum(rate(career_agents_rag_rerank_total[5m])) by (backend)
+
+      # ── Real-time indexer error rate ──────────────────────────────────────────
+
+      - record: career_agents:rag_realtime_error_ratio:rate5m
+        expr: |
+          rate(career_agents_rag_realtime_index_total{status="error"}[5m])
+          /
+          rate(career_agents_rag_realtime_index_total[5m])
+
+      # ── OpenAI token cost rate (tokens/second) ────────────────────────────────
+
+      - record: career_agents:rag_embed_tokens_per_second:rate5m
+        expr: |
+          sum(rate(career_agents_rag_embed_tokens_total[5m])) by (mode)
+
+      # ── Context assembly p95 latency ──────────────────────────────────────────
+
+      - record: career_agents:rag_context_assembly_p95_latency:rate5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(career_agents_rag_context_assembly_duration_seconds_bucket[5m])
+          )
+
+      # ── End-to-end retrieval p95 latency (query + rerank + MMR) ──────────────
+
+      - record: career_agents:rag_retrieval_p95_latency:rate5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(career_agents_rag_query_duration_seconds_bucket[5m])
+          )
+
+      # ── Median retrieval similarity score ─────────────────────────────────────
+
+      - record: career_agents:rag_retrieval_score_p50:rate10m
+        expr: |
+          histogram_quantile(
+            0.50,
+            rate(career_agents_rag_retrieval_score_bucket[10m])
+          )
+
+      # ── Stale chunk injection rate ────────────────────────────────────────────
+
+      - record: career_agents:rag_stale_chunk_rate:rate1h
+        expr: |
+          rate(career_agents_rag_injection_chunks_stale_total[1h])

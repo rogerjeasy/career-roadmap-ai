@@ -1,0 +1,383 @@
+groups:
+  - name: rag_ingestion_alerts
+    rules:
+      # ── Ingestion failures ──────────────────────────────────────────────────
+
+      - alert: RAGIngestionTaskFailed
+        expr: |
+          increase(career_agents_rag_ingestion_task_total{status="error"}[15m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: rag
+        annotations:
+          summary: "RAG ingestion task failed ({{ $labels.doc_type }})"
+          description: >
+            At least one {{ $labels.doc_type }} ingestion task has failed in the
+            last 15 minutes. Knowledge base may be stale. Check Celery worker logs
+            with `rag.ingestion.failed` events and the `task_id` field.
+          runbook: "https://docs.internal/runbooks/rag-ingestion-failed"
+
+      - alert: RAGIngestionTaskSlow
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(career_agents_rag_ingestion_task_duration_seconds_bucket[15m])
+          ) > 600
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "RAG ingestion p95 latency > 10 min ({{ $labels.doc_type }})"
+          description: >
+            p95 ingestion task duration for {{ $labels.doc_type }} has exceeded
+            600 seconds. Possible cause: Pinecone or OpenAI API degradation.
+          runbook: "https://docs.internal/runbooks/rag-ingestion-slow"
+
+      - alert: RAGIngestionNoActivity
+        expr: |
+          increase(career_agents_rag_docs_ingested_total[25h]) == 0
+        for: 30m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "No RAG documents ingested in 25 hours"
+          description: >
+            No documents have been ingested into any namespace in the last 25 hours.
+            The Celery beat schedule may have stopped or failed silently. Check
+            `celery beat` process and `rag.ingest_*` scheduled tasks.
+          runbook: "https://docs.internal/runbooks/rag-no-ingestion"
+
+      - alert: RAGBM25FitFailed
+        expr: |
+          increase(career_agents_rag_bm25_fit_total{status="error"}[30m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "BM25 encoder fit task failed"
+          description: >
+            The `rag.fit_bm25_encoder` task failed. Hybrid search quality will
+            degrade as BM25 weights drift from the corpus until the next
+            successful fit. Check the Celery worker for `rag.bm25.fit_task_failed`.
+          runbook: "https://docs.internal/runbooks/rag-bm25-fit-failed"
+
+  - name: rag_retrieval_alerts
+    rules:
+      # ── Embedding errors ──────────────────────────────────────────────────────
+
+      - alert: RAGEmbeddingHighErrorRate
+        expr: |
+          career_agents:rag_embed_error_ratio:rate5m > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+          component: rag
+        annotations:
+          summary: "RAG embedding error rate > 5%"
+          description: >
+            More than 5% of OpenAI embedding calls are failing. This blocks both
+            ingestion and real-time retrieval. Check OPENAI_API_KEY, quota limits,
+            and OpenAI status page.
+          runbook: "https://docs.internal/runbooks/rag-embedding-errors"
+
+      - alert: RAGEmbeddingHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(career_agents_rag_embed_duration_seconds_bucket[5m])
+          ) > 8
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "RAG embedding p95 latency > 8 s"
+          description: >
+            OpenAI embedding p95 latency has exceeded 8 seconds. This will
+            cascade into slow context assembly for every user roadmap request.
+          runbook: "https://docs.internal/runbooks/rag-embedding-slow"
+
+      # ── Pinecone query errors ─────────────────────────────────────────────────
+
+      - alert: RAGQueryHighErrorRate
+        expr: |
+          career_agents:rag_query_error_ratio:rate5m > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+          component: rag
+        annotations:
+          summary: "Pinecone query error rate > 5% ({{ $labels.namespace }})"
+          description: >
+            More than 5% of Pinecone similarity queries are failing for namespace
+            {{ $labels.namespace }}. RAG context will be empty for affected users.
+            Check PINECONE_API_KEY, index status, and Pinecone status page.
+          runbook: "https://docs.internal/runbooks/rag-pinecone-errors"
+
+      - alert: RAGContextAssemblyHighLatency
+        expr: |
+          career_agents:rag_context_assembly_p95_latency:rate5m > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "RAG context assembly p95 latency > 5 s"
+          description: >
+            Full context assembly (HyDE + embedding + Pinecone fan-out +
+            reranking + MMR) p95 has exceeded 5 seconds. This directly increases
+            roadmap generation latency for users. Consider disabling reranker or
+            MMR, or scaling Pinecone pods.
+          runbook: "https://docs.internal/runbooks/rag-assembly-slow"
+
+      # ── Retrieval quality ─────────────────────────────────────────────────────
+
+      - alert: RAGRetrievalLowSimilarityScores
+        expr: |
+          career_agents:rag_retrieval_score_p50:rate10m < 0.65
+        for: 10m
+        labels:
+          severity: warning
+          team: mlops
+          component: rag
+        annotations:
+          summary: "RAG median retrieval similarity below 0.65"
+          description: >
+            Median Pinecone similarity score has dropped below 0.65 over the last
+            10 minutes. This usually indicates corpus drift (knowledge base not
+            updated) or query distribution shift. Consider re-running the eval
+            pipeline and re-fitting the BM25 encoder.
+          runbook: "https://docs.internal/runbooks/rag-low-scores"
+
+      # ── Reranker errors ───────────────────────────────────────────────────────
+
+      - alert: RAGRerankerErrors
+        expr: |
+          career_agents:rag_rerank_error_ratio:rate5m > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "Reranker error rate > 10% ({{ $labels.backend }})"
+          description: >
+            More than 10% of reranking calls are failing for backend
+            {{ $labels.backend }}. The retriever falls back to score-sorted
+            order, which reduces precision. For `cohere` backend check
+            COHERE_API_KEY and quota. For `cross_encoder` check GPU/CPU load.
+          runbook: "https://docs.internal/runbooks/rag-reranker-errors"
+
+      # ── HyDE errors ───────────────────────────────────────────────────────────
+
+      - alert: RAGHyDEHighErrorRate
+        expr: |
+          rate(career_agents_rag_hyde_total{status="error"}[5m])
+          /
+          rate(career_agents_rag_hyde_total[5m])
+          > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "HyDE expansion error rate > 20%"
+          description: >
+            More than 20% of HyDE query expansion LLM calls are failing.
+            Retrieval falls back to raw query embedding. Check ANTHROPIC_API_KEY
+            and Claude API rate limits / status.
+          runbook: "https://docs.internal/runbooks/rag-hyde-errors"
+
+  - name: rag_realtime_alerts
+    rules:
+      # ── Real-time indexer (CV uploads) ────────────────────────────────────────
+
+      - alert: RAGRealTimeIndexErrors
+        expr: |
+          career_agents:rag_realtime_error_ratio:rate5m > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+          component: rag
+        annotations:
+          summary: "Real-time RAG indexer error rate > 5%"
+          description: >
+            More than 5% of real-time document indexing calls (used for CV
+            uploads and ad-hoc data) are failing. Newly uploaded CVs will not
+            be searchable. Check for Pinecone or OpenAI errors.
+          runbook: "https://docs.internal/runbooks/rag-realtime-errors"
+
+      - alert: RAGRealTimeBatchFailures
+        expr: |
+          increase(career_agents_rag_realtime_batch_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "Documents failed in RAG real-time batch indexer"
+          description: >
+            One or more documents within a `RealTimeIndexer.index_batch()` call
+            failed. Partial batch results are still stored. Check
+            `rag.realtime.batch_item_failed` logs for affected doc_ids.
+          runbook: "https://docs.internal/runbooks/rag-batch-failures"
+
+  - name: rag_cache_alerts
+    rules:
+      - alert: RAGCacheHitRateLow
+        expr: |
+          career_agents:rag_cache_hit_ratio:rate5m < 0.2
+        for: 15m
+        labels:
+          severity: info
+          team: platform
+          component: rag
+        annotations:
+          summary: "RAG query cache hit ratio below 20%"
+          description: >
+            The Redis RAG query cache hit ratio has been below 20% for 15 minutes.
+            This is expected in low-traffic periods or after a cache flush, but
+            sustained low hit rates may indicate diverse query patterns that
+            limit cache effectiveness. Consider tuning `RAG_CACHE_TTL_SECONDS`.
+          runbook: "https://docs.internal/runbooks/rag-cache-hit-low"
+
+  - name: rag_quality_alerts
+    rules:
+      # ── Eval quality regression ────────────────────────────────────────────────
+
+      - alert: RAGEvalRecallDegraded
+        expr: career_agents_rag_eval_recall_at_k{k="5"} < 0.60
+        for: 5m
+        labels:
+          severity: critical
+          team: mlops
+          component: rag
+        annotations:
+          summary: "RAG Recall@5 below 0.60 in latest eval run"
+          description: >
+            The RAG evaluation pipeline has reported Recall@5 = {{ $value | printf "%.3f" }},
+            below the minimum acceptable threshold of 0.60. Agent outputs are at
+            risk of citing missing or wrong knowledge base chunks. Trigger a
+            corpus re-ingest and BM25 re-fit, then re-run the eval.
+          runbook: "https://docs.internal/runbooks/rag-recall-degraded"
+
+      - alert: RAGEvalMRRDegraded
+        expr: career_agents_rag_eval_mrr < 0.50
+        for: 5m
+        labels:
+          severity: warning
+          team: mlops
+          component: rag
+        annotations:
+          summary: "RAG MRR below 0.50 in latest eval run"
+          description: >
+            Mean Reciprocal Rank = {{ $value | printf "%.3f" }} — the most
+            relevant chunk is, on average, not appearing near the top of
+            results. Check namespace selection, BM25 encoder freshness, and
+            reranker configuration.
+          runbook: "https://docs.internal/runbooks/rag-mrr-degraded"
+
+      - alert: RAGEvalHighLatency
+        expr: career_agents_rag_eval_p95_latency_seconds > 3.0
+        for: 5m
+        labels:
+          severity: warning
+          team: mlops
+          component: rag
+        annotations:
+          summary: "RAG eval p95 retrieval latency > 3 s"
+          description: >
+            The eval pipeline reports p95 per-query latency =
+            {{ $value | printf "%.2f" }}s. Users will experience slow roadmap
+            generation. Consider disabling MMR or reducing fetch_k_multiplier.
+          runbook: "https://docs.internal/runbooks/rag-latency-high"
+
+      - alert: RAGEvalRunFailed
+        expr: |
+          increase(career_agents_rag_eval_run_total{status="error"}[1h]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: mlops
+          component: rag
+        annotations:
+          summary: "RAG eval pipeline run failed"
+          description: >
+            The `rag.run_eval` Celery task has failed. Quality regression cannot
+            be detected until the next successful run. Check worker logs for
+            `rag.eval.task_failed` events.
+          runbook: "https://docs.internal/runbooks/rag-eval-failed"
+
+      # ── Injection staleness ────────────────────────────────────────────────────
+
+      - alert: RAGHighStalenessInjectionRate
+        expr: |
+          career_agents:rag_stale_chunk_rate:rate1h > 50
+        for: 10m
+        labels:
+          severity: warning
+          team: mlops
+          component: rag
+        annotations:
+          summary: "High rate of stale market chunks excluded from injection"
+          description: >
+            More than 50 market-namespace chunks per hour are being excluded by
+            the freshness policy. Market intelligence in agent outputs may be
+            missing or thin. Trigger a `rag.ingest_market_reports` and
+            `rag.ingest_swiss_eu_market` task run.
+          runbook: "https://docs.internal/runbooks/rag-stale-chunks"
+
+  - name: rag_cost_alerts
+    rules:
+      # ── OpenAI embedding cost spike ────────────────────────────────────────────
+
+      - alert: RAGEmbeddingTokenSpike
+        expr: |
+          sum(rate(career_agents_rag_embed_tokens_total[5m])) > 10000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "OpenAI embedding token consumption > 10k tokens/s"
+          description: >
+            Embedding API token consumption has spiked to
+            {{ $value | printf "%.0f" }} tokens/s. At current pricing this
+            costs ~$4.68/hr. This may indicate a runaway ingestion loop or
+            an unusually large corpus re-ingest. Verify with the Celery task
+            status and admin API.
+          runbook: "https://docs.internal/runbooks/rag-token-spike"
+
+  - name: rag_storage_alerts
+    rules:
+      - alert: RAGCloudinaryUploadErrors
+        expr: |
+          increase(career_agents_rag_source_upload_total{status="error"}[15m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+          component: rag
+        annotations:
+          summary: "Cloudinary source upload failures ({{ $labels.doc_type }})"
+          description: >
+            Source file uploads to Cloudinary are failing for doc_type
+            {{ $labels.doc_type }}. Raw source archiving is degraded — ingestion
+            itself is NOT affected. Check CLOUDINARY_API_KEY and storage quota.
+          runbook: "https://docs.internal/runbooks/rag-cloudinary-errors"

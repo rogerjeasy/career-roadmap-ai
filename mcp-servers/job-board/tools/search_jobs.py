@@ -36,6 +36,7 @@ from observability import (
     TOOL_CALL_TOTAL,
     get_tracer,
 )
+from shared.audit import emit_tool_call_audit
 from shared.cache import ResponseCache
 from shared.error_handler import JsonRpcError, JsonRpcErrorCode
 from shared.rate_limiter import RateLimiter
@@ -154,6 +155,14 @@ async def handle_search_jobs(
             latency = time.monotonic() - t0
             TOOL_CALL_TOTAL.labels(method=_TOOL_NAME, status="ok").inc()
             TOOL_CALL_DURATION.labels(method=_TOOL_NAME).observe(latency)
+            emit_tool_call_audit(
+                server_id="job_board",
+                tool=_TOOL_NAME,
+                user_id=user_id,
+                outcome="ok",
+                latency_ms=int(latency * 1000),
+                correlation_id=correlation_id,
+            )
             span.set_attribute("result_count", len(final))
             return result
 

@@ -1,17 +1,10 @@
-"""Abstract base class for all course catalogue API clients.
-
-Every client:
-- Wraps httpx.AsyncClient with shared timeout and retry policy (tenacity)
-- Records per-source Prometheus metrics on every fetch
-- Emits structured log events on success / failure
-- Returns normalised ``Course`` objects — never raw dicts
-
-Subclasses implement ``_search()`` and optionally ``_get_detail()``.
-"""
+"""Abstract base class for all course catalogue API clients."""
 from __future__ import annotations
 
 import abc
 import asyncio
+import os
+import sys
 import time
 from typing import Any
 
@@ -24,6 +17,10 @@ from tenacity import (
     wait_exponential,
 )
 
+_MCP_SERVERS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _MCP_SERVERS_DIR not in sys.path:
+    sys.path.insert(0, _MCP_SERVERS_DIR)
+
 from models import Course, CourseSource, SearchCoursesParams
 from observability import (
     COURSE_FETCH_DURATION,
@@ -31,6 +28,7 @@ from observability import (
     COURSE_FETCH_TOTAL,
     get_tracer,
 )
+from shared.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 logger = structlog.get_logger(__name__)
 _tracer = get_tracer()
@@ -45,17 +43,23 @@ class BaseCourseClient(abc.ABC):
         self._timeout = timeout_seconds
         self._max_retries = max_retries
         self._http_client: httpx.AsyncClient | None = None
+        self._breaker = CircuitBreaker(
+            f"course_catalogue.{self.source.value.lower().replace(' ', '_')}",
+            failure_threshold=5,
+            reset_timeout_s=60.0,
+        )
 
     async def __aenter__(self) -> "BaseCourseClient":
         self._http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(self._timeout),
             follow_redirects=True,
             headers=self._default_headers(),
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
         )
         return self
 
     async def __aexit__(self, *args: Any) -> None:
-        if self._http_client:
+        if self._http_client and not self._http_client.is_closed:
             await self._http_client.aclose()
 
     def _default_headers(self) -> dict[str, str]:
@@ -70,8 +74,13 @@ class BaseCourseClient(abc.ABC):
 
     @property
     def _client(self) -> httpx.AsyncClient:
-        if self._http_client is None:
-            raise RuntimeError("Client not started — use `async with` context manager")
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self._timeout),
+                follow_redirects=True,
+                headers=self._default_headers(),
+                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+            )
         return self._http_client
 
     # ── Public interface ──────────────────────────────────────────────────────
@@ -82,17 +91,17 @@ class BaseCourseClient(abc.ABC):
         *,
         correlation_id: str = "",
     ) -> list[Course]:
-        """Fetch courses from this source. Returns an empty list on failure."""
         source_name = self.source.value
         with _tracer.start_as_current_span(f"course_catalogue.{source_name}.search") as span:
             span.set_attribute("source", source_name)
             span.set_attribute("skill", params.skill)
-            span.set_attribute("level", params.level)
             span.set_attribute("correlation_id", correlation_id)
 
             t0 = time.monotonic()
             try:
-                courses = await self._search(params, correlation_id=correlation_id)
+                courses = await self._breaker.call(
+                    self._search(params, correlation_id=correlation_id)
+                )
                 latency = time.monotonic() - t0
                 COURSE_FETCH_TOTAL.labels(source=source_name, status="success").inc()
                 COURSE_FETCH_DURATION.labels(source=source_name).observe(latency)
@@ -107,6 +116,17 @@ class BaseCourseClient(abc.ABC):
                     correlation_id=correlation_id,
                 )
                 return courses
+            except CircuitOpenError:
+                latency = time.monotonic() - t0
+                COURSE_FETCH_TOTAL.labels(source=source_name, status="open_circuit").inc()
+                COURSE_FETCH_DURATION.labels(source=source_name).observe(latency)
+                logger.warning(
+                    "course_catalogue.circuit_open",
+                    source=source_name,
+                    skill=params.skill,
+                    correlation_id=correlation_id,
+                )
+                return []
             except asyncio.TimeoutError:
                 latency = time.monotonic() - t0
                 COURSE_FETCH_TOTAL.labels(source=source_name, status="timeout").inc()
@@ -132,10 +152,11 @@ class BaseCourseClient(abc.ABC):
                 return []
 
     async def get_detail(self, course_id: str, *, correlation_id: str = "") -> Course | None:
-        """Fetch full course detail by ID. Returns None on failure."""
         try:
-            return await self._get_detail(course_id, correlation_id=correlation_id)
-        except Exception as exc:
+            return await self._breaker.call(
+                self._get_detail(course_id, correlation_id=correlation_id)
+            )
+        except (CircuitOpenError, Exception) as exc:
             logger.warning(
                 "course_catalogue.detail_failed",
                 source=self.source.value,
@@ -153,8 +174,7 @@ class BaseCourseClient(abc.ABC):
         params: SearchCoursesParams,
         *,
         correlation_id: str = "",
-    ) -> list[Course]:
-        """Source-specific search logic. May raise — caller catches."""
+    ) -> list[Course]: ...
 
     async def _get_detail(
         self,

@@ -2,6 +2,7 @@
 
 Every client:
 - Wraps httpx.AsyncClient with a shared timeout and retry policy (tenacity)
+- Guards upstream calls with a per-source circuit breaker
 - Records per-source Prometheus metrics on every fetch
 - Emits structured log events on success/failure
 - Returns normalised ``JobPosting`` objects — never raw dicts
@@ -13,6 +14,8 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import os
+import sys
 import time
 from typing import Any
 
@@ -25,6 +28,10 @@ from tenacity import (
     wait_exponential,
 )
 
+_MCP_SERVERS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _MCP_SERVERS_DIR not in sys.path:
+    sys.path.insert(0, _MCP_SERVERS_DIR)
+
 from models import JobPosting, JobSource, SearchJobsParams, TrendingRole
 from observability import (
     JOB_FETCH_DURATION,
@@ -32,6 +39,7 @@ from observability import (
     JOB_FETCH_TOTAL,
     get_tracer,
 )
+from shared.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 logger = structlog.get_logger(__name__)
 _tracer = get_tracer()
@@ -46,12 +54,19 @@ class BaseJobBoardClient(abc.ABC):
         self._timeout = timeout_seconds
         self._max_retries = max_retries
         self._http_client: httpx.AsyncClient | None = None
+        # One circuit breaker per source — shared across all instances of the subclass
+        self._breaker = CircuitBreaker(
+            f"job_board.{self.source.value.lower().replace(' ', '_')}",
+            failure_threshold=5,
+            reset_timeout_s=60.0,
+        )
 
     async def __aenter__(self) -> "BaseJobBoardClient":
         self._http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(self._timeout),
             follow_redirects=True,
             headers=self._default_headers(),
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
         )
         return self
 
@@ -71,8 +86,13 @@ class BaseJobBoardClient(abc.ABC):
 
     @property
     def _client(self) -> httpx.AsyncClient:
-        if self._http_client is None:
-            raise RuntimeError("Client not started — use `async with` context manager")
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self._timeout),
+                follow_redirects=True,
+                headers=self._default_headers(),
+                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+            )
         return self._http_client
 
     # ── Public interface ──────────────────────────────────────────────────────
@@ -93,7 +113,9 @@ class BaseJobBoardClient(abc.ABC):
 
             t0 = time.monotonic()
             try:
-                postings = await self._search(params, correlation_id=correlation_id)
+                postings = await self._breaker.call(
+                    self._search(params, correlation_id=correlation_id)
+                )
                 latency = time.monotonic() - t0
                 JOB_FETCH_TOTAL.labels(source=source_name, status="success").inc()
                 JOB_FETCH_DURATION.labels(source=source_name).observe(latency)
@@ -109,6 +131,17 @@ class BaseJobBoardClient(abc.ABC):
                     correlation_id=correlation_id,
                 )
                 return postings
+            except CircuitOpenError:
+                latency = time.monotonic() - t0
+                JOB_FETCH_TOTAL.labels(source=source_name, status="open_circuit").inc()
+                JOB_FETCH_DURATION.labels(source=source_name).observe(latency)
+                logger.warning(
+                    "job_board.circuit_open",
+                    source=source_name,
+                    role=params.role,
+                    correlation_id=correlation_id,
+                )
+                return []
             except asyncio.TimeoutError:
                 latency = time.monotonic() - t0
                 JOB_FETCH_TOTAL.labels(source=source_name, status="timeout").inc()
@@ -133,11 +166,13 @@ class BaseJobBoardClient(abc.ABC):
                 )
                 return []
 
-    async def get_detail(self, job_id: str, *, correlation_id: str = "") -> JobPosting | None:
+    async def get_detail(self, job_id: str, *, country: str = "CH", correlation_id: str = "") -> JobPosting | None:
         """Fetch full job detail by ID. Returns None on failure."""
         try:
-            return await self._get_detail(job_id, correlation_id=correlation_id)
-        except Exception as exc:
+            return await self._breaker.call(
+                self._get_detail(job_id, country=country, correlation_id=correlation_id)
+            )
+        except (CircuitOpenError, Exception) as exc:
             logger.warning(
                 "job_board.detail_failed",
                 source=self.source.value,
@@ -156,8 +191,10 @@ class BaseJobBoardClient(abc.ABC):
     ) -> list[TrendingRole]:
         """Fetch trending job roles. Returns an empty list on failure."""
         try:
-            return await self._get_trending_roles(country, limit, correlation_id=correlation_id)
-        except Exception as exc:
+            return await self._breaker.call(
+                self._get_trending_roles(country, limit, correlation_id=correlation_id)
+            )
+        except (CircuitOpenError, Exception) as exc:
             logger.warning(
                 "job_board.trending_failed",
                 source=self.source.value,
@@ -182,6 +219,7 @@ class BaseJobBoardClient(abc.ABC):
         self,
         job_id: str,
         *,
+        country: str = "CH",
         correlation_id: str = "",
     ) -> JobPosting | None:
         return None

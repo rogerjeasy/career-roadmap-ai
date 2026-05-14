@@ -18,6 +18,7 @@ class JobSource(StrEnum):
     GLASSDOOR = "Glassdoor"
     SWISS_JOBS = "jobs.ch"
     JOBUP = "jobup.ch"
+    ADZUNA = "Adzuna"
     UNKNOWN = "unknown"
 
 
@@ -105,7 +106,7 @@ class TrendingRole(BaseModel):
 
     title: str
     posting_count: int
-    growth_percent: float = Field(description="Week-over-week posting growth %")
+    growth_percent: float | None = Field(default=None, description="Week-over-week posting growth % (None when source lacks historical data)")
     top_skills: list[str]
     median_salary: int | None = None
     currency: str = "USD"
@@ -139,6 +140,7 @@ class SearchJobsResult(BaseModel):
 class GetJobDetailParams(BaseModel):
     job_id: str = Field(min_length=1)
     source: JobSource
+    country: str = Field(default="CH", min_length=2, max_length=2)
 
 
 class GetTrendingRolesParams(BaseModel):

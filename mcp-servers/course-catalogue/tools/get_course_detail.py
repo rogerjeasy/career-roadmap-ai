@@ -26,6 +26,7 @@ from observability import (
     TOOL_CALL_TOTAL,
     get_tracer,
 )
+from shared.audit import emit_tool_call_audit
 from shared.cache import ResponseCache
 from shared.error_handler import JsonRpcError, JsonRpcErrorCode
 from shared.rate_limiter import RateLimiter
@@ -93,17 +94,28 @@ async def handle_get_course_detail(
             CACHE_MISS_TOTAL.labels(tool=_TOOL_NAME).inc()
 
             # ── Find the right client ─────────────────────────────────────
-            client = _find_client(detail_params.source, clients)
-            if client is None:
-                raise JsonRpcError(
-                    JsonRpcErrorCode.UPSTREAM_ERROR,
-                    f"Source '{detail_params.source}' is not configured",
+            # Always probe the curated dataset first — curated courses may use
+            # platform names like "Coursera" but have curated IDs that the live
+            # API won't recognise.
+            curated_client = clients.get("curated")
+            course = None
+            if curated_client is not None:
+                course = await curated_client.get_detail(
+                    detail_params.course_id, correlation_id=correlation_id
+                )
+
+            if course is None:
+                client = _find_client(detail_params.source, clients)
+                if client is None:
+                    raise JsonRpcError(
+                        JsonRpcErrorCode.UPSTREAM_ERROR,
+                        f"Source '{detail_params.source}' is not configured",
+                    )
+                course = await client.get_detail(
+                    detail_params.course_id, correlation_id=correlation_id
                 )
 
             # ── Fetch detail ──────────────────────────────────────────────
-            course = await client.get_detail(
-                detail_params.course_id, correlation_id=correlation_id
-            )
             if course is None:
                 raise JsonRpcError(
                     JsonRpcErrorCode.METHOD_NOT_FOUND,
@@ -119,6 +131,14 @@ async def handle_get_course_detail(
             latency = time.monotonic() - t0
             TOOL_CALL_TOTAL.labels(method=_TOOL_NAME, status="ok").inc()
             TOOL_CALL_DURATION.labels(method=_TOOL_NAME).observe(latency)
+            emit_tool_call_audit(
+                server_id="course_catalogue",
+                tool=_TOOL_NAME,
+                user_id=user_id,
+                outcome="ok",
+                latency_ms=int(latency * 1000),
+                correlation_id=correlation_id,
+            )
 
             logger.info(
                 "get_course_detail.completed",

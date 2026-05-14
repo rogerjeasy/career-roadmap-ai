@@ -27,6 +27,20 @@ logger = structlog.get_logger(__name__)
 
 _INDEED_BASE = "https://indeed12.p.rapidapi.com"
 
+_COUNTRY_CURRENCY: dict[str, str] = {
+    "CH": "CHF", "DE": "EUR", "FR": "EUR", "AT": "EUR",
+    "NL": "EUR", "ES": "EUR", "IT": "EUR", "BE": "EUR",
+    "US": "USD", "CA": "CAD", "AU": "AUD", "GB": "GBP",
+}
+
+
+def _fix_encoding(s: str) -> str:
+    """Fix double-encoded UTF-8 strings (e.g. ZÃ¼rich → Zürich)."""
+    try:
+        return s.encode("latin-1").decode("utf-8")
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return s
+
 _COUNTRY_DOMAIN: dict[str, str] = {
     "CH": "ch",
     "DE": "de",
@@ -98,19 +112,6 @@ class IndeedClient(BaseJobBoardClient):
 
         return postings
 
-    async def _get_detail(
-        self,
-        job_id: str,
-        *,
-        correlation_id: str = "",
-    ) -> JobPosting | None:
-        resp = await self._get(
-            f"https://{self._api_host}/job",
-            params={"job_id": job_id},
-        )
-        data = resp.json()
-        return _parse_indeed_item(data, "") if data else None
-
     async def _get_trending_roles(
         self,
         country: str,
@@ -118,36 +119,82 @@ class IndeedClient(BaseJobBoardClient):
         *,
         correlation_id: str = "",
     ) -> list[TrendingRole]:
-        # Query Indeed for high-volume tech searches
-        tech_roles = [
-            "Software Engineer",
-            "Data Engineer",
-            "DevOps Engineer",
-            "Full Stack Developer",
-            "Cloud Engineer",
-            "Machine Learning Engineer",
-            "Backend Developer",
-            "Data Analyst",
-            "Systems Engineer",
-            "Site Reliability Engineer",
+        import asyncio
+
+        country_domain = _COUNTRY_DOMAIN.get(country.upper(), "www")
+        location = _country_to_city(country)
+        candidate_roles = [
+            "Software Engineer", "Data Engineer", "Machine Learning Engineer",
+            "DevOps Engineer", "Platform Engineer", "AI Engineer",
+            "Backend Developer", "Cloud Architect", "Data Scientist",
+            "Security Engineer", "Frontend Developer", "Site Reliability Engineer",
+            "MLOps Engineer", "Product Manager", "Full Stack Developer",
         ]
-        trending: list[TrendingRole] = []
-        for i, role in enumerate(tech_roles[:limit]):
-            trending.append(
-                TrendingRole(
-                    title=role,
-                    posting_count=800 - i * 40,
-                    growth_percent=round(12.0 - i * 1.0, 1),
-                    top_skills=["Python", "SQL", "Docker", "AWS"],
-                    country=country,
-                    sources=[JobSource.INDEED],
+
+        async def _probe_role(role: str) -> TrendingRole | None:
+            try:
+                resp = await self._get(
+                    f"https://{self._api_host}/jobs/search",
+                    params={
+                        "query": role,
+                        "location": location,
+                        "page_id": "1",
+                        "country": country_domain,
+                        "locality": country.lower(),
+                    },
                 )
+                data = resp.json()
+            except Exception:
+                return None
+
+            hits = data.get("hits", [])
+            total = data.get("total", {})
+            if isinstance(total, dict):
+                posting_count = int(total.get("value", len(hits)))
+            elif isinstance(total, (int, float)):
+                posting_count = int(total)
+            else:
+                posting_count = len(hits)
+
+            if posting_count == 0:
+                return None
+
+            skill_freq: dict[str, int] = {}
+            for item in hits:
+                desc = str(item.get("description") or item.get("snippet") or "")
+                for skill in _extract_skills_from_description(desc):
+                    skill_freq[skill] = skill_freq.get(skill, 0) + 1
+            top_skills = [s for s, _ in sorted(skill_freq.items(), key=lambda x: -x[1])[:5]]
+
+            return TrendingRole(
+                title=role,
+                posting_count=posting_count,
+                growth_percent=None,
+                top_skills=top_skills,
+                country=country,
+                sources=[JobSource.INDEED],
             )
-        return trending
+
+        results: list[TrendingRole] = []
+        batch_size = 3
+        for i in range(0, min(len(candidate_roles), limit * 2), batch_size):
+            batch = candidate_roles[i:i + batch_size]
+            batch_results = await asyncio.gather(
+                *[_probe_role(role) for role in batch],
+                return_exceptions=True,
+            )
+            for r in batch_results:
+                if isinstance(r, TrendingRole):
+                    results.append(r)
+            if i + batch_size < len(candidate_roles):
+                await asyncio.sleep(0.3)
+
+        results.sort(key=lambda r: -r.posting_count)
+        return results[:limit]
 
 
 def _parse_indeed_item(item: dict[str, Any], country: str) -> JobPosting | None:
-    title = str(item.get("title") or "").strip()
+    title = _fix_encoding(str(item.get("title") or "").strip())
     if not title:
         return None
 
@@ -164,20 +211,22 @@ def _parse_indeed_item(item: dict[str, Any], country: str) -> JobPosting | None:
 
     salary_min: int | None = None
     salary_max: int | None = None
-    currency = "USD"
+    currency = _COUNTRY_CURRENCY.get(country.upper(), "USD")
     if salary_raw := item.get("salary"):
         if isinstance(salary_raw, dict):
             salary_min = _to_int(salary_raw.get("min"))
             salary_max = _to_int(salary_raw.get("max"))
-            currency = str(salary_raw.get("currency", "USD"))
+            api_currency = str(salary_raw.get("currency") or "").strip()
+            if api_currency:
+                currency = api_currency
 
-    description = str(item.get("description") or item.get("snippet") or "")[:2000]
+    description = _fix_encoding(str(item.get("description") or item.get("snippet") or ""))[:2000]
 
     return JobPosting(
         id=job_id,
         title=title,
-        company=str(item.get("company") or item.get("employer") or "Unknown"),
-        location=str(item.get("location") or item.get("city") or ""),
+        company=_fix_encoding(str(item.get("company") or item.get("employer") or "Unknown")),
+        location=_fix_encoding(str(item.get("location") or item.get("city") or "")),
         country=country,
         remote="remote" in description.lower() or "remote" in title.lower(),
         employment_type=_parse_employment(item.get("employment_type")),

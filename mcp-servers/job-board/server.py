@@ -36,6 +36,7 @@ from typing import Any
 import structlog
 from fastapi import FastAPI, Request
 
+from clients.adzuna_client import AdzunaClient
 from clients.base_client import BaseJobBoardClient
 from clients.glassdoor_client import GlassdoorClient
 from clients.indeed_client import IndeedClient
@@ -46,7 +47,13 @@ from tools.get_job_detail import handle_get_job_detail
 from tools.get_trending_roles import handle_get_trending_roles
 from tools.search_jobs import handle_search_jobs
 from shared.auth import verify_api_key
-from shared.base_server import MCPApp, _configure_logging, _configure_tracing
+from shared.base_server import (
+    CorrelationIdMiddleware,
+    _attach_trace_context,
+    _configure_logging,
+    _configure_sentry,
+    _configure_tracing,
+)
 from shared.cache import ResponseCache
 from shared.rate_limiter import RateLimiter
 
@@ -70,6 +77,7 @@ _rate_limiter: RateLimiter = RateLimiter(redis_url=_settings.redis_url)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _configure_logging()
+    _configure_sentry()
     _configure_tracing("job_board")
 
     # ── Initialise Redis ──────────────────────────────────────────────────
@@ -98,8 +106,8 @@ async def lifespan(app: FastAPI):
 
     # ── Shutdown ──────────────────────────────────────────────────────────
     for client in _clients.values():
-        # Clients use context manager protocol; exit them if they were entered
-        pass
+        if client._http_client and not client._http_client.is_closed:
+            await client._http_client.aclose()
     await _cache.close()
     await _rate_limiter.close()
     logger.info("job_board.shutdown")
@@ -140,12 +148,26 @@ def _build_clients() -> dict[str, BaseJobBoardClient]:
         )
         logger.info("job_board.client_registered", source="Glassdoor")
 
-    # Swiss Jobs requires no API key — always registered
-    clients["swiss_jobs"] = SwissJobsClient(
-        timeout_seconds=timeout,
-        max_retries=retries,
-    )
-    logger.info("job_board.client_registered", source="Swiss Jobs (jobs.ch / jobup.ch)")
+    if _settings.adzuna_app_id and _settings.adzuna_app_key:
+        clients["adzuna"] = AdzunaClient(
+            app_id=_settings.adzuna_app_id.get_secret_value(),
+            app_key=_settings.adzuna_app_key.get_secret_value(),
+            base_url=_settings.adzuna_base_url,
+            timeout_seconds=timeout,
+            max_retries=retries,
+        )
+        logger.info("job_board.client_registered", source="Adzuna")
+    else:
+        # Fallback: undocumented but real Swiss job portals until Adzuna keys are configured
+        clients["swiss_jobs"] = SwissJobsClient(
+            timeout_seconds=timeout,
+            max_retries=retries,
+        )
+        logger.info(
+            "job_board.client_registered",
+            source="Swiss Jobs (jobs.ch / jobup.ch)",
+            hint="Set ADZUNA_APP_ID + ADZUNA_APP_KEY for the official aggregator API",
+        )
 
     return clients
 
@@ -161,6 +183,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(CorrelationIdMiddleware, server_id="job_board")
+
 
 @app.get("/livez", include_in_schema=False)
 async def livez() -> dict[str, str]:
@@ -169,10 +193,12 @@ async def livez() -> dict[str, str]:
 
 @app.get("/readyz", include_in_schema=False)
 async def readyz() -> dict[str, Any]:
+    redis_ok = await _cache.ping()
     return {
-        "status": "ok",
+        "status": "ok" if redis_ok else "degraded",
         "server_id": "job_board",
         "sources": [c.source.value for c in _clients.values()],
+        "checks": {"redis": "ok" if redis_ok else "unavailable"},
     }
 
 
@@ -222,6 +248,7 @@ async def rpc_endpoint(request: Request):
 
         # ── Auth (optional — bypassed when MCP_API_KEY not set) ───────────
         verify_api_key(x_mcp_api_key=request.headers.get("X-MCP-API-Key", ""))
+        _attach_trace_context(request)
 
         # ── Tool routing ──────────────────────────────────────────────────
         common_kwargs = dict(
@@ -264,13 +291,17 @@ async def rpc_endpoint(request: Request):
 
 
 def main() -> None:
+    import os
     import uvicorn
 
+    is_dev = _settings.environment == "development"
+    workers = int(os.getenv("MCP_WORKERS", "1"))
     uvicorn.run(
         "server:app",
         host=_settings.host,
         port=_settings.port,
-        reload=_settings.environment == "development",
+        reload=is_dev,
+        workers=1 if is_dev else workers,
         log_level=_settings.log_level.lower(),
     )
 

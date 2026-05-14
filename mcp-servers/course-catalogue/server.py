@@ -35,6 +35,8 @@ from fastapi import FastAPI, Request
 
 from clients.base_client import BaseCourseClient
 from clients.coursera_client import CourseraClient
+from clients.coursera_public_client import CourseraPublicClient
+from clients.curated_client import CuratedCoursesClient
 from clients.edx_client import EdxClient
 from clients.oreilly_client import OReillyClient
 from clients.udemy_client import UdemyClient
@@ -43,7 +45,13 @@ from config import get_settings
 from tools.get_course_detail import handle_get_course_detail
 from tools.search_courses import handle_search_courses
 from shared.auth import verify_api_key
-from shared.base_server import _configure_logging, _configure_tracing
+from shared.base_server import (
+    CorrelationIdMiddleware,
+    _attach_trace_context,
+    _configure_logging,
+    _configure_sentry,
+    _configure_tracing,
+)
 from shared.cache import ResponseCache
 from shared.rate_limiter import RateLimiter
 
@@ -67,6 +75,7 @@ _rate_limiter: RateLimiter = RateLimiter(redis_url=_settings.redis_url)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _configure_logging()
+    _configure_sentry()
     _configure_tracing("course_catalogue")
 
     try:
@@ -78,16 +87,11 @@ async def lifespan(app: FastAPI):
 
     global _clients
     _clients = _build_clients()
-    if not _clients:
-        logger.warning(
-            "course_catalogue.no_clients_configured",
-            hint="Set COURSERA_API_KEY, UDEMY_API_KEY, YOUTUBE_API_KEY, or OREILLY_API_KEY env vars",
-        )
-    else:
-        logger.info(
-            "course_catalogue.clients_registered",
-            sources=[c.source.value for c in _clients.values()],
-        )
+    logger.info(
+        "course_catalogue.clients_registered",
+        sources=[c.source.value for c in _clients.values()],
+        hint="Add COURSERA_API_KEY, UDEMY_API_KEY, YOUTUBE_API_KEY, or OREILLY_API_KEY for more sources",
+    )
 
     yield
 
@@ -101,14 +105,30 @@ def _build_clients() -> dict[str, BaseCourseClient]:
     timeout = _settings.http_timeout_seconds
     retries = _settings.http_max_retries
 
+    # ── Always-active clients (no API key required) ───────────────────────────
+    # Built-in curated dataset — guaranteed to return results.
+    clients["curated"] = CuratedCoursesClient(
+        timeout_seconds=timeout,
+        max_retries=retries,
+    )
+    logger.info("course_catalogue.client_registered", source="Curated (built-in)")
+
+    # Coursera public catalog API — no authentication required.
+    clients["coursera_public"] = CourseraPublicClient(
+        timeout_seconds=timeout,
+        max_retries=retries,
+    )
+    logger.info("course_catalogue.client_registered", source="Coursera (public API)")
+
+    # ── Keyed clients (registered when credentials are present) ──────────────
     if _settings.coursera_api_key:
-        clients["coursera"] = CourseraClient(
+        clients["coursera_rapidapi"] = CourseraClient(
             api_key=_settings.coursera_api_key.get_secret_value(),
             api_host=_settings.coursera_api_host,
             timeout_seconds=timeout,
             max_retries=retries,
         )
-        logger.info("course_catalogue.client_registered", source="Coursera")
+        logger.info("course_catalogue.client_registered", source="Coursera (RapidAPI)")
 
     if _settings.udemy_api_key:
         clients["udemy"] = UdemyClient(
@@ -136,14 +156,6 @@ def _build_clients() -> dict[str, BaseCourseClient]:
         )
         logger.info("course_catalogue.client_registered", source="O'Reilly")
 
-    # edX requires no API key — always registered
-    clients["edx"] = EdxClient(
-        discovery_base_url=_settings.edx_discovery_url,
-        timeout_seconds=timeout,
-        max_retries=retries,
-    )
-    logger.info("course_catalogue.client_registered", source="edX (public)")
-
     return clients
 
 
@@ -158,6 +170,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(CorrelationIdMiddleware, server_id="course_catalogue")
+
 
 @app.get("/livez", include_in_schema=False)
 async def livez() -> dict[str, str]:
@@ -166,10 +180,12 @@ async def livez() -> dict[str, str]:
 
 @app.get("/readyz", include_in_schema=False)
 async def readyz() -> dict[str, Any]:
+    redis_ok = await _cache.ping()
     return {
-        "status": "ok",
+        "status": "ok" if redis_ok else "degraded",
         "server_id": "course_catalogue",
         "sources": [c.source.value for c in _clients.values()],
+        "checks": {"redis": "ok" if redis_ok else "unavailable"},
     }
 
 
@@ -218,6 +234,7 @@ async def rpc_endpoint(request: Request):
             )
 
         verify_api_key(x_mcp_api_key=request.headers.get("X-MCP-API-Key", ""))
+        _attach_trace_context(request)
 
         common_kwargs = dict(
             params=params,
@@ -257,13 +274,17 @@ async def rpc_endpoint(request: Request):
 
 
 def main() -> None:
+    import os
     import uvicorn
 
+    is_dev = _settings.environment == "development"
+    workers = int(os.getenv("MCP_WORKERS", "1"))
     uvicorn.run(
         "server:app",
         host=_settings.host,
         port=_settings.port,
-        reload=_settings.environment == "development",
+        reload=is_dev,
+        workers=1 if is_dev else workers,
         log_level=_settings.log_level.lower(),
     )
 

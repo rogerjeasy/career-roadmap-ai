@@ -18,6 +18,7 @@ class CourseSource(StrEnum):
     EDX = "edX"
     YOUTUBE = "YouTube"
     OREILLY = "O'Reilly"
+    FREE_RESOURCES = "Free Resources"
     UNKNOWN = "unknown"
 
 

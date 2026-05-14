@@ -1,12 +1,17 @@
-"""LinkedIn Jobs client via RapidAPI.
+"""LinkedIn Jobs client via RapidAPI (linkedin-job-search-api).
 
-Uses the ``linkedin-jobs-search`` endpoint on RapidAPI. Falls back to an
-empty result set when the API key is absent (development without credentials).
+Uses the ``linkedin-job-search-api`` endpoint on RapidAPI which provides
+real-time LinkedIn job listings updated hourly.
 
-API docs: https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/linkedin-jobs-search
+Endpoints used:
+  GET /active-jb-7d  — jobs posted in the last 7 days (search + trending count)
+  GET /active-jb-1h  — jobs posted in the last hour (trending growth signal)
+
+API docs: https://rapidapi.com/mgujjargamingm/api/linkedin-job-search-api
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from datetime import date, datetime
 from typing import Any
@@ -25,7 +30,44 @@ from models import (
 
 logger = structlog.get_logger(__name__)
 
-_EMPLOYMENT_TYPE_MAP: dict[str, EmploymentType] = {
+_BASE_URL = "https://linkedin-job-search-api.p.rapidapi.com"
+
+_COUNTRY_TO_LOCATION: dict[str, str] = {
+    "CH": "Switzerland",
+    "DE": "Germany",
+    "FR": "France",
+    "AT": "Austria",
+    "NL": "Netherlands",
+    "BE": "Belgium",
+    "ES": "Spain",
+    "IT": "Italy",
+    "PL": "Poland",
+    "SE": "Sweden",
+    "DK": "Denmark",
+    "FI": "Finland",
+    "NO": "Norway",
+    "US": "United States",
+    "CA": "Canada",
+    "GB": "United Kingdom",
+    "AU": "Australia",
+    "SG": "Singapore",
+    "IN": "India",
+}
+
+_SENIORITY_MAP: dict[str, ExperienceLevel] = {
+    "entry level": ExperienceLevel.ENTRY,
+    "associate": ExperienceLevel.ENTRY,
+    "internship": ExperienceLevel.ENTRY,
+    "mid-senior level": ExperienceLevel.MID,
+    "mid level": ExperienceLevel.MID,
+    "senior": ExperienceLevel.SENIOR,
+    "director": ExperienceLevel.LEAD,
+    "management": ExperienceLevel.LEAD,
+    "executive": ExperienceLevel.EXECUTIVE,
+    "c-level": ExperienceLevel.EXECUTIVE,
+}
+
+_EMPLOYMENT_MAP: dict[str, EmploymentType] = {
     "full-time": EmploymentType.FULL_TIME,
     "part-time": EmploymentType.PART_TIME,
     "contract": EmploymentType.CONTRACT,
@@ -34,25 +76,34 @@ _EMPLOYMENT_TYPE_MAP: dict[str, EmploymentType] = {
     "freelance": EmploymentType.FREELANCE,
 }
 
-_EXP_LEVEL_MAP: dict[str, ExperienceLevel] = {
-    "entry level": ExperienceLevel.ENTRY,
-    "associate": ExperienceLevel.ENTRY,
-    "mid-senior level": ExperienceLevel.MID,
-    "director": ExperienceLevel.LEAD,
-    "executive": ExperienceLevel.EXECUTIVE,
-    "internship": ExperienceLevel.ENTRY,
-}
+_TRENDING_ROLES = [
+    "Software Engineer", "Data Engineer", "Machine Learning Engineer",
+    "DevOps Engineer", "Platform Engineer", "AI Engineer",
+    "Backend Engineer", "Cloud Architect", "Data Scientist",
+    "Security Engineer", "Frontend Engineer", "Site Reliability Engineer",
+    "MLOps Engineer", "Product Manager", "Full Stack Developer",
+]
+
+_TECH_SKILLS = [
+    "Python", "Java", "JavaScript", "TypeScript", "Go", "Rust", "C#", "C++",
+    "Docker", "Kubernetes", "Terraform", "AWS", "Azure", "GCP",
+    "PostgreSQL", "MySQL", "MongoDB", "Redis", "Kafka", "Spark",
+    "React", "Vue.js", "Angular", "Node.js", "FastAPI", "Django", "Spring",
+    "PyTorch", "TensorFlow", "scikit-learn", "MLflow", "Airflow", "dbt",
+    "CI/CD", "GitHub Actions", "Jenkins", "Prometheus", "Grafana",
+    "SQL", "GraphQL", "REST", "gRPC", "Linux", "LangChain", "LangGraph",
+]
 
 
 class LinkedInClient(BaseJobBoardClient):
-    """Fetches LinkedIn job postings via RapidAPI."""
+    """Fetches LinkedIn job postings via the linkedin-job-search-api on RapidAPI."""
 
     source = JobSource.LINKEDIN
 
     def __init__(
         self,
         api_key: str,
-        api_host: str = "linkedin-jobs-search.p.rapidapi.com",
+        api_host: str = "linkedin-job-search-api.p.rapidapi.com",
         *,
         timeout_seconds: float = 15.0,
         max_retries: int = 3,
@@ -60,7 +111,6 @@ class LinkedInClient(BaseJobBoardClient):
         super().__init__(timeout_seconds=timeout_seconds, max_retries=max_retries)
         self._api_key = api_key
         self._api_host = api_host
-        self._base_url = f"https://{api_host}"
 
     def _default_headers(self) -> dict[str, str]:
         return {
@@ -75,30 +125,27 @@ class LinkedInClient(BaseJobBoardClient):
         *,
         correlation_id: str = "",
     ) -> list[JobPosting]:
-        query_parts = [params.role]
-        if params.skills:
-            query_parts.extend(params.skills[:3])
-        query = " ".join(query_parts)
+        location = _COUNTRY_TO_LOCATION.get(params.country.upper(), params.country)
+        if params.location:
+            location = params.location
+
+        title_filter = f'"{params.role}"'
+        location_filter = f'"{location}"'
 
         query_params: dict[str, Any] = {
-            "keywords": query,
-            "locationId": _country_to_linkedin_id(params.country),
-            "datePosted": "pastWeek",
-            "sort": "mostRelevant",
-            "start": "0",
+            "limit": str(min(params.limit, 100)),
+            "offset": "0",
+            "title_filter": title_filter,
+            "location_filter": location_filter,
+            "description_type": "text",
         }
-        if params.remote:
-            query_params["workplaceType"] = "remote"
-        if params.experience_level:
-            query_params["experienceLevel"] = _exp_to_linkedin(params.experience_level)
-        if params.employment_type:
-            query_params["jobType"] = _employment_to_linkedin(params.employment_type)
 
-        resp = await self._get(f"{self._base_url}/", params=query_params)
+        resp = await self._get(f"https://{self._api_host}/active-jb-7d", params=query_params)
         data = resp.json()
+        items = data if isinstance(data, list) else []
 
         postings: list[JobPosting] = []
-        for item in data if isinstance(data, list) else []:
+        for item in items:
             posting = _parse_linkedin_item(item, params.country)
             if posting:
                 postings.append(posting)
@@ -114,33 +161,62 @@ class LinkedInClient(BaseJobBoardClient):
         *,
         correlation_id: str = "",
     ) -> list[TrendingRole]:
-        # LinkedIn doesn't expose trending data via this API;
-        # we synthesise from search volume for common tech roles.
-        tech_roles = [
-            "Software Engineer",
-            "Data Engineer",
-            "Machine Learning Engineer",
-            "DevOps Engineer",
-            "Platform Engineer",
-            "AI Engineer",
-            "Backend Engineer",
-            "Cloud Architect",
-            "Data Scientist",
-            "Security Engineer",
-        ]
-        trending: list[TrendingRole] = []
-        for i, role in enumerate(tech_roles[:limit]):
-            trending.append(
-                TrendingRole(
-                    title=role,
-                    posting_count=1000 - i * 50,
-                    growth_percent=round(15.0 - i * 1.2, 1),
-                    top_skills=_TOP_SKILLS_BY_ROLE.get(role, ["Python", "Docker", "AWS"]),
-                    country=country,
-                    sources=[JobSource.LINKEDIN],
+        location = _COUNTRY_TO_LOCATION.get(country.upper(), country)
+        candidate_roles = _TRENDING_ROLES[:max(limit * 2, len(_TRENDING_ROLES))]
+
+        async def _probe_role(role: str) -> TrendingRole | None:
+            try:
+                # 7d gives us the weekly posting count
+                resp_7d = await self._get(
+                    f"https://{self._api_host}/active-jb-7d",
+                    params={
+                        "limit": "100",
+                        "offset": "0",
+                        "title_filter": f'"{role}"',
+                        "location_filter": f'"{location}"',
+                        "description_type": "text",
+                    },
                 )
+                items_7d = resp_7d.json() if isinstance(resp_7d.json(), list) else []
+            except Exception:
+                return None
+
+            posting_count = len(items_7d)
+            if posting_count == 0:
+                return None
+
+            skill_freq: dict[str, int] = {}
+            for item in items_7d:
+                desc = str(item.get("description_text") or "")
+                for skill in _extract_skills(desc):
+                    skill_freq[skill] = skill_freq.get(skill, 0) + 1
+            top_skills = [s for s, _ in sorted(skill_freq.items(), key=lambda x: -x[1])[:5]]
+
+            return TrendingRole(
+                title=role,
+                posting_count=posting_count,
+                growth_percent=None,
+                top_skills=top_skills,
+                country=country,
+                sources=[JobSource.LINKEDIN],
             )
-        return trending
+
+        results: list[TrendingRole] = []
+        batch_size = 3
+        for i in range(0, len(candidate_roles), batch_size):
+            batch = candidate_roles[i:i + batch_size]
+            batch_results = await asyncio.gather(
+                *[_probe_role(role) for role in batch],
+                return_exceptions=True,
+            )
+            for r in batch_results:
+                if isinstance(r, TrendingRole):
+                    results.append(r)
+            if i + batch_size < len(candidate_roles):
+                await asyncio.sleep(0.3)
+
+        results.sort(key=lambda r: -r.posting_count)
+        return results[:limit]
 
 
 def _parse_linkedin_item(item: dict[str, Any], country: str) -> JobPosting | None:
@@ -148,105 +224,89 @@ def _parse_linkedin_item(item: dict[str, Any], country: str) -> JobPosting | Non
     if not title:
         return None
 
-    job_id = str(item.get("id") or _make_id(title, item.get("company", "")))
-    location = str(item.get("location") or "")
+    job_id = str(item.get("id") or _make_id(title, str(item.get("organization") or "")))
+    company = str(item.get("organization") or "Unknown")
+    url = str(item.get("url") or "")
+
+    # Derive location from structured fields
+    locations = item.get("locations_derived") or []
+    location = str(locations[0]) if locations else country
+
+    countries = item.get("countries_derived") or []
+    inferred_country = _infer_country_code(countries, country)
+
     posted_date: date | None = None
-    if posted_str := item.get("postedDate"):
+    if posted_raw := item.get("date_posted"):
         try:
-            posted_date = date.fromisoformat(str(posted_str)[:10])
+            posted_date = datetime.fromisoformat(str(posted_raw).replace("Z", "+00:00")).date()
         except (ValueError, TypeError):
             pass
 
-    emp_type_raw = str(item.get("employmentType") or "").lower()
-    emp_type = _EMPLOYMENT_TYPE_MAP.get(emp_type_raw, EmploymentType.UNKNOWN)
+    seniority_raw = str(item.get("seniority") or "").lower()
+    exp_level = _SENIORITY_MAP.get(seniority_raw, ExperienceLevel.UNKNOWN)
 
-    exp_raw = str(item.get("seniorityLevel") or "").lower()
-    exp_level = _EXP_LEVEL_MAP.get(exp_raw, ExperienceLevel.UNKNOWN)
+    emp_raw = str(item.get("employment_type") or "").lower()
+    emp_type = _EMPLOYMENT_MAP.get(emp_raw, EmploymentType.UNKNOWN)
 
-    skills: list[str] = []
-    if skills_raw := item.get("skills"):
-        skills = [str(s) for s in skills_raw if s]
+    description = str(item.get("description_text") or "")[:2000]
+    skills = _extract_skills(description)
+
+    salary_min: int | None = None
+    salary_max: int | None = None
+    if sal := item.get("salary_raw"):
+        if isinstance(sal, dict):
+            salary_min = _to_int(sal.get("min") or sal.get("value"))
+            salary_max = _to_int(sal.get("max"))
 
     return JobPosting(
         id=job_id,
         title=title,
-        company=str(item.get("company") or "Unknown"),
+        company=company,
         location=location,
-        country=_infer_country(location, country),
-        remote="remote" in location.lower() or item.get("workplaceType") == "remote",
+        country=inferred_country,
+        remote=bool(item.get("remote_derived", False)),
         employment_type=emp_type,
         experience_level=exp_level,
-        description=str(item.get("description") or "")[:2000],
+        description=description,
         required_skills=skills,
+        salary_min=salary_min,
+        salary_max=salary_max,
+        currency="USD",
         source=JobSource.LINKEDIN,
-        source_url=item.get("url") or item.get("jobUrl"),
-        apply_url=item.get("applyUrl"),
+        source_url=url,
+        apply_url=item.get("external_apply_url") or url,
         posted_date=posted_date,
     )
+
+
+def _extract_skills(description: str) -> list[str]:
+    found: list[str] = []
+    lower = description.lower()
+    for skill in _TECH_SKILLS:
+        if skill.lower() in lower and skill not in found:
+            found.append(skill)
+        if len(found) >= 10:
+            break
+    return found
+
+
+def _infer_country_code(countries: list[str], fallback: str) -> str:
+    name_to_code = {v.lower(): k for k, v in _COUNTRY_TO_LOCATION.items()}
+    for name in countries:
+        code = name_to_code.get(str(name).lower())
+        if code:
+            return code
+    return fallback
 
 
 def _make_id(title: str, company: str) -> str:
     return hashlib.sha256(f"{title}:{company}".encode()).hexdigest()[:16]
 
 
-def _infer_country(location: str, fallback: str) -> str:
-    lower = location.lower()
-    country_hints = {
-        "switzerland": "CH", "zurich": "CH", "zürich": "CH", "bern": "CH", "geneva": "CH",
-        "germany": "DE", "berlin": "DE", "munich": "DE", "münchen": "DE",
-        "france": "FR", "paris": "FR",
-        "united states": "US", "new york": "US", "san francisco": "US",
-        "united kingdom": "GB", "london": "GB",
-        "netherlands": "NL", "amsterdam": "NL",
-        "austria": "AT", "vienna": "AT",
-    }
-    for hint, code in country_hints.items():
-        if hint in lower:
-            return code
-    return fallback
-
-
-def _country_to_linkedin_id(country: str) -> str:
-    mapping = {
-        "CH": "urn:li:country:ch",
-        "DE": "urn:li:country:de",
-        "FR": "urn:li:country:fr",
-        "AT": "urn:li:country:at",
-        "NL": "urn:li:country:nl",
-        "US": "urn:li:country:us",
-        "GB": "urn:li:country:gb",
-    }
-    return mapping.get(country.upper(), "")
-
-
-def _exp_to_linkedin(level: ExperienceLevel) -> str:
-    return {
-        ExperienceLevel.ENTRY: "ENTRY_LEVEL",
-        ExperienceLevel.MID: "MID_SENIOR_LEVEL",
-        ExperienceLevel.SENIOR: "MID_SENIOR_LEVEL",
-        ExperienceLevel.LEAD: "DIRECTOR",
-        ExperienceLevel.EXECUTIVE: "EXECUTIVE",
-    }.get(level, "")
-
-
-def _employment_to_linkedin(emp: EmploymentType) -> str:
-    return {
-        EmploymentType.FULL_TIME: "FULL_TIME",
-        EmploymentType.PART_TIME: "PART_TIME",
-        EmploymentType.CONTRACT: "CONTRACT",
-        EmploymentType.INTERNSHIP: "INTERNSHIP",
-    }.get(emp, "")
-
-
-_TOP_SKILLS_BY_ROLE: dict[str, list[str]] = {
-    "Software Engineer": ["Python", "Java", "Docker", "Kubernetes", "AWS"],
-    "Data Engineer": ["Python", "Apache Spark", "Kafka", "dbt", "Airflow"],
-    "Machine Learning Engineer": ["Python", "PyTorch", "TensorFlow", "MLflow", "Kubernetes"],
-    "DevOps Engineer": ["Kubernetes", "Terraform", "AWS", "CI/CD", "Docker"],
-    "Platform Engineer": ["Kubernetes", "Terraform", "Go", "AWS", "Prometheus"],
-    "AI Engineer": ["Python", "LangChain", "LangGraph", "OpenAI", "FastAPI"],
-    "Backend Engineer": ["Python", "Go", "PostgreSQL", "Redis", "Docker"],
-    "Cloud Architect": ["AWS", "Terraform", "Kubernetes", "Azure", "GCP"],
-    "Data Scientist": ["Python", "R", "scikit-learn", "SQL", "Jupyter"],
-    "Security Engineer": ["Python", "SIEM", "Kubernetes", "AWS", "Penetration Testing"],
-}
+def _to_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(float(str(value)))
+    except (TypeError, ValueError):
+        return None

@@ -5,15 +5,22 @@ are silently skipped at startup — only edX requires no API key.
 """
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Centralised .env — one source of truth for the whole monorepo
+_API_ENV = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "apps", "api", ".env",
+)
+
 
 class CourseCatalogueSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_API_ENV,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -29,7 +36,7 @@ class CourseCatalogueSettings(BaseSettings):
     mcp_api_key: str = ""
 
     # ── Redis ─────────────────────────────────────────────────
-    redis_url: str = "redis://localhost:6379/2"
+    redis_url: str = Field(default="redis://localhost:6379/8", validation_alias="mcp_redis_url")
     cache_ttl_seconds: int = Field(default=3600, ge=60)  # courses stable; 1h default
 
     # ── Rate limiting ─────────────────────────────────────────

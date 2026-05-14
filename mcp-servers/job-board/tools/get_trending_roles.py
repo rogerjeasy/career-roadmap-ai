@@ -29,6 +29,7 @@ from observability import (
     TOOL_CALL_TOTAL,
     get_tracer,
 )
+from shared.audit import emit_tool_call_audit
 from shared.cache import ResponseCache
 from shared.error_handler import JsonRpcError, JsonRpcErrorCode
 from shared.rate_limiter import RateLimiter
@@ -133,6 +134,14 @@ async def handle_get_trending_roles(
             latency = time.monotonic() - t0
             TOOL_CALL_TOTAL.labels(method=_TOOL_NAME, status="ok").inc()
             TOOL_CALL_DURATION.labels(method=_TOOL_NAME).observe(latency)
+            emit_tool_call_audit(
+                server_id="job_board",
+                tool=_TOOL_NAME,
+                user_id=user_id,
+                outcome="ok",
+                latency_ms=int(latency * 1000),
+                correlation_id=correlation_id,
+            )
 
             logger.info(
                 "get_trending_roles.completed",
@@ -161,6 +170,16 @@ async def handle_get_trending_roles(
             ) from exc
 
 
+_COUNTRY_CURRENCY: dict[str, str] = {
+    "CH": "CHF", "DE": "EUR", "FR": "EUR", "AT": "EUR",
+    "NL": "EUR", "ES": "EUR", "IT": "EUR", "BE": "EUR",
+    "US": "USD", "CA": "CAD", "AU": "AUD", "GB": "GBP",
+    "NZ": "NZD", "SG": "SGD", "IN": "INR", "JP": "JPY",
+    "BR": "BRL", "MX": "MXN", "ZA": "ZAR", "RU": "RUB",
+    "PL": "PLN",
+}
+
+
 def _merge_trending_roles(roles: list[TrendingRole], limit: int) -> list[TrendingRole]:
     """Merge roles with the same normalised title, summing counts and unioning skills."""
     by_title: dict[str, list[TrendingRole]] = defaultdict(list)
@@ -170,12 +189,28 @@ def _merge_trending_roles(roles: list[TrendingRole], limit: int) -> list[Trendin
 
     merged: list[TrendingRole] = []
     for group in by_title.values():
+        country = group[0].country
+        currency = _COUNTRY_CURRENCY.get(country.upper(), "USD")
+
         if len(group) == 1:
-            merged.append(group[0])
+            single = group[0]
+            merged.append(
+                TrendingRole(
+                    title=single.title,
+                    posting_count=single.posting_count,
+                    growth_percent=single.growth_percent,
+                    top_skills=single.top_skills,
+                    median_salary=single.median_salary,
+                    currency=currency,
+                    country=country,
+                    sources=single.sources,
+                )
+            )
             continue
 
         total_count = sum(r.posting_count for r in group)
-        avg_growth = sum(r.growth_percent for r in group) / len(group)
+        growths = [r.growth_percent for r in group if r.growth_percent is not None]
+        avg_growth: float | None = round(sum(growths) / len(growths), 1) if growths else None
 
         # Union of skills, ranked by frequency
         skill_count: dict[str, int] = defaultdict(int)
@@ -194,11 +229,11 @@ def _merge_trending_roles(roles: list[TrendingRole], limit: int) -> list[Trendin
             TrendingRole(
                 title=group[0].title,
                 posting_count=total_count,
-                growth_percent=round(avg_growth, 1),
+                growth_percent=avg_growth,
                 top_skills=top_skills,
                 median_salary=median_salary,
-                currency=group[0].currency,
-                country=group[0].country,
+                currency=currency,
+                country=country,
                 sources=all_sources,
             )
         )

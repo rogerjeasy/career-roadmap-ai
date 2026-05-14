@@ -20,6 +20,7 @@ opentelemetry-instrumentation-fastapi = ">=0.49b0"
 opentelemetry-exporter-otlp-proto-grpc = ">=1.28.0"
 redis = { version = ">=5.2.0", extras = ["hiredis"] }
 tenacity = ">=9.0.0"
+sentry-sdk = { version = ">=2.0.0", extras = ["fastapi"] }
 beautifulsoup4 = ">=4.12.0"
 lxml = ">=5.3.0"
 

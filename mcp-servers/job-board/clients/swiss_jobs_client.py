@@ -144,31 +144,88 @@ class SwissJobsClient(BaseJobBoardClient):
         *,
         correlation_id: str = "",
     ) -> list[TrendingRole]:
-        # Swiss-specific trending roles based on known market demand
-        swiss_trending = [
-            ("Software Engineer / Softwareentwickler", 320, ["Java", "Python", "Docker"]),
-            ("Data Engineer", 180, ["Python", "Spark", "SQL"]),
-            ("DevOps / Cloud Engineer", 210, ["Kubernetes", "AWS", "Terraform"]),
-            ("Projektleiter IT / IT Project Manager", 150, ["Agile", "PMP", "JIRA"]),
-            ("Systemanalytiker / Business Analyst IT", 130, ["SQL", "UML", "Agile"]),
-            ("Machine Learning Engineer", 140, ["Python", "PyTorch", "MLflow"]),
-            ("IT Security / Cybersecurity Analyst", 160, ["SIEM", "ISO27001", "Python"]),
-            ("SAP Consultant / SAP Berater", 200, ["SAP", "ABAP", "S/4HANA"]),
-            ("Cloud Architect", 120, ["AWS", "Azure", "Terraform"]),
-            ("Full Stack Developer", 180, ["TypeScript", "React", "Node.js"]),
+        import asyncio
+
+        if country.upper() != "CH":
+            return []
+
+        candidate_roles = [
+            "Software Engineer", "Data Engineer", "DevOps Engineer",
+            "Machine Learning Engineer", "Cloud Architect", "Full Stack Developer",
+            "SAP Consultant", "Security Engineer", "IT Project Manager",
+            "Data Scientist", "Backend Developer", "Frontend Developer",
         ]
-        return [
-            TrendingRole(
+
+        async def _probe_role(role: str) -> TrendingRole | None:
+            try:
+                week_resp, month_resp = await asyncio.gather(
+                    self._get(_JOBUP_API, params={
+                        "term": role,
+                        "publication_date_since_num_days": 7,
+                        "rows": 20,
+                        "start": 0,
+                    }),
+                    self._get(_JOBUP_API, params={
+                        "term": role,
+                        "publication_date_since_num_days": 30,
+                        "rows": 20,
+                        "start": 0,
+                    }),
+                    return_exceptions=True,
+                )
+            except Exception:
+                return None
+
+            if isinstance(week_resp, Exception) or isinstance(month_resp, Exception):
+                return None
+
+            week_data = week_resp.json()
+            month_data = month_resp.json()
+            week_docs = week_data.get("documents", [])
+            month_docs = month_data.get("documents", [])
+
+            week_count = _extract_total(week_data, len(week_docs))
+            month_count = _extract_total(month_data, len(month_docs))
+
+            if month_count == 0:
+                return None
+
+            monthly_avg = month_count / 4.3
+            growth = round((week_count / monthly_avg - 1.0) * 100, 1) if monthly_avg > 0 else 0.0
+            growth = max(-100.0, min(500.0, growth))
+
+            skill_freq: dict[str, int] = {}
+            for item in week_docs:
+                for skill in _extract_skills(str(item.get("description") or "")):
+                    skill_freq[skill] = skill_freq.get(skill, 0) + 1
+            top_skills = [s for s, _ in sorted(skill_freq.items(), key=lambda x: -x[1])[:5]]
+
+            return TrendingRole(
                 title=role,
-                posting_count=count,
-                growth_percent=round(8.0 - i * 0.6, 1),
-                top_skills=skills,
+                posting_count=month_count,
+                growth_percent=growth,
+                top_skills=top_skills,
                 currency="CHF",
                 country="CH",
                 sources=[JobSource.SWISS_JOBS],
             )
-            for i, (role, count, skills) in enumerate(swiss_trending[:limit])
-        ]
+
+        results: list[TrendingRole] = []
+        batch_size = 3
+        for i in range(0, len(candidate_roles[:max(limit * 2, 12)]), batch_size):
+            batch = candidate_roles[i:i + batch_size]
+            batch_results = await asyncio.gather(
+                *[_probe_role(role) for role in batch],
+                return_exceptions=True,
+            )
+            for r in batch_results:
+                if isinstance(r, TrendingRole):
+                    results.append(r)
+            if i + batch_size < len(candidate_roles):
+                await asyncio.sleep(0.3)
+
+        results.sort(key=lambda r: (-r.posting_count, -(r.growth_percent or 0.0)))
+        return results[:limit]
 
 
 def _parse_jobs_ch(item: dict[str, Any]) -> JobPosting | None:
@@ -282,6 +339,16 @@ def _extract_skills(description: str) -> list[str]:
         if len(found) >= 15:
             break
     return found
+
+
+def _extract_total(data: dict[str, Any], fallback: int) -> int:
+    for key in ("total", "count", "totalCount", "total_count", "numFound"):
+        if (v := data.get(key)) is not None:
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                pass
+    return fallback
 
 
 def _make_id(title: str, company: str) -> str:

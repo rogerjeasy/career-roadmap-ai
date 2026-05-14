@@ -1,15 +1,19 @@
-"""Glassdoor Jobs client via RapidAPI.
+"""Glassdoor Jobs client via RapidAPI (real-time-glassdoor-data).
 
-Uses the ``glassdoor`` endpoint on RapidAPI which provides job listings,
-salary data, and company reviews. Glassdoor is particularly valuable for
-salary benchmarks alongside job postings.
+Uses the ``real-time-glassdoor-data`` endpoint on RapidAPI which provides
+job listings and salary estimation data from Glassdoor.
 
-API docs: https://rapidapi.com/manthan-jalashri/api/glassdoor
+Endpoints used:
+  GET /job-search         — job listings by query + location
+  GET /salary-estimation  — salary benchmarks by job title + location
+
+API docs: https://rapidapi.com/Lakzian/api/real-time-glassdoor-data
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import structlog
@@ -26,16 +30,83 @@ from models import (
 
 logger = structlog.get_logger(__name__)
 
+_COUNTRY_TO_LOCATION: dict[str, str] = {
+    "CH": "Zurich, Switzerland",
+    "DE": "Berlin, Germany",
+    "FR": "Paris, France",
+    "AT": "Vienna, Austria",
+    "NL": "Amsterdam, Netherlands",
+    "BE": "Brussels, Belgium",
+    "ES": "Madrid, Spain",
+    "IT": "Rome, Italy",
+    "PL": "Warsaw, Poland",
+    "SE": "Stockholm, Sweden",
+    "DK": "Copenhagen, Denmark",
+    "NO": "Oslo, Norway",
+    "US": "New York, NY",
+    "CA": "Toronto, Ontario",
+    "GB": "London, United Kingdom",
+    "AU": "Sydney, Australia",
+    "SG": "Singapore",
+    "IN": "Bangalore, India",
+}
+
+_COUNTRY_TO_DOMAIN: dict[str, str] = {
+    "GB": "www.glassdoor.co.uk",
+    "DE": "www.glassdoor.de",
+    "FR": "www.glassdoor.fr",
+    "AU": "www.glassdoor.com.au",
+    "SG": "www.glassdoor.sg",
+    "IN": "www.glassdoor.co.in",
+}
+_DEFAULT_DOMAIN = "www.glassdoor.com"
+
+_COUNTRY_CURRENCY: dict[str, str] = {
+    "CH": "CHF",
+    "DE": "EUR", "FR": "EUR", "AT": "EUR",
+    "NL": "EUR", "BE": "EUR", "ES": "EUR",
+    "IT": "EUR", "PL": "EUR", "SE": "EUR",
+    "DK": "DKK", "NO": "NOK",
+    "US": "USD", "CA": "CAD",
+    "GB": "GBP", "AU": "AUD",
+    "SG": "SGD", "IN": "INR",
+}
+
+_TRENDING_ROLES = [
+    "Software Engineer", "Data Engineer", "Machine Learning Engineer",
+    "DevOps Engineer", "Platform Engineer", "AI Engineer",
+    "Backend Engineer", "Cloud Architect", "Data Scientist",
+    "Security Engineer", "Frontend Engineer", "Site Reliability Engineer",
+    "MLOps Engineer", "Product Manager", "Full Stack Developer",
+]
+
+_TECH_SKILLS = [
+    "Python", "Java", "JavaScript", "TypeScript", "Go", "Rust", "C#", "C++",
+    "Docker", "Kubernetes", "Terraform", "AWS", "Azure", "GCP",
+    "PostgreSQL", "MySQL", "MongoDB", "Redis", "Kafka", "Spark",
+    "React", "Vue.js", "Angular", "Node.js", "FastAPI", "Django", "Spring",
+    "PyTorch", "TensorFlow", "scikit-learn", "MLflow", "Airflow", "dbt",
+    "CI/CD", "GitHub Actions", "Jenkins", "Prometheus", "Grafana",
+    "SQL", "GraphQL", "REST", "gRPC", "Linux", "LangChain", "LangGraph",
+]
+
+
+def _fix_encoding(s: str) -> str:
+    try:
+        return s.encode("latin-1").decode("utf-8")
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return s
+
 
 class GlassdoorClient(BaseJobBoardClient):
-    """Fetches Glassdoor job postings via RapidAPI."""
+    """Fetches Glassdoor job postings via real-time-glassdoor-data on RapidAPI."""
 
     source = JobSource.GLASSDOOR
 
     def __init__(
         self,
         api_key: str,
-        api_host: str = "glassdoor.p.rapidapi.com",
+        api_host: str = "real-time-glassdoor-data.p.rapidapi.com",
         *,
         timeout_seconds: float = 15.0,
         max_retries: int = 3,
@@ -57,47 +128,44 @@ class GlassdoorClient(BaseJobBoardClient):
         *,
         correlation_id: str = "",
     ) -> list[JobPosting]:
-        location = params.location or _country_to_city(params.country)
+        location = params.location or _COUNTRY_TO_LOCATION.get(params.country.upper(), params.country)
+        domain = _COUNTRY_TO_DOMAIN.get(params.country.upper(), _DEFAULT_DOMAIN)
+        currency = _COUNTRY_CURRENCY.get(params.country.upper(), "USD")
+
+        query = params.role
+        if params.remote:
+            query = f"{params.role} remote"
 
         query_params: dict[str, Any] = {
-            "keyword": params.role,
+            "query": query,
             "location": location,
-            "pageNumber": "1",
-            "pageSize": str(min(params.limit, 30)),
+            "location_type": "ANY",
+            "min_company_rating": "ANY",
+            "domain": domain,
         }
-        if params.remote:
-            query_params["remoteWorkType"] = "1"
 
-        resp = await self._get(
-            f"https://{self._api_host}/jobs/search", params=query_params
-        )
+        resp = await self._get(f"https://{self._api_host}/job-search", params=query_params)
         data = resp.json()
 
-        postings: list[JobPosting] = []
-        jobs_raw = data.get("data", {}).get("jobListings", []) if isinstance(data, dict) else []
+        jobs_raw: list[dict] = []
+        if isinstance(data, dict):
+            inner = data.get("data") or {}
+            if isinstance(inner, dict):
+                jobs_raw = inner.get("jobs") or []
+            elif isinstance(inner, list):
+                jobs_raw = inner
+        elif isinstance(data, list):
+            jobs_raw = data
 
+        postings: list[JobPosting] = []
         for item in jobs_raw:
-            posting = _parse_glassdoor_item(item, params.country)
+            posting = _parse_glassdoor_item(item, params.country, currency)
             if posting:
                 postings.append(posting)
             if len(postings) >= params.limit:
                 break
 
         return postings
-
-    async def _get_detail(
-        self,
-        job_id: str,
-        *,
-        correlation_id: str = "",
-    ) -> JobPosting | None:
-        resp = await self._get(
-            f"https://{self._api_host}/jobs/detail",
-            params={"jobListingId": job_id},
-        )
-        data = resp.json()
-        raw = data.get("data", {}) if isinstance(data, dict) else {}
-        return _parse_glassdoor_item(raw, "") if raw else None
 
     async def _get_trending_roles(
         self,
@@ -106,60 +174,133 @@ class GlassdoorClient(BaseJobBoardClient):
         *,
         correlation_id: str = "",
     ) -> list[TrendingRole]:
-        # Glassdoor has good salary+role data; we query common roles
-        # and merge salary info into TrendingRole
-        tech_roles = [
-            ("Software Engineer", 120000, ["Python", "Java", "AWS"]),
-            ("Data Engineer", 115000, ["Python", "Spark", "Kafka"]),
-            ("ML Engineer", 130000, ["Python", "PyTorch", "MLflow"]),
-            ("DevOps Engineer", 110000, ["Kubernetes", "Terraform", "AWS"]),
-            ("Product Manager", 125000, ["Roadmap", "Agile", "SQL"]),
-            ("Data Scientist", 118000, ["Python", "R", "SQL"]),
-            ("Cloud Architect", 140000, ["AWS", "Terraform", "Azure"]),
-            ("Security Engineer", 125000, ["SIEM", "Python", "Kubernetes"]),
-            ("Backend Engineer", 115000, ["Python", "Go", "PostgreSQL"]),
-            ("Frontend Engineer", 108000, ["TypeScript", "React", "CSS"]),
-        ]
-        return [
-            TrendingRole(
+        location = _COUNTRY_TO_LOCATION.get(country.upper(), country)
+        domain = _COUNTRY_TO_DOMAIN.get(country.upper(), _DEFAULT_DOMAIN)
+        currency = _COUNTRY_CURRENCY.get(country.upper(), "USD")
+        candidate_roles = _TRENDING_ROLES[:max(limit * 2, len(_TRENDING_ROLES))]
+
+        async def _probe_role(role: str) -> TrendingRole | None:
+            try:
+                jobs_resp, salary_resp = await asyncio.gather(
+                    self._get(
+                        f"https://{self._api_host}/job-search",
+                        params={
+                            "query": role,
+                            "location": location,
+                            "location_type": "ANY",
+                            "min_company_rating": "ANY",
+                            "domain": domain,
+                        },
+                    ),
+                    self._get(
+                        f"https://{self._api_host}/salary-estimation",
+                        params={
+                            "job_title": role,
+                            "location": location,
+                            "location_type": "ANY",
+                            "years_of_experience": "ALL",
+                            "domain": domain,
+                        },
+                    ),
+                    return_exceptions=True,
+                )
+            except Exception:
+                return None
+
+            # Parse job listing count
+            jobs_raw: list[dict] = []
+            if not isinstance(jobs_resp, Exception):
+                data = jobs_resp.json()
+                if isinstance(data, dict):
+                    inner = data.get("data") or {}
+                    if isinstance(inner, dict):
+                        jobs_raw = inner.get("jobs") or []
+                    elif isinstance(inner, list):
+                        jobs_raw = inner
+
+            posting_count = len(jobs_raw)
+            if posting_count == 0:
+                return None
+
+            # Extract skills from job descriptions
+            skill_freq: dict[str, int] = {}
+            for item in jobs_raw:
+                desc = str(item.get("job_description") or item.get("description") or "")
+                for skill in _extract_skills(desc):
+                    skill_freq[skill] = skill_freq.get(skill, 0) + 1
+            top_skills = [s for s, _ in sorted(skill_freq.items(), key=lambda x: -x[1])[:5]]
+
+            # Parse salary data
+            median_salary: int | None = None
+            sal_currency = currency
+            if not isinstance(salary_resp, Exception):
+                sal_data = salary_resp.json()
+                if isinstance(sal_data, dict):
+                    sal_inner = sal_data.get("data") or {}
+                    if isinstance(sal_inner, dict):
+                        if v := sal_inner.get("median_base_salary"):
+                            try:
+                                median_salary = int(float(v))
+                            except (TypeError, ValueError):
+                                pass
+                        if c := sal_inner.get("salary_currency"):
+                            sal_currency = str(c)
+
+            return TrendingRole(
                 title=role,
-                posting_count=500 - i * 30,
-                growth_percent=round(10.0 - i * 0.8, 1),
-                top_skills=skills,
-                median_salary=salary,
-                currency=_country_to_currency(country),
+                posting_count=posting_count,
+                growth_percent=None,
+                top_skills=top_skills,
+                median_salary=median_salary,
+                currency=sal_currency,
                 country=country,
                 sources=[JobSource.GLASSDOOR],
             )
-            for i, (role, salary, skills) in enumerate(tech_roles[:limit])
-        ]
+
+        results: list[TrendingRole] = []
+        batch_size = 3
+        for i in range(0, len(candidate_roles), batch_size):
+            batch = candidate_roles[i:i + batch_size]
+            batch_results = await asyncio.gather(
+                *[_probe_role(role) for role in batch],
+                return_exceptions=True,
+            )
+            for r in batch_results:
+                if isinstance(r, TrendingRole):
+                    results.append(r)
+            if i + batch_size < len(candidate_roles):
+                await asyncio.sleep(0.3)
+
+        results.sort(key=lambda r: -r.posting_count)
+        return results[:limit]
+
+    async def _get_detail(
+        self,
+        job_id: str,
+        *,
+        country: str = "CH",
+        correlation_id: str = "",
+    ) -> JobPosting | None:
+        return None
 
 
-def _parse_glassdoor_item(item: dict[str, Any], country: str) -> JobPosting | None:
-    # Glassdoor nests job data in a 'jobview' or direct fields
-    job = item.get("jobview", {}) if "jobview" in item else item
-    listing = job.get("job", job)
-
-    title = str(listing.get("jobTitleText") or listing.get("title") or "").strip()
+def _parse_glassdoor_item(item: dict[str, Any], country: str, currency: str) -> JobPosting | None:
+    title = _fix_encoding(str(item.get("job_title") or item.get("title") or "").strip())
     if not title:
         return None
 
-    job_id = str(
-        listing.get("listingId") or listing.get("id") or _make_id(title, listing.get("employer", ""))
-    )
-
-    employer = listing.get("employer") or {}
-    company = (
-        str(employer.get("name") or employer)
-        if isinstance(employer, dict)
-        else str(employer or "Unknown")
-    )
-
-    location_raw = listing.get("locationName") or listing.get("location") or ""
-    location = str(location_raw)
+    job_id = str(item.get("job_id") or item.get("id") or _make_id(title, item.get("company_name", "")))
+    company = _fix_encoding(str(item.get("company_name") or item.get("company") or "Unknown"))
+    location = _fix_encoding(str(item.get("location_name") or item.get("location") or ""))
+    url = str(item.get("job_link") or item.get("url") or "")
 
     posted_date: date | None = None
-    if date_str := listing.get("listingDateText") or listing.get("postDate"):
+    if age_days := item.get("age_in_days"):
+        try:
+            posted_date = date.today() - timedelta(days=int(age_days))
+        except (TypeError, ValueError):
+            pass
+    elif date_str := item.get("date_posted") or item.get("posted_date"):
         try:
             posted_date = date.fromisoformat(str(date_str)[:10])
         except (ValueError, TypeError):
@@ -167,14 +308,35 @@ def _parse_glassdoor_item(item: dict[str, Any], country: str) -> JobPosting | No
 
     salary_min: int | None = None
     salary_max: int | None = None
-    currency = _country_to_currency(country)
-    if salary := listing.get("salarySource") or listing.get("salary") or {}:
-        if isinstance(salary, dict):
-            salary_min = _to_int(salary.get("min") or salary.get("minSalary"))
-            salary_max = _to_int(salary.get("max") or salary.get("maxSalary"))
-            currency = str(salary.get("currency", currency))
+    sal_currency = currency
+    if v := item.get("salary_min") or item.get("pay_period_min"):
+        try:
+            salary_min = int(float(v))
+        except (TypeError, ValueError):
+            pass
+    if v := item.get("salary_max") or item.get("pay_period_max"):
+        try:
+            salary_max = int(float(v))
+        except (TypeError, ValueError):
+            pass
+    if v := item.get("salary_median"):
+        try:
+            median = int(float(v))
+            if salary_min is None:
+                salary_min = median
+            if salary_max is None:
+                salary_max = median
+        except (TypeError, ValueError):
+            pass
+    if c := item.get("salary_currency"):
+        sal_currency = str(c)
 
-    description = str(listing.get("jobDescriptionText") or listing.get("description") or "")[:2000]
+    description = _fix_encoding(str(item.get("job_description") or item.get("description") or ""))[:2000]
+    is_remote = (
+        bool(item.get("is_remote"))
+        or "remote" in title.lower()
+        or "remote" in location.lower()
+    )
 
     return JobPosting(
         id=job_id,
@@ -182,85 +344,31 @@ def _parse_glassdoor_item(item: dict[str, Any], country: str) -> JobPosting | No
         company=company,
         location=location,
         country=country,
-        remote=listing.get("isRemote", False) or "remote" in location.lower(),
-        employment_type=_parse_employment(listing.get("jobTypeCode")),
+        remote=is_remote,
+        employment_type=EmploymentType.UNKNOWN,
         experience_level=ExperienceLevel.UNKNOWN,
         description=description,
         required_skills=_extract_skills(description),
         salary_min=salary_min,
         salary_max=salary_max,
-        currency=currency,
+        currency=sal_currency,
         source=JobSource.GLASSDOOR,
-        source_url=listing.get("jobViewUrl") or listing.get("url"),
-        apply_url=listing.get("applyUrl"),
+        source_url=url,
+        apply_url=item.get("apply_url") or url,
         posted_date=posted_date,
     )
 
 
-def _parse_employment(code: Any) -> EmploymentType:
-    if not code:
-        return EmploymentType.UNKNOWN
-    mapping = {
-        "fulltime": EmploymentType.FULL_TIME,
-        "parttime": EmploymentType.PART_TIME,
-        "contract": EmploymentType.CONTRACT,
-        "internship": EmploymentType.INTERNSHIP,
-    }
-    return mapping.get(str(code).lower().replace("_", "").replace("-", ""), EmploymentType.UNKNOWN)
-
-
 def _extract_skills(description: str) -> list[str]:
-    skills = [
-        "Python", "Java", "Go", "JavaScript", "TypeScript", "C++", "Rust",
-        "Docker", "Kubernetes", "Terraform", "AWS", "Azure", "GCP",
-        "PostgreSQL", "MySQL", "MongoDB", "Redis", "Kafka", "Spark",
-        "FastAPI", "Django", "React", "Next.js", "Spring",
-        "PyTorch", "TensorFlow", "scikit-learn", "LangChain",
-        "CI/CD", "GitHub Actions", "Prometheus", "Grafana",
-        "SQL", "GraphQL", "REST", "gRPC", "Linux",
-    ]
     found: list[str] = []
     lower = description.lower()
-    for skill in skills:
-        if skill.lower() in lower:
+    for skill in _TECH_SKILLS:
+        if skill.lower() in lower and skill not in found:
             found.append(skill)
-        if len(found) >= 15:
+        if len(found) >= 10:
             break
     return found
 
 
 def _make_id(title: str, company: str) -> str:
     return hashlib.sha256(f"{title}:{company}".encode()).hexdigest()[:16]
-
-
-def _to_int(value: Any) -> int | None:
-    if value is None:
-        return None
-    try:
-        return int(float(str(value)))
-    except (TypeError, ValueError):
-        return None
-
-
-def _country_to_city(country: str) -> str:
-    return {
-        "CH": "Switzerland",
-        "DE": "Germany",
-        "FR": "France",
-        "AT": "Austria",
-        "NL": "Netherlands",
-        "US": "United States",
-        "GB": "United Kingdom",
-    }.get(country.upper(), country)
-
-
-def _country_to_currency(country: str) -> str:
-    return {
-        "CH": "CHF",
-        "US": "USD",
-        "GB": "GBP",
-        "DE": "EUR",
-        "FR": "EUR",
-        "AT": "EUR",
-        "NL": "EUR",
-    }.get(country.upper(), "USD")

@@ -173,7 +173,8 @@ export default function RegisterPage() {
     matchState === "ok" ? "✓ Passwords match" :
     matchState === "no" ? "✗ Passwords do not match" : "";
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!terms || matchState !== "ok" || !email || !password) return;
     const displayName = `${firstName} ${lastName}`.trim() || undefined;
     setIsLoading(true);
@@ -388,7 +389,7 @@ export default function RegisterPage() {
           className="su-right flex flex-col items-center justify-center overflow-y-auto bg-bg"
           style={{ padding: "48px" }}
         >
-          <div className="anim-form w-full" style={{ maxWidth: 400 }}>
+          <form className="anim-form w-full" style={{ maxWidth: 400 }} onSubmit={handleSubmit}>
 
             {/* Header */}
             <div className="mb-7">
@@ -556,7 +557,6 @@ export default function RegisterPage() {
             {/* Submit */}
             <button
               type="submit"
-              onClick={handleSubmit}
               disabled={!terms || isLoading || matchState === "no"}
               className="su-btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-green text-[15px] font-semibold tracking-[0.01em] text-bg disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -588,7 +588,7 @@ export default function RegisterPage() {
               </Link>
             </p>
 
-          </div>
+          </form>
         </div>
       </div>
     </>

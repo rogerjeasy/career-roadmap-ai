@@ -96,11 +96,11 @@ export default function SignInPage() {
     if (!email || !password) return;
     setIsLoading(true);
     try {
-      await loginWithEmail(email, password);
+      await loginWithEmail(email, password, remember);
     } finally {
       setIsLoading(false);
     }
-  }, [email, password, loginWithEmail]);
+  }, [email, password, remember, loginWithEmail]);
 
   const handleGoogle = useCallback(async () => {
     setIsLoading(true);
@@ -202,7 +202,7 @@ export default function SignInPage() {
       `}</style>
 
       {/* Shell */}
-      <div className="grain min-h-screen" style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+      <div className="grain signin-shell min-h-screen" style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
         <style>{`
           @media (max-width: 800px) {
             .signin-shell { grid-template-columns: 1fr !important; }

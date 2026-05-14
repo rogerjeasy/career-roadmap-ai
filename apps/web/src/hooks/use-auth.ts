@@ -4,9 +4,22 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { authApi } from "@/lib/api/auth";
+import { roadmapApi } from "@/lib/api/roadmap";
 import { useAuthStore } from "@/store/auth.store";
 import { ApiError } from "@/types/api.types";
 import { ROUTES } from "@/lib/constants";
+
+// Checks Firestore for an existing roadmap and returns the correct post-login
+// destination. Falls back to onboarding on any error so new or partial-setup
+// users are never stuck on a blank dashboard.
+async function postLoginRoute(): Promise<string> {
+  try {
+    const list = await roadmapApi.list(1);
+    return list.length > 0 ? ROUTES.dashboard : ROUTES.onboarding;
+  } catch {
+    return ROUTES.onboarding;
+  }
+}
 
 /**
  * Primary hook for authentication.
@@ -24,7 +37,7 @@ export function useAuth() {
         const profile = await authApi.registerWithEmail(email, password, displayName);
         setUser(profile);
         toast.success("Account created — welcome!");
-        router.push(ROUTES.dashboard);
+        router.push(ROUTES.onboarding);
       } catch (err) {
         toast.error(err instanceof ApiError ? err.message : "Registration failed");
         throw err; // re-throw so form components can reset loading state
@@ -34,11 +47,11 @@ export function useAuth() {
   );
 
   const loginWithEmail = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, rememberMe?: boolean) => {
       try {
-        const profile = await authApi.loginWithEmail(email, password);
+        const profile = await authApi.loginWithEmail(email, password, rememberMe);
         setUser(profile);
-        router.push(ROUTES.dashboard);
+        router.push(await postLoginRoute());
       } catch (err) {
         toast.error(err instanceof ApiError ? err.message : "Login failed");
         throw err;
@@ -51,7 +64,7 @@ export function useAuth() {
     try {
       const profile = await authApi.loginWithGoogle();
       setUser(profile);
-      router.push(ROUTES.dashboard);
+      router.push(await postLoginRoute());
     } catch (err) {
       const isPopupClosed =
         err instanceof Error && err.message.includes("popup-closed-by-user");

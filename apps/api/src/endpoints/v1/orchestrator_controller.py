@@ -11,6 +11,7 @@ GET /api/v1/orchestrator/status/{request_id}
     Returns the Celery task status and result when the task has completed.
     Useful as a polling fallback if the client does not support SSE.
 """
+import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -20,6 +21,7 @@ from agents.contracts.tasks import OrchestratorTaskInput, UserProfileSnapshot
 from src.core.auth import AuthenticatedUser, get_current_user
 from src.core.exceptions import ExternalServiceError
 from src.core.logging import get_logger
+from src.db.redis import get_redis
 from src.session.manager import SessionManager, get_session_manager
 from src.session.models import UserProfileContext
 
@@ -94,6 +96,7 @@ async def generate_roadmap(
     body: GenerateRoadmapRequest,
     user: AuthenticatedUser = Depends(get_current_user),
     mgr: SessionManager = Depends(get_session_manager),
+    redis_client: aioredis.Redis = Depends(get_redis),
 ) -> GenerateRoadmapResponse:
     """Dispatch a roadmap generation request to the agent pipeline.
 
@@ -103,6 +106,11 @@ async def generate_roadmap(
     """
     session = await mgr.get_or_create(user.uid, user.email)
     stream_channel = channel_for_session(user.uid, session.user_id)
+
+    # Purge the event replay log from any previous run so a subscriber that
+    # connects after this 202 response never replays stale terminal events.
+    replay_log_key = f"event_log:{stream_channel}"
+    await redis_client.delete(replay_log_key)
 
     task_input = OrchestratorTaskInput(
         session_id=session.user_id,

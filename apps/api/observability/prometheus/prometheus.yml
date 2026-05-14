@@ -23,6 +23,23 @@ scrape_configs:
       - targets: ["postgres-exporter:9187"]
     scrape_interval: 30s
 
+  # Kong Admin API exposes Prometheus metrics at /metrics on port 8001.
+  # In dev, Kong runs in Docker so it's reachable by container name.
+  # The prometheus plugin must be enabled in kong.dev.yml (it is).
+  - job_name: kong
+    static_configs:
+      - targets: ["kong:8001"]
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  # Celery workers push agent/LLM/MCP metrics here after each agent invocation.
+  # honor_labels preserves the job="career-agents" label pushed by the workers.
+  - job_name: pushgateway
+    static_configs:
+      - targets: ["pushgateway:9091"]
+    honor_labels: true
+    scrape_interval: 15s
+
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]

@@ -15,6 +15,7 @@ from src.core.healthcheck import router as health_router
 from src.core.logging import configure_logging, get_logger
 from src.core.middleware import CaseConversionMiddleware, TraceContextMiddleware, setup_rate_limiter
 from src.endpoints.v1 import router as api_v1_router
+from src.endpoints.v1.stream_controller import router as stream_sse_router
 from src.observability import setup_prometheus, setup_sentry, setup_tracing
 
 # Init Sentry BEFORE the app so it captures startup errors.
@@ -26,8 +27,12 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Shared Redis connection pool
-    pool = aioredis.ConnectionPool.from_url(str(settings.redis_url), decode_responses=True)
+    # Shared Redis connection pool (max_connections caps sockets under traffic spikes)
+    pool = aioredis.ConnectionPool.from_url(
+        str(settings.redis_url),
+        decode_responses=True,
+        max_connections=settings.redis_max_connections,
+    )
     app.state.redis = aioredis.Redis(connection_pool=pool)
 
     # Shared async HTTP client (used by UserService for Firebase REST API calls)
@@ -98,6 +103,9 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
 
 app.include_router(health_router)
 app.include_router(api_v1_router)
+# Registered at /stream/{session_id} (no /api/v1 prefix) so Kong's fastapi-sse
+# service (response_buffering: false, 1-hour timeout) routes to it correctly.
+app.include_router(stream_sse_router)
 
 
 # ── Meta ──────────────────────────────────────────────────────────────────────

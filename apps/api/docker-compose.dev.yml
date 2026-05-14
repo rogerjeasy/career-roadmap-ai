@@ -36,16 +36,17 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Observability stack (opt-in) ─────────────────────────────────────────────
-  # Start with:  docker compose -f docker-compose.dev.yml --profile observability up -d
-  # Then set in .env:
+  # ── Tracing backend (always-on) ──────────────────────────────────────────────
+  # Tempo receives OTLP spans from the FastAPI server and the Celery worker.
+  # It is always-on so OTEL_TRACING_ENABLED=true works with plain `make dev`.
+  # The full dashboarding stack (Prometheus, Grafana, Loki) is opt-in below.
+  # Set in .env:
   #   OTEL_TRACING_ENABLED=true
   #   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
   tempo:
     image: grafana/tempo:2.7.0
     container_name: crai-tempo
-    profiles: [observability]
     labels:
       logging: promtail
     command: ["-config.file=/etc/tempo.yml"]
@@ -62,6 +63,9 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  # ── Observability dashboards (opt-in) ────────────────────────────────────────
+  # Start with:  docker compose -f docker-compose.dev.yml --profile observability up -d
 
   prometheus:
     image: prom/prometheus:v2.55.1
@@ -124,6 +128,86 @@ services:
       loki:
         condition: service_healthy
 
+  # ── API Gateway (always-on) ──────────────────────────────────────────────────
+  # Kong runs in DB-less mode alongside Postgres and Redis — it is part of the
+  # mandatory dev stack, not an optional profile.  All browser traffic routes
+  # through Kong so the dev environment mirrors staging/production exactly.
+  #
+  # Config is hot-reloaded by restarting the container:
+  #   make gateway-reload   (or: docker compose restart kong)
+  #
+  # Proxy access:   http://localhost:8080  (Next.js next.config.ts → here)
+  # HTTPS proxy:    https://localhost:8443
+  # Admin API:      http://localhost:8001  (localhost only — for deck / debugging)
+  kong:
+    image: kong:3.8
+    container_name: crai-kong
+    labels:
+      logging: promtail
+    environment:
+      # DB-less mode — all config is in the mounted kong.dev.yml
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.dev.yml
+
+      # Listeners
+      KONG_PROXY_LISTEN: "0.0.0.0:8080, 0.0.0.0:8443 ssl"
+      # Admin API bound to container-internal address; host port mapped to 127.0.0.1
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      # Status API for health-check probes
+      KONG_STATUS_LISTEN: "0.0.0.0:8100"
+
+      # Logging — everything to stdout/stderr so promtail can collect it
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_LOG_LEVEL: notice
+
+      # Performance
+      KONG_NGINX_WORKER_PROCESSES: auto
+      # Required for SSE: prevents Nginx from buffering streaming responses
+      KONG_NGINX_PROXY_PROXY_BUFFERING: "off"
+
+      # Plugins
+      KONG_PLUGINS: bundled
+
+      # Distributed tracing — OTel plugin reads these
+      KONG_TRACING_INSTRUMENTATIONS: all
+      KONG_TRACING_SAMPLING_RATE: "1.0"
+    volumes:
+      - ./kong/kong.dev.yml:/etc/kong/kong.dev.yml:ro
+    ports:
+      - "8080:8080"           # Proxy HTTP  — frontend uses this
+      - "8443:8443"           # Proxy HTTPS
+      - "127.0.0.1:8001:8001" # Admin API   — localhost only
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # Needed on Linux so Kong containers can reach locally running FastAPI/MCP servers.
+    # Docker Desktop (Windows/Mac) resolves host.docker.internal automatically.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  pushgateway:
+    image: prom/pushgateway:v1.10.0
+    container_name: crai-pushgateway
+    profiles: [observability]
+    labels:
+      logging: promtail
+    ports:
+      - "9091:9091"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9091/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: crai-redis-exporter
@@ -163,12 +247,12 @@ services:
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
       GF_FEATURE_TOGGLES_ENABLE: traceqlEditor metricsSummary
-      GF_SERVER_HTTP_PORT: "3001"
+      GF_SERVER_HTTP_PORT: "3300"
     volumes:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - "3001:3001"
+      - "3300:3300"
     depends_on:
       prometheus:
         condition: service_healthy
@@ -177,7 +261,7 @@ services:
       tempo:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3300/api/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10

@@ -30,8 +30,14 @@ class Settings(BaseSettings):
     port: int = 8000
 
     # ── CORS ──────────────────────────────────────────────
+    # FastAPI's CORSMiddleware is the defense-in-depth layer; Kong is primary.
+    # Only list real browser page origins — never the API or gateway URLs.
+    #
+    # pydantic-settings v2 JSON-parses list[str] fields from env sources before
+    # validators run, so the env var MUST be a JSON array:
+    #   CORS_ORIGINS=["http://localhost:3000"]
     cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000", "http://localhost:8000"]
+        default_factory=lambda: ["http://localhost:3000"]
     )
 
     # ── Database ──────────────────────────────────────────
@@ -39,10 +45,19 @@ class Settings(BaseSettings):
     db_pool_size: int = 10
     db_max_overflow: int = 20
     db_echo: bool = False
+    # Recycle connections after 30 min to avoid stale sockets on load-balancer
+    # TCP idle-timeout (typically 5–10 min for cloud proxies like RDS Proxy).
+    db_pool_recycle: int = 1800
+    # Raise if a connection cannot be acquired within 30 s (fast-fail > slow queue).
+    db_pool_timeout: int = 30
+    # PostgreSQL statement_timeout — kills runaway queries before they cascade.
+    db_statement_timeout_ms: int = 5000
 
     # ── Redis ─────────────────────────────────────────────
     redis_url: RedisDsn
     redis_session_ttl_seconds: int = 60 * 60 * 24  # 24 h
+    # Cap the connection pool so a traffic spike doesn't exhaust Redis sockets.
+    redis_max_connections: int = 50
 
     # ── Celery ────────────────────────────────────────────
     celery_broker_url: RedisDsn
@@ -55,6 +70,15 @@ class Settings(BaseSettings):
     # Web API Key — Firebase Console → Project Settings → General → Web API Key
     # Required for server-side email/password sign-in and token refresh via REST API
     firebase_web_api_key: str | None = None
+
+    # ── Admin ─────────────────────────────────────────────
+    # Used to protect POST /admin/kb/ingest. Must be set in production.
+    admin_api_key: SecretStr | None = None
+
+    # ── External data sources (KB enrichment) ─────────────
+    # BLS Public Data API v2 key — register free at https://data.bls.gov/registrationEngine/
+    # Optional: raises daily request limit from 25 → 500.
+    bls_api_key: SecretStr | None = None
 
     # ── Rate limiting ─────────────────────────────────────
     rate_limit_per_minute: int = 60
@@ -82,6 +106,12 @@ class Settings(BaseSettings):
     blob_storage_provider: Literal["local", "azure", "s3"] = "local"
     blob_storage_path: str = "./storage"
     max_upload_size_mb: int = 10
+
+    # ── Cloudinary (media storage) ────────────────────────
+    cloudinary_cloud_name: str | None = None
+    cloudinary_api_key: SecretStr | None = None
+    cloudinary_api_secret: SecretStr | None = None
+    cloudinary_upload_folder: str = "career-roadmap"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

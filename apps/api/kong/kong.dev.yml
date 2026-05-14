@@ -1,0 +1,535 @@
+_format_version: "3.0"
+_transform: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Kong API Gateway — Development (DB-less declarative config)
+#
+# Kong runs in DB-less mode; this file is the single source of truth.
+# Edit here and restart Kong: docker compose restart kong
+#
+# All upstreams use host.docker.internal because FastAPI and MCP servers run
+# as local processes (outside Docker). Redis runs in Docker on the default
+# compose network, reachable by service name.
+#
+# Port map (dev):
+#   Kong proxy HTTP  → :8080  (frontend connects here)
+#   Kong proxy HTTPS → :8443
+#   Kong Admin HTTP  → :8001  (localhost only — for deck / curl debugging)
+#   FastAPI          → host.docker.internal:8000  (local uvicorn)
+#   MCP servers      → host.docker.internal:300x  (local uvicorn each)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─── Upstreams (load-balancing + health checks) ───────────────────────────────
+
+upstreams:
+  - name: fastapi.upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 15
+          successes: 2
+        unhealthy:
+          interval: 5
+          http_failures: 2
+        http_path: /livez
+        type: http
+    targets:
+      - target: host.docker.internal:8000
+        weight: 100
+
+  - name: mcp-job-board.upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+        http_path: /livez
+        type: http
+    targets:
+      - target: host.docker.internal:3001
+        weight: 100
+
+  - name: mcp-course-catalogue.upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+        http_path: /livez
+        type: http
+    targets:
+      - target: host.docker.internal:3002
+        weight: 100
+
+  - name: mcp-github-trends.upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+        http_path: /livez
+        type: http
+    targets:
+      - target: host.docker.internal:3003
+        weight: 100
+
+  - name: mcp-salary-benchmark.upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+        http_path: /livez
+        type: http
+    targets:
+      - target: host.docker.internal:3004
+        weight: 100
+
+  - name: mcp-social-signals.upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+        http_path: /livez
+        type: http
+    targets:
+      - target: host.docker.internal:3005
+        weight: 100
+
+  - name: mcp-calendar.upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+        http_path: /livez
+        type: http
+    targets:
+      - target: host.docker.internal:3006
+        weight: 100
+
+  - name: mcp-industry-news.upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+        http_path: /livez
+        type: http
+    targets:
+      - target: host.docker.internal:3007
+        weight: 100
+
+# ─── Services ─────────────────────────────────────────────────────────────────
+
+services:
+  # ── FastAPI REST / WebSocket ───────────────────────────────────────────────
+  - name: fastapi
+    host: fastapi.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    retries: 2
+    routes:
+      - name: api-v1
+        paths:
+          - /api/v1
+        methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD]
+        strip_path: false
+        preserve_host: false
+        regex_priority: 10
+
+      - name: auth
+        paths:
+          - /auth
+        methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+        strip_path: false
+        regex_priority: 10
+
+      - name: health
+        paths:
+          - /livez
+          - /readyz
+        methods: [GET, HEAD]
+        strip_path: false
+        regex_priority: 20
+        # Health endpoints bypass the global rate limiter via a lenient override.
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 600
+              policy: local
+              limit_by: ip
+              hide_client_headers: true
+
+      - name: api-root
+        paths:
+          - /
+        methods: [GET]
+        strip_path: false
+        regex_priority: 0
+
+  # ── FastAPI SSE (long-lived streaming connections) ─────────────────────────
+  # Separate service entry so we can set 1-hour timeouts and disable buffering
+  # without affecting regular API calls.
+  - name: fastapi-sse
+    host: fastapi.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 60000
+    write_timeout: 3600000
+    read_timeout: 3600000
+    retries: 0
+    routes:
+      - name: stream-sse
+        paths:
+          - /stream
+        methods: [GET, OPTIONS]
+        strip_path: false
+        response_buffering: false
+        regex_priority: 15
+        plugins:
+          # Tighter rate limit: SSE holds a connection open for up to an hour.
+          - name: rate-limiting
+            config:
+              minute: 10
+              hour: 30
+              policy: redis
+              redis:
+                host: redis
+                port: 6379
+                database: 9
+              limit_by: ip
+              hide_client_headers: false
+
+  # ── MCP: Job Board (port 3001) ─────────────────────────────────────────────
+  - name: mcp-job-board
+    host: mcp-job-board.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 1
+    routes:
+      - name: mcp-job-board-route
+        paths:
+          - /mcp/job-board
+        methods: [GET, POST, OPTIONS]
+        strip_path: true
+        regex_priority: 10
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 20
+              policy: redis
+              redis:
+                host: redis
+                port: 6379
+                database: 9
+
+  # ── MCP: Course Catalogue (port 3002) ─────────────────────────────────────
+  - name: mcp-course-catalogue
+    host: mcp-course-catalogue.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 1
+    routes:
+      - name: mcp-course-catalogue-route
+        paths:
+          - /mcp/course-catalogue
+        methods: [GET, POST, OPTIONS]
+        strip_path: true
+        regex_priority: 10
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 20
+              policy: redis
+              redis:
+                host: redis
+                port: 6379
+                database: 9
+
+  # ── MCP: GitHub Trends (port 3003) ────────────────────────────────────────
+  - name: mcp-github-trends
+    host: mcp-github-trends.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 1
+    routes:
+      - name: mcp-github-trends-route
+        paths:
+          - /mcp/github-trends
+        methods: [GET, POST, OPTIONS]
+        strip_path: true
+        regex_priority: 10
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 30
+              policy: redis
+              redis:
+                host: redis
+                port: 6379
+                database: 9
+
+  # ── MCP: Salary Benchmark (port 3004) ─────────────────────────────────────
+  - name: mcp-salary-benchmark
+    host: mcp-salary-benchmark.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 1
+    routes:
+      - name: mcp-salary-benchmark-route
+        paths:
+          - /mcp/salary-benchmark
+        methods: [GET, POST, OPTIONS]
+        strip_path: true
+        regex_priority: 10
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 20
+              policy: redis
+              redis:
+                host: redis
+                port: 6379
+                database: 9
+
+  # ── MCP: Social Signals (port 3005) ───────────────────────────────────────
+  - name: mcp-social-signals
+    host: mcp-social-signals.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 1
+    routes:
+      - name: mcp-social-signals-route
+        paths:
+          - /mcp/social-signals
+        methods: [GET, POST, OPTIONS]
+        strip_path: true
+        regex_priority: 10
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 30
+              policy: redis
+              redis:
+                host: redis
+                port: 6379
+                database: 9
+
+  # ── MCP: Calendar (port 3006) ──────────────────────────────────────────────
+  - name: mcp-calendar
+    host: mcp-calendar.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 1
+    routes:
+      - name: mcp-calendar-route
+        paths:
+          - /mcp/calendar
+        methods: [GET, POST, OPTIONS]
+        strip_path: true
+        regex_priority: 10
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 30
+              policy: redis
+              redis:
+                host: redis
+                port: 6379
+                database: 9
+
+  # ── MCP: Industry News (port 3007) ────────────────────────────────────────
+  - name: mcp-industry-news
+    host: mcp-industry-news.upstream
+    protocol: http
+    port: 80
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 1
+    routes:
+      - name: mcp-industry-news-route
+        paths:
+          - /mcp/industry-news
+        methods: [GET, POST, OPTIONS]
+        strip_path: true
+        regex_priority: 10
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 30
+              policy: redis
+              redis:
+                host: redis
+                port: 6379
+                database: 9
+
+# ─── Global Plugins ────────────────────────────────────────────────────────────
+# Applied to ALL traffic. Route-level plugins with the same name override these.
+
+plugins:
+  # ── Observability ─────────────────────────────────────────────────────────
+
+  # Prometheus metrics (scraped from Admin API :8001/metrics by Prometheus).
+  # status_code_metrics + latency_metrics + upstream_health_metrics give the
+  # full picture for the Grafana "Kong API Gateway" dashboard.
+  - name: prometheus
+    config:
+      status_code_metrics: true
+      latency_metrics: true
+      upstream_health_metrics: true
+      bandwidth_metrics: true
+      per_consumer: false
+
+  # OpenTelemetry — sends gateway-level spans to Grafana Tempo.
+  # Kong generates a root span that wraps each upstream call, giving full
+  # end-to-end trace visibility from browser through Kong into FastAPI.
+  # Fails silently if Tempo is not running (observability profile not active).
+  - name: opentelemetry
+    config:
+      endpoint: http://tempo:4318/v1/traces
+      resource_attributes:
+        service.name: kong-gateway
+        service.version: "3.8"
+        deployment.environment: development
+      propagation:
+        default_format: w3c
+      batch_flush_delay: 2
+      connect_timeout: 1000
+      send_timeout: 5000
+      read_timeout: 5000
+
+  # ── Traffic control ───────────────────────────────────────────────────────
+
+  # Global rate limit — Redis-backed, per source IP.
+  # Route-level plugins override this for endpoints that need tighter limits.
+  # Namespace "crai_rl" keeps these keys separate from app-level rate limits.
+  - name: rate-limiting
+    config:
+      minute: 60
+      hour: 1000
+      day: 10000
+      policy: redis
+      redis:
+        host: redis
+        port: 6379
+        database: 9
+      limit_by: ip
+      hide_client_headers: false
+      error_code: 429
+      error_message: "Too many requests. Please retry after a moment."
+      sync_rate: 10
+
+  # Prevent large payloads from reaching upstreams.
+  # CV uploads are expected at /api/v1/cv/upload — 10 MB is generous for JSON
+  # and covers multi-page PDFs sent as base64.
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 10
+      size_unit: megabytes
+      require_content_length: false
+
+  # ── Security ──────────────────────────────────────────────────────────────
+
+  # CORS primary handler. FastAPI keeps its own CORSMiddleware as
+  # defense-in-depth (handles the case where a request reaches FastAPI
+  # directly, bypassing Kong in dev). Kong's CORS plugin is the authoritative
+  # source in production.
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:3000"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+        - HEAD
+      headers:
+        - Accept
+        - Accept-Encoding
+        - Authorization
+        - Content-Type
+        - X-Request-Id
+        - X-Correlation-Id
+        - X-MCP-API-Key
+        - Sentry-Trace
+        - Baggage
+      exposed_headers:
+        - X-Request-Id
+        - X-Kong-Upstream-Latency
+        - X-Kong-Proxy-Latency
+        - X-Correlation-Id
+      credentials: true
+      max_age: 3600
+      preflight_continue: false
+
+  # Hardened security headers on every response.
+  # Removes server fingerprinting headers that Kong adds by default.
+  - name: response-transformer
+    config:
+      add:
+        headers:
+          - "X-Content-Type-Options:nosniff"
+          - "X-Frame-Options:DENY"
+          - "X-XSS-Protection:1; mode=block"
+          - "Referrer-Policy:strict-origin-when-cross-origin"
+          - "Permissions-Policy:geolocation=(), microphone=(), camera=()"
+      remove:
+        headers:
+          - "X-Powered-By"
+          - "Via"

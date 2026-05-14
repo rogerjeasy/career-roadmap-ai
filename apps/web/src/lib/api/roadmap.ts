@@ -1,8 +1,33 @@
 import { apiClient } from "./client";
 
-// TODO: import types from @/types/roadmap.types when the backend domain is built
-// Backend routes: POST /api/v1/roadmap/generate  GET /api/v1/roadmap/:id
+export interface RoadmapSummary {
+  id: string;
+  sessionId: string;
+  summary: string;
+  confidence: number;
+  status: string;
+  phaseCount: number;
+  createdAt: string;
+}
+
+export interface RoadmapSummaryPage {
+  items: RoadmapSummary[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
 
 export const roadmapApi = {
-  // placeholder — implement when roadmap domain is ready
+  async list(limit = 20): Promise<RoadmapSummary[]> {
+    const { data } = await apiClient.get<RoadmapSummary[]>("/api/v1/roadmaps", {
+      params: { limit },
+    });
+    return data;
+  },
+
+  async listPaginated(params: { limit?: number; cursor?: string }): Promise<RoadmapSummaryPage> {
+    const { data } = await apiClient.get<RoadmapSummaryPage>("/api/v1/roadmaps/paginated", {
+      params,
+    });
+    return data;
+  },
 };

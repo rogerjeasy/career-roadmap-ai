@@ -1,7 +1,20 @@
 import { apiClient } from "./client";
+import type { CvAnalysisResult } from "@/types/onboarding.types";
 
-// Backend routes: POST /api/v1/cv/upload  GET /api/v1/cv/analysis/:id
+interface CvUploadResponse {
+  analysis: CvAnalysisResult;
+  uploadId: string;
+}
 
 export const cvApi = {
-  // placeholder — implement when cv domain is ready
+  async upload(file: File): Promise<CvAnalysisResult> {
+    const form = new FormData();
+    form.append("file", file);
+    const { data } = await apiClient.post<CvUploadResponse>(
+      "/api/v1/cv/upload",
+      form,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+    return data.analysis;
+  },
 };

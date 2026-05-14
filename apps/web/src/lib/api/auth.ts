@@ -4,6 +4,9 @@ import {
   signInWithPopup,
   signOut,
   updateProfile,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
 } from "firebase/auth";
 import { firebaseAuth, googleProvider } from "@/lib/firebase";
 import type { UserProfile } from "@/types/api.types";
@@ -19,9 +22,11 @@ export const authApi = {
     password: string,
     displayName?: string,
   ): Promise<UserProfile> {
-    const { user } = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
     if (displayName) {
-      await updateProfile(user, { displayName });
+      await updateProfile(credential.user, { displayName });
+      // Force-refresh so the `name` claim is present when /users/me auto-provisions the Firestore record
+      await credential.user.getIdToken(true);
     }
     const { data } = await apiClient.get<UserProfile>("/api/v1/users/me");
     return data;
@@ -31,7 +36,15 @@ export const authApi = {
    * Sign in with email and password.
    * Firebase SDK authenticates → backend returns the full DB profile.
    */
-  async loginWithEmail(email: string, password: string): Promise<UserProfile> {
+  async loginWithEmail(
+    email: string,
+    password: string,
+    rememberMe = true,
+  ): Promise<UserProfile> {
+    await setPersistence(
+      firebaseAuth,
+      rememberMe ? browserLocalPersistence : browserSessionPersistence,
+    );
     await signInWithEmailAndPassword(firebaseAuth, email, password);
     const { data } = await apiClient.get<UserProfile>("/api/v1/users/me");
     return data;

@@ -2,8 +2,10 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { firebaseAuth } from "@/lib/firebase";
 import { type ApiErrorBody, ApiError } from "@/types/api.types";
 
+// No baseURL — requests use relative paths (e.g. /api/v1/users/me) so the
+// browser hits the Next.js origin, and next.config.ts rewrites forward them
+// to Kong → FastAPI. This keeps everything same-origin and avoids CORS.
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
   headers: { "Content-Type": "application/json" },
   timeout: 30_000,
 });

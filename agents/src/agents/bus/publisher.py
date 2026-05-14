@@ -11,7 +11,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from agents.bus.celery_app import celery_app
 from agents.bus.channel import channel_for_session
-from agents.contracts.events import AgentEvent
+from agents.contracts.events import AgentEvent, AgentEventType
 from agents.contracts.tasks import AgentTaskInput, OrchestratorTaskInput
 from agents.core.exceptions import BusPublishError
 from agents.core.message_bus import EventPublisherProtocol, TaskPublisherProtocol
@@ -96,11 +96,32 @@ class EventPublisher:
     def __init__(self, redis_client) -> None:  # type: ignore[no-untyped-def]
         self._redis = redis_client
 
+    # TTL for the event replay list — long enough to survive a slow SSE
+    # connection setup, short enough not to waste Redis memory.
+    _REPLAY_TTL_SECONDS = 600
+
     def emit(self, event: AgentEvent) -> None:
-        """Publish an event to the session channel. Non-blocking."""
+        """Publish an event to the session channel. Non-blocking.
+
+        Each event is also appended to a Redis list (``event_log:{channel}``)
+        so that a subscriber that connects after events have already been
+        published can replay the backlog before switching to live pub/sub.
+        """
         channel = channel_for_session(event.user_id, event.session_id)
         try:
-            self._redis.publish(channel, event.model_dump_json())
+            payload = event.model_dump_json()
+            list_key = f"event_log:{channel}"
+            pipe = self._redis.pipeline()
+            # A new orchestration run invalidates all events from the previous
+            # run.  Clear the replay list atomically before appending so a
+            # subscriber that connects mid-run never replays stale terminal
+            # events and redirects the user prematurely.
+            if event.event_type is AgentEventType.ORCHESTRATION_STARTED:
+                pipe.delete(list_key)
+            pipe.rpush(list_key, payload)
+            pipe.expire(list_key, self._REPLAY_TTL_SECONDS)
+            pipe.publish(channel, payload)
+            pipe.execute()
             logger.debug(
                 "bus.event.emitted",
                 event_type=event.event_type.value,

@@ -32,6 +32,13 @@ async def subscribe_to_session(
     - An ``ORCHESTRATION_COMPLETED`` or ``ORCHESTRATION_FAILED`` event arrives.
     - ``timeout_seconds`` elapses without a terminal event.
 
+    Race-condition handling: the worker may publish events before this
+    subscriber is created.  To cover that window we:
+    1. Subscribe to pub/sub first (so we don't miss new events).
+    2. Replay the ``event_log:{channel}`` list that the publisher writes.
+    3. Deduplicate live pub/sub messages by ``event_id`` against what was
+       already sent during replay.
+
     Usage::
 
         async for event in subscribe_to_session(redis, channel):
@@ -39,14 +46,36 @@ async def subscribe_to_session(
     """
     queue: asyncio.Queue[AgentEvent | None] = asyncio.Queue(maxsize=_QUEUE_SIZE)
     pubsub = redis_client.pubsub()
+    list_key = f"event_log:{channel}"
 
     async def _reader() -> None:
-        """Background task: reads from pub/sub and enqueues parsed events."""
+        """Background task: replays backlog then reads live pub/sub."""
+        seen: set[str] = set()
         try:
+            # Subscribe before replaying so we don't miss events published
+            # between the LRANGE call and the subscribe call.
             await pubsub.subscribe(channel)
             logger.info("bus.subscriber.connected", channel=channel)
-            deadline = asyncio.get_event_loop().time() + timeout_seconds
 
+            # Replay stored events.
+            stored: list[bytes] = await redis_client.lrange(list_key, 0, -1)
+            logger.info(
+                "bus.subscriber.replay",
+                channel=channel,
+                count=len(stored),
+            )
+            for raw in stored:
+                try:
+                    event = AgentEvent.model_validate_json(raw)
+                    seen.add(event.event_id)
+                    await queue.put(event)
+                    if event.is_terminal:
+                        return
+                except Exception as exc:
+                    logger.warning("bus.subscriber.replay_parse_error", error=str(exc))
+
+            # Listen for new live events, skipping any already replayed.
+            deadline = asyncio.get_event_loop().time() + timeout_seconds
             while asyncio.get_event_loop().time() < deadline:
                 message = await pubsub.get_message(
                     ignore_subscribe_messages=True, timeout=1.0
@@ -55,6 +84,9 @@ async def subscribe_to_session(
                     continue
                 try:
                     event = AgentEvent.model_validate_json(message["data"])
+                    if event.event_id in seen:
+                        continue
+                    seen.add(event.event_id)
                     await queue.put(event)
                     if event.is_terminal:
                         break

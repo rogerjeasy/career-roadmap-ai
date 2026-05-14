@@ -6,8 +6,8 @@ It encodes the dependency graph as a list of ``TaskNode`` objects (defined
 in ``state.py``).
 
 DAG structure for ``roadmap_generation`` (the most complex intent):
-  Phase 1 (parallel): CV_ANALYSIS, MARKET_INTELLIGENCE
-  Phase 2 (serial):   GAP_ANALYSIS        (needs CV results)
+  Phase 1 (parallel): INTAKE, CV_ANALYSIS, MARKET_INTELLIGENCE
+  Phase 2 (serial):   GAP_ANALYSIS        (needs INTAKE + CV results)
   Phase 3 (serial):   ROADMAP_GENERATION  (needs gap + market)
   Phase 4 (parallel): LEARNING_RESOURCES, NETWORKING, OPPORTUNITY
 
@@ -72,6 +72,10 @@ _AGENT_SPECS: dict[AgentType, dict] = {
         "is_required": True,
         "retry_policy": {"max_attempts": 3, "timeout_seconds": 90, "backoff_seconds": 3.0},
     },
+    AgentType.VALIDATOR: {
+        "is_required": False,
+        "retry_policy": {"max_attempts": 2, "timeout_seconds": 60, "backoff_seconds": 2.0},
+    },
 }
 
 _DEFAULT_SPEC: dict = {
@@ -84,14 +88,14 @@ _DEFAULT_SPEC: dict = {
 # Phase numbers are computed automatically from the dependency graph.
 
 _DAG_TEMPLATES: dict[str, list[tuple[AgentType, list[AgentType]]]] = {
-    # INTAKE runs first in every multi-agent flow so that the user's raw message
-    # is NER-extracted into structured slots before downstream agents execute.
-    # CV_ANALYSIS and MARKET_INTELLIGENCE run in parallel once INTAKE completes.
+    # INTAKE, CV_ANALYSIS, and MARKET_INTELLIGENCE run in parallel at phase 1.
+    # GAP_ANALYSIS waits for both INTAKE (NER-extracted profile slots) and
+    # CV_ANALYSIS (structured CV gaps) before proceeding.
     "roadmap_generation": [
         (AgentType.INTAKE,              []),
-        (AgentType.CV_ANALYSIS,         [AgentType.INTAKE]),
-        (AgentType.MARKET_INTELLIGENCE, [AgentType.INTAKE]),
-        (AgentType.GAP_ANALYSIS,        [AgentType.CV_ANALYSIS]),
+        (AgentType.CV_ANALYSIS,         []),
+        (AgentType.MARKET_INTELLIGENCE, []),
+        (AgentType.GAP_ANALYSIS,        [AgentType.CV_ANALYSIS, AgentType.INTAKE]),
         (AgentType.ROADMAP_GENERATION,  [AgentType.GAP_ANALYSIS, AgentType.MARKET_INTELLIGENCE]),
         (AgentType.LEARNING_RESOURCES,  [AgentType.ROADMAP_GENERATION]),
         (AgentType.NETWORKING,          [AgentType.ROADMAP_GENERATION]),

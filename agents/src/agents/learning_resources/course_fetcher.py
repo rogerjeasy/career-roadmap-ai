@@ -113,14 +113,12 @@ class CourseFetcher:
             "level": level,
             "limit": self._limit,
         }
-        if max_cost_usd is not None:
-            params["max_cost_usd"] = max_cost_usd
 
         t0 = time.monotonic()
         try:
             result = await self._client.call(
                 "course_catalog",
-                "course.search",
+                "search_courses",
                 params,
                 correlation_id=correlation_id,
             )

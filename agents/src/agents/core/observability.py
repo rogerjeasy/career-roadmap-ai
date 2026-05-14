@@ -57,11 +57,9 @@ def configure_observability() -> None:
 
 
 def _attach_otlp_exporter(provider: TracerProvider) -> None:
-    """Attach an OTLP span exporter if the endpoint env-var is set."""
+    """Attach an OTLP span exporter if the endpoint is configured."""
     try:
-        import os
-
-        endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+        endpoint = agent_settings.otel_exporter_otlp_endpoint
         if not endpoint:
             logger.info("observability.otlp_endpoint_not_set")
             return
@@ -644,4 +642,29 @@ PROGRESS_ADAPT_COUNT = Histogram(
 PROGRESS_REGEN_TOTAL = Counter(
     "career_agents_progress_regen_total",
     "Total progress runs where full roadmap regeneration was recommended",
+)
+
+# ── File upload metrics ──────────────────────────────────────────────────────
+
+FILE_UPLOAD_TOTAL = Counter(
+    "career_agents_file_upload_total",
+    "Total Cloudinary upload attempts by resource type and outcome",
+    ["resource_type", "status"],  # resource_type: raw|image|video  status: success|error
+)
+
+FILE_UPLOAD_DURATION = Histogram(
+    "career_agents_file_upload_duration_seconds",
+    "Wall-clock time for Cloudinary upload calls by resource type",
+    ["resource_type"],  # raw | image | video
+    buckets=[0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0],
+)
+
+FILE_UPLOAD_SIZE_BYTES = Histogram(
+    "career_agents_file_upload_size_bytes",
+    "Distribution of uploaded file sizes in bytes",
+    ["resource_type"],
+    buckets=[
+        10_000, 50_000, 100_000, 500_000,
+        1_000_000, 2_000_000, 5_000_000, 10_000_000,
+    ],
 )

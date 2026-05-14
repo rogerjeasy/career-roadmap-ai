@@ -7,8 +7,8 @@ Pipeline (matches architecture doc exactly):
      ↓ if complete (or max rounds reached) → continue
   3. build_dag             — build execution DAG from intent type
   4. dispatch_and_collect  — run agents in parallel; collect results
-  5. validate              — quality-check outputs (3-stage: realism, grounding, confidence)
-  6. synthesize            — merge results into final roadmap
+  5. synthesize            — merge results into final roadmap
+  6. validate              — quality-check synthesized roadmap (3-stage: realism, grounding, confidence)
   7. deliver               — emit terminal event; return OrchestratorResult
 
 Each pipeline step emits a STEP_PROGRESS event so the client can render a
@@ -51,6 +51,18 @@ from agents.orchestrator.result_aggregator import ResultAggregator
 from agents.orchestrator.state import OrchestratorState
 from agents.orchestrator.task_planner import TaskPlanner
 
+# RAG imports are optional — if keys are missing the node returns [] gracefully.
+try:
+    from agents.rag.ingestion.embedder import OpenAIEmbedder
+    from agents.rag.retrieval.context_assembler import ContextAssembler
+    from agents.rag.retrieval.hyde import get_hyde_expander
+    from agents.rag.retrieval.query_cache import get_rag_cache
+    from agents.rag.retrieval.retriever import PineconeRetriever
+
+    _RAG_AVAILABLE = True
+except ImportError:
+    _RAG_AVAILABLE = False
+
 logger = get_logger(__name__)
 _tracer = get_tracer("agents.orchestrator")
 
@@ -59,9 +71,10 @@ _PIPELINE_STEPS = [
     "parse_intent",
     "score_completeness",
     "build_dag",
+    "assemble_rag_context",
     "dispatch_and_collect",
-    "validate",
     "synthesize",
+    "validate",
 ]
 _TOTAL_STEPS = len(_PIPELINE_STEPS)
 
@@ -89,6 +102,7 @@ class MasterOrchestrator:
         self._intent_parser = make_intent_parser()
         self._completeness_scorer = make_completeness_scorer(self._clarification_engine)
         self._dag_builder = make_dag_builder(self._task_planner)
+        self._rag_assembler_node = _make_rag_assembler_node()
         self._agent_dispatcher = make_agent_dispatcher(self._event_publisher)
         self._output_validator = make_output_validator_node(_validator)
         self._synthesizer = make_synthesizer(aggregator=self._result_aggregator)
@@ -135,6 +149,7 @@ class MasterOrchestrator:
                 "clarification_round": task_input.clarification_round,
                 "clarification_questions": task_input.previous_clarification_questions,
                 "task_dag": [],
+                "rag_chunks": [],
                 "agent_results": {},
                 "validation_passed": False,
                 "validation_notes": [],
@@ -155,18 +170,16 @@ class MasterOrchestrator:
             if final_state.get("clarification_questions"):
                 return self._clarification_result(final_state, task_input, duration_ms)
 
+            final_output = final_state.get("final_output") or {}
             result = OrchestratorResult(
                 request_id=task_input.request_id,
                 session_id=task_input.session_id,
                 user_id=task_input.user_id,
                 status=final_state.get("status", AgentResultStatus.COMPLETED),
-                roadmap=final_state.get("final_output"),
+                roadmap=final_output or None,
                 agent_results=final_state.get("agent_results", {}),
-                confidence=(
-                    final_state.get("final_output", {}).get("confidence", 1.0)
-                    if final_state.get("final_output")
-                    else 1.0
-                ),
+                confidence=final_output.get("confidence", 1.0),
+                validation_passed=final_state.get("validation_passed", True),
                 error_message=final_state.get("error_message"),
                 duration_ms=duration_ms,
             )
@@ -209,12 +222,13 @@ class MasterOrchestrator:
 
         # Wrap every node with a STEP_PROGRESS emitter; node names are unchanged.
         steps = [
-            ("parse_intent",         self._intent_parser),
-            ("score_completeness",   self._completeness_scorer),
-            ("build_dag",            self._dag_builder),
-            ("dispatch_and_collect", self._agent_dispatcher),
-            ("validate",             self._output_validator),
-            ("synthesize",           self._synthesizer),
+            ("parse_intent",          self._intent_parser),
+            ("score_completeness",    self._completeness_scorer),
+            ("build_dag",             self._dag_builder),
+            ("assemble_rag_context",  self._rag_assembler_node),
+            ("dispatch_and_collect",  self._agent_dispatcher),
+            ("synthesize",            self._synthesizer),
+            ("validate",              self._output_validator),
         ]
         for idx, (name, fn) in enumerate(steps):
             graph.add_node(name, _with_progress(fn, name, idx, _TOTAL_STEPS, self._emit))
@@ -233,20 +247,24 @@ class MasterOrchestrator:
             },
         )
 
-        graph.add_edge("build_dag", "dispatch_and_collect")
-        graph.add_edge("dispatch_and_collect", "validate")
+        graph.add_edge("build_dag", "assemble_rag_context")
+        graph.add_edge("assemble_rag_context", "dispatch_and_collect")
+        graph.add_edge("dispatch_and_collect", "synthesize")
 
-        # Conditional: proceed to synthesis even on validation failure (lower confidence)
+        # Synthesize first, then validate the generated roadmap.
+        graph.add_edge("synthesize", "validate")
+
+        # Validation outcome never blocks delivery — lower confidence is annotated
+        # in the roadmap, not used to gate the response.
         graph.add_conditional_edges(
             "validate",
             _validation_gate,
             {
-                "pass": "synthesize",
-                "fail": "synthesize",
+                "pass": END,
+                "fail": END,
             },
         )
 
-        graph.add_edge("synthesize", END)
         return graph.compile()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
@@ -336,3 +354,59 @@ def _should_clarify(state: OrchestratorState) -> str:
 
 def _validation_gate(state: OrchestratorState) -> str:
     return "pass" if state.get("validation_passed", True) else "fail"
+
+
+# ── RAG context assembler node ────────────────────────────────────────────────
+
+
+def _make_rag_assembler_node() -> "Callable[[OrchestratorState], Coroutine[Any, Any, dict]]":
+    """Return the assemble_rag_context node function.
+
+    If RAG is unavailable (missing packages or keys), the node returns an
+    empty rag_chunks list so the pipeline continues unaffected.
+    """
+    assembler: "ContextAssembler | None" = None
+
+    if _RAG_AVAILABLE and agent_settings.rag_enabled:
+        try:
+            _embedder = OpenAIEmbedder()
+            _retriever = PineconeRetriever(embedder=_embedder)
+            _hyde = get_hyde_expander() if agent_settings.hyde_enabled else None
+            _cache = get_rag_cache() if agent_settings.rag_cache_enabled else None
+            assembler = ContextAssembler(
+                retriever=_retriever,
+                hyde_expander=_hyde,
+                cache=_cache,
+            )
+            logger.info(
+                "rag.assembler.initialised",
+                hyde=agent_settings.hyde_enabled,
+                cache=agent_settings.rag_cache_enabled,
+            )
+        except Exception as exc:
+            logger.warning("rag.assembler.init_failed", error=str(exc))
+
+    async def _assemble_rag_context(state: OrchestratorState) -> dict:
+        if assembler is None:
+            return {"rag_chunks": []}
+        chunks = await assembler.assemble(
+            user_message=state.get("user_message", ""),
+            user_profile=state["user_profile"],
+            intent_type=state.get("intent_type"),
+        )
+        return {
+            "rag_chunks": [
+                {
+                    "chunk_id": c.chunk_id,
+                    "content": c.content,
+                    "source": c.source,
+                    "relevance_score": c.relevance_score,
+                    "title": c.title,
+                    "source_url": c.source_url,
+                    "metadata": dict(c.metadata),
+                }
+                for c in chunks
+            ]
+        }
+
+    return _assemble_rag_context

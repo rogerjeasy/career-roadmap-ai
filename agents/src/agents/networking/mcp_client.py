@@ -15,6 +15,8 @@ from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 from uuid import uuid4
 
+from opentelemetry import propagate as otel_propagate
+
 from agents.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -45,7 +47,7 @@ class HttpMCPClient:
 
     Server URLs are passed as a registry dict:
       {
-        "linkedin_profile": "http://mcp-linkedin-profile:3004",
+        "linkedin_profile": "http://mcp-linkedin-profile:3008",
         "industry_news":    "http://mcp-industry-news:3007",
       }
 
@@ -82,15 +84,18 @@ class HttpMCPClient:
         }
         t0 = time.monotonic()
 
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "X-Correlation-ID": correlation_id,
+        }
+        otel_propagate.inject(headers)
+
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 resp = await client.post(
                     base_url,
                     json=request_body,
-                    headers={
-                        "Content-Type": "application/json",
-                        "X-Correlation-ID": correlation_id,
-                    },
+                    headers=headers,
                 )
                 resp.raise_for_status()
                 body: dict[str, Any] = resp.json()
@@ -136,10 +141,10 @@ class StubMCPClient:
         *,
         correlation_id: str = "",
     ) -> dict[str, Any]:
-        if server_id == "linkedin_profile" and tool == "profile.fetch":
+        if server_id == "linkedin_profile" and tool == "fetch_profile":
             return _stub_linkedin_profile(params)
-        if server_id == "industry_news" and tool == "events.search":
-            return _stub_events_search(params)
+        if server_id == "industry_news" and tool == "search_news":
+            return _stub_search_news(params)
         return {"results": [], "total_count": 0, "fetched_at": datetime.now(UTC).isoformat()}
 
 
@@ -179,8 +184,6 @@ def _stub_linkedin_profile(params: dict[str, Any]) -> dict[str, Any]:
         "fetched_at": datetime.now(UTC).isoformat(),
     }
 
-
-# ── Events stub catalog ───────────────────────────────────────────────────────
 
 _EVENTS_BY_TOPIC: dict[str, list[dict[str, Any]]] = {
     "machine learning": [
@@ -390,55 +393,39 @@ _EVENTS_BY_TOPIC: dict[str, list[dict[str, Any]]] = {
 }
 
 
-def _stub_events_search(params: dict[str, Any]) -> dict[str, Any]:
-    """Return stub events matching the requested topic."""
-    topic_raw = str(params.get("topic", "")).lower().strip()
-    limit = int(params.get("limit", 6))
+def _stub_search_news(params: dict[str, Any]) -> dict[str, Any]:
+    """Return stub news articles for the requested query (search_news format)."""
+    query = str(params.get("query", "")).lower().strip()
+    limit = int(params.get("limit", 4))
+    title_cased = query.title()
 
-    events = _EVENTS_BY_TOPIC.get(topic_raw, [])
-
-    if not events:
-        for key, key_events in _EVENTS_BY_TOPIC.items():
-            if topic_raw in key or key in topic_raw:
-                events = key_events
-                break
-
-    if not events:
-        events = _generic_events(topic_raw)
-
-    return {
-        "events": events[:limit],
-        "total_count": len(events),
-        "fetched_at": datetime.now(UTC).isoformat(),
-    }
-
-
-def _generic_events(topic: str) -> list[dict[str, Any]]:
-    """Generate generic stub events for topics not in the catalog."""
-    title_cased = topic.title()
-    return [
+    articles = [
         {
-            "id": f"gen-evt-{topic[:8]}-001",
-            "title": f"{title_cased} Practitioners Meetup",
-            "type": "meetup",
-            "platform": "Meetup.com",
-            "skill_tags": [topic],
-            "description": f"Monthly meetup for {title_cased} practitioners. Network and learn.",
-            "url": None,
-            "date": None,
-            "location": None,
-            "is_online": True,
+            "id": f"art-{query[:8]}-001",
+            "title": f"Latest trends in {title_cased} — 2026 update",
+            "description": f"A comprehensive look at recent developments in {query} for practitioners.",
+            "url": f"https://techcrunch.com/stub/{query.replace(' ', '-')}",
+            "source_name": "TechCrunch AI",
+            "news_source": "rss",
+            "published_at": "2026-05-12T09:00:00Z",
+            "topics": [query],
         },
         {
-            "id": f"gen-evt-{topic[:8]}-002",
-            "title": f"{title_cased} Community Slack",
-            "type": "online_community",
-            "platform": "Slack",
-            "skill_tags": [topic],
-            "description": f"Active Slack workspace for {title_cased} engineers and practitioners.",
-            "url": None,
-            "date": None,
-            "location": None,
-            "is_online": True,
+            "id": f"art-{query[:8]}-002",
+            "title": f"Community roundup: {title_cased} practitioners share insights",
+            "description": f"Weekly roundup of discussions from the {query} community.",
+            "url": f"https://news.ycombinator.com/stub/{query.replace(' ', '-')}",
+            "source_name": "HackerNews",
+            "news_source": "rss",
+            "published_at": "2026-05-11T15:30:00Z",
+            "topics": [query],
         },
     ]
+
+    return {
+        "articles": articles[:limit],
+        "total_count": len(articles),
+        "query": query,
+        "sources_queried": ["RSS"],
+        "fetched_at": datetime.now(UTC).isoformat(),
+    }

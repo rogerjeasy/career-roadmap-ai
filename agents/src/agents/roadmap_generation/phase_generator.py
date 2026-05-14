@@ -72,7 +72,7 @@ class PhaseGenerator:
         self._llm = llm or ChatAnthropic(
             model=agent_settings.roadmap_generation_model,
             api_key=agent_settings.anthropic_api_key.get_secret_value(),
-            max_tokens=2048,
+            max_tokens=3072,
             temperature=0.2,
         )
 

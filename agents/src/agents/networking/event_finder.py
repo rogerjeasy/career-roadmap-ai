@@ -125,23 +125,28 @@ class EventFinder:
         location: str | None,
         correlation_id: str,
     ) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {
-            "topic": topic,
-            "limit": _MAX_EVENTS_PER_TOPIC,
-        }
-        if location:
-            params["location"] = location
-
         result = await self._mcp.call(
             "industry_news",
-            "events.search",
-            params,
+            "search_news",
+            {"query": topic, "limit": _MAX_EVENTS_PER_TOPIC},
             correlation_id=correlation_id,
         )
-        raw_list = result.get("events", [])
-        for evt in raw_list:
-            evt.setdefault("_search_topic", topic)
-        return raw_list
+        events = []
+        for article in result.get("articles", []):
+            events.append({
+                "id": str(article.get("id", "")),
+                "title": str(article.get("title", "")),
+                "type": "webinar",
+                "platform": str(article.get("source_name", "")),
+                "skill_tags": list(article.get("topics", [])),
+                "description": str(article.get("description") or ""),
+                "url": article.get("url"),
+                "date": article.get("published_at"),
+                "location": None,
+                "is_online": True,
+                "_search_topic": topic,
+            })
+        return events
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────

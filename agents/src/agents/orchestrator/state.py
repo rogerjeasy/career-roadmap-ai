@@ -72,7 +72,11 @@ class OrchestratorState(TypedDict):
     # ── Task planning (Node 3) ────────────────────────────────
     task_dag: list[TaskNode]
 
-    # ── Agent dispatch + collection (Nodes 4–5) ───────────────
+    # ── RAG context (Node 4 — assemble_rag_context) ───────────
+    # Serialised RagChunk dicts; deserialized back in _build_context().
+    rag_chunks: list[dict]
+
+    # ── Agent dispatch + collection (Nodes 5–6) ───────────────
     agent_results: dict[str, AgentResult]  # keyed by AgentType value
 
     # ── Validation (Node 6) ───────────────────────────────────

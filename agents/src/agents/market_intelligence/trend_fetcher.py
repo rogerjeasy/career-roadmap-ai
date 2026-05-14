@@ -20,6 +20,11 @@ from agents.market_intelligence.mcp_client import MCPClientProtocol
 logger = get_logger(__name__)
 _tracer = get_tracer("agents.market_intelligence.trend_fetcher")
 
+_LANGUAGE_KEYWORDS = frozenset({
+    "python", "javascript", "typescript", "go", "rust", "java", "kotlin",
+    "swift", "scala", "ruby", "php", "r", "julia", "c++", "c#",
+})
+
 
 class TrendFetcher:
     """Fetches GitHub and social trend data from MCP servers in parallel.
@@ -72,16 +77,14 @@ class TrendFetcher:
         correlation_id: str,
     ) -> list[dict[str, Any]]:
         try:
+            language = _extract_language(hints)
             raw = await self._client.call(
                 "github_trends",
-                "get_trending",
-                {"topics": hints, "limit": 10},
+                "get_trending_repos",
+                {"language": language, "limit": 10, "topic": hints[0] if hints else None},
                 correlation_id=correlation_id,
             )
-            items: list[dict[str, Any]] = list(raw.get("trending_repos", []))
-            # Synthesise topic-level entries from trending_topics array
-            for topic in raw.get("trending_topics", []):
-                items.append({"name": str(topic), "topic": str(topic), "stars_this_week": 0})
+            items: list[dict[str, Any]] = list(raw.get("repos", []))
             MARKET_TREND_FETCH_TOTAL.labels(status="success", source="github_trends").inc()
             return items
         except Exception as exc:
@@ -101,17 +104,17 @@ class TrendFetcher:
         try:
             raw = await self._client.call(
                 "social_signals",
-                "get_signals",
-                {"topics": hints, "sources": ["hackernews", "reddit"]},
+                "get_trending_topics",
+                {"stacks": hints},
                 correlation_id=correlation_id,
             )
             signals: list[dict[str, Any]] = []
-            for item in raw.get("hackernews", []):
-                signals.append({**item, "_source": "hackernews"})
-            for item in raw.get("reddit", []):
-                signals.append({**item, "_source": "reddit"})
-            for topic in raw.get("trending_topics", []):
-                signals.append({"title": str(topic), "points": 0, "_source": "social_aggregate"})
+            for topic_entry in raw.get("topics", []):
+                signals.append({
+                    "title": str(topic_entry.get("name", "")),
+                    "points": int(topic_entry.get("score", 0)),
+                    "_source": "social_aggregate",
+                })
             MARKET_TREND_FETCH_TOTAL.labels(status="success", source="social_signals").inc()
             return signals
         except Exception as exc:
@@ -122,3 +125,10 @@ class TrendFetcher:
                 correlation_id=correlation_id,
             )
             return []
+
+
+def _extract_language(hints: list[str]) -> str:
+    for hint in hints:
+        if hint.lower() in _LANGUAGE_KEYWORDS:
+            return hint.lower()
+    return "python"

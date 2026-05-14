@@ -15,6 +15,8 @@ from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 from uuid import uuid4
 
+from opentelemetry import propagate as otel_propagate
+
 from agents.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -79,15 +81,18 @@ class HttpMCPClient:
         }
         t0 = time.monotonic()
 
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "X-Correlation-ID": correlation_id,
+        }
+        otel_propagate.inject(headers)
+
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 resp = await client.post(
                     base_url,
                     json=request_body,
-                    headers={
-                        "Content-Type": "application/json",
-                        "X-Correlation-ID": correlation_id,
-                    },
+                    headers=headers,
                 )
                 resp.raise_for_status()
                 body: dict[str, Any] = resp.json()
@@ -133,7 +138,7 @@ class StubMCPClient:
         *,
         correlation_id: str = "",
     ) -> dict[str, Any]:
-        if server_id == "course_catalog" and tool == "course.search":
+        if server_id == "course_catalog" and tool == "search_courses":
             return _stub_course_search(params)
         return {"courses": [], "total_count": 0, "fetched_at": datetime.now(UTC).isoformat()}
 

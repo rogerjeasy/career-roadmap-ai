@@ -24,7 +24,6 @@ Registration (Celery worker startup):
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
 
@@ -47,6 +46,8 @@ from agents.core.observability import (
     STEP_PROGRESS_TOTAL,
     get_tracer,
 )
+from agents.config import agent_settings
+from agents.core.gateway_metrics import record_llm_tokens
 from agents.coach.context_assembler import CoachContextAssembler
 from agents.coach.models import ActionableStep, CoachContextBundle, CoachResponse, CoachingType
 
@@ -61,7 +62,7 @@ def _load_prompt(filename: str) -> str:
 
 
 def _default_model() -> str:
-    return os.getenv("COACH_MODEL", "claude-haiku-4-5-20251001")
+    return agent_settings.coach_model
 
 
 class CoachAgent(BaseAgent):
@@ -185,6 +186,7 @@ class CoachAgent(BaseAgent):
             SystemMessage(content=self._system_prompt),
             HumanMessage(content=user_prompt),
         ])
+        record_llm_tokens(response, self._llm.model)
         raw_text = str(response.content).strip()
 
         # Strip markdown code fences if the model wraps the JSON

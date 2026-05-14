@@ -17,8 +17,11 @@ class RagChunk:
 
     chunk_id: str
     content: str
-    source: str
+    source: str          # Pinecone namespace (e.g. "career-kb", "role-templates")
     relevance_score: float
+    # Human-readable citation fields populated from Pinecone metadata.
+    title: str = ""
+    source_url: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

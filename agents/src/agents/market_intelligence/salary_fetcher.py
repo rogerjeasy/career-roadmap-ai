@@ -44,7 +44,7 @@ class SalaryFetcher:
             try:
                 raw = await self._client.call(
                     "salary_benchmark",
-                    "get_salary",
+                    "get_salary_range",
                     {"role": role, "country": country},
                     correlation_id=correlation_id,
                 )
@@ -81,21 +81,33 @@ def _parse_salary(role: str, country: str, raw: dict[str, Any]) -> SalaryBenchma
     if not raw:
         return None
 
+    # Real server response: {ranges: [{p25, median, p75, currency, sources, fetched_at, ...}], ...}
+    ranges = raw.get("ranges") or []
+    first = ranges[0] if ranges else {}
+
     freshness_date: date | None = None
-    if freshness_str := raw.get("freshness_date"):
+    freshness_str = first.get("fetched_at") or raw.get("fetched_at") or raw.get("freshness_date")
+    if freshness_str:
         try:
             freshness_date = date.fromisoformat(str(freshness_str)[:10])
         except (ValueError, TypeError):
             pass
 
+    sources_list = first.get("sources") or []
+    source_str = (
+        sources_list[0]
+        if isinstance(sources_list, list) and sources_list
+        else str(first.get("source") or raw.get("source", "unknown"))
+    )
+
     return SalaryBenchmark(
-        role=str(raw.get("role", role)),
-        country=str(raw.get("country", country)),
-        median_annual=_to_int(raw.get("median_annual")),
-        p25_annual=_to_int(raw.get("p25_annual")),
-        p75_annual=_to_int(raw.get("p75_annual")),
-        currency=str(raw.get("currency", "USD")),
-        source=str(raw.get("source", "unknown")),
+        role=str(first.get("role") or raw.get("role", role)),
+        country=str(first.get("country") or raw.get("country", country)),
+        median_annual=_to_int(first.get("median") or raw.get("median_annual")),
+        p25_annual=_to_int(first.get("p25") or raw.get("p25_annual")),
+        p75_annual=_to_int(first.get("p75") or raw.get("p75_annual")),
+        currency=str(first.get("currency") or raw.get("currency", "USD")),
+        source=source_str,
         freshness_date=freshness_date,
     )
 

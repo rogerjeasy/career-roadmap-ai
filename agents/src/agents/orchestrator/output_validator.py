@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -154,6 +155,10 @@ class ValidationReport:
     grounding_score: float
     unverified_claims: list[str]
 
+    # Stage 2b — structural citation check (no LLM)
+    citation_check_passed: bool
+    uncited_phases: list[str]   # titles of phases whose "sources" array was empty
+
     # Stage 3
     step_confidences: list[StepConfidence]
     mean_step_confidence: float
@@ -166,6 +171,31 @@ class ValidationReport:
     def to_dict(self) -> dict[str, Any]:
         """Return a fully JSON-serialisable dict for OrchestratorState storage."""
         return asdict(self)
+
+
+# ── JSON extraction helper ─────────────────────────────────────────────────
+
+
+def _extract_json(content: str) -> str:
+    """Strip markdown fences and leading prose from a JSON response.
+
+    Handles three shapes:
+      1. Bare JSON (ideal)
+      2. JSON wrapped in ```json ... ``` fences
+      3. JSON preceded by explanatory prose (preamble before the opening brace/bracket)
+    Raises ValueError on empty content so callers can treat it as a retry-able error.
+    """
+    content = content.strip()
+    if not content:
+        raise ValueError("LLM returned empty response")
+    match = re.search(r"```(?:json)?\s*\n?([\s\S]*?)\n?```", content)
+    if match:
+        return match.group(1).strip()
+    for start in ("{", "["):
+        idx = content.find(start)
+        if idx != -1:
+            return content[idx:]
+    return content
 
 
 # ── Validator ──────────────────────────────────────────────────────────────
@@ -181,7 +211,7 @@ class OutputValidator:
         self._llm = llm or ChatAnthropic(
             model=agent_settings.validator_model,
             api_key=agent_settings.anthropic_api_key.get_secret_value(),
-            max_tokens=1024,
+            max_tokens=2048,
             temperature=0.0,
         )
 
@@ -190,17 +220,23 @@ class OutputValidator:
         agent_results: dict[str, AgentResult],
         roadmap: dict[str, Any],
         *,
+        rag_chunks: list[dict] | None = None,
         session_id: str = "",
         correlation_id: str = "",
     ) -> ValidationReport:
-        """Run all three validation stages and return a ``ValidationReport``.
+        """Run all validation stages and return a ``ValidationReport``.
 
-        Stages 2 and 3 run concurrently after Stage 1 completes.
-        If Stage 1 fails both checks the expensive LLM calls are skipped.
+        Pipeline:
+          Stage 1 — Realism + Coherence  (LLM, sequential; gates 2/2b/3)
+          Stage 2 — Grounding check      (LLM, concurrent with 2b and 3)
+          Stage 2b — Citation check      (structural, no LLM; concurrent with 2 and 3)
+          Stage 3 — Per-step confidence  (LLM, concurrent with 2 and 2b)
         """
         with _tracer.start_as_current_span("output_validator.validate") as span:
             span.set_attribute("session_id", session_id)
             span.set_attribute("correlation_id", correlation_id)
+            rag_available = bool(rag_chunks)
+            span.set_attribute("rag_available", rag_available)
             t0 = time.monotonic()
 
             # ── Stage 1: Realism + Coherence ──────────────────────────────
@@ -208,7 +244,7 @@ class OutputValidator:
                 await self._stage1_realism(roadmap, correlation_id=correlation_id)
             )
 
-            # Gate: skip Stages 2+3 if the roadmap is clearly unusable.
+            # Gate: skip Stages 2/2b/3 if the roadmap is clearly unusable.
             if not realism_passed and not coherence_passed:
                 report = _failed_report(stage1_notes, t0)
                 _record_outcome(report, span)
@@ -220,15 +256,20 @@ class OutputValidator:
                 )
                 return report
 
-            # ── Stages 2 + 3: concurrent ──────────────────────────────────
+            # ── Stages 2, 2b, 3: concurrent ───────────────────────────────
             agent_data = {
                 k: v.output
                 for k, v in agent_results.items()
                 if v.status == AgentResultStatus.COMPLETED
             }
 
-            (grounding_score, unverified_claims), step_confidences = await asyncio.gather(
+            (
+                (grounding_score, unverified_claims),
+                (citation_check_passed, uncited_phases),
+                step_confidences,
+            ) = await asyncio.gather(
                 self._stage2_grounding(agent_data, roadmap, correlation_id=correlation_id),
+                self._stage2b_citation_check(roadmap, rag_available=rag_available),
                 self._stage3_step_confidence(roadmap, correlation_id=correlation_id),
             )
 
@@ -245,6 +286,7 @@ class OutputValidator:
                 realism_passed
                 and coherence_passed
                 and grounding_score >= _GROUNDING_THRESHOLD
+                and citation_check_passed
             )
 
             notes: list[str] = list(stage1_notes)
@@ -254,8 +296,12 @@ class OutputValidator:
                     f"{_GROUNDING_THRESHOLD:.2f} threshold."
                 )
             if unverified_claims:
+                notes.append(f"{len(unverified_claims)} unverified claim(s) flagged.")
+            if uncited_phases:
                 notes.append(
-                    f"{len(unverified_claims)} unverified claim(s) flagged."
+                    f"{len(uncited_phases)} phase(s) have no source citations: "
+                    + ", ".join(f'"{t}"' for t in uncited_phases)
+                    + ". Each phase must include at least one [SRC-N] or [ASSUMPTION] entry."
                 )
 
             report = ValidationReport(
@@ -264,6 +310,8 @@ class OutputValidator:
                 stage1_notes=stage1_notes,
                 grounding_score=grounding_score,
                 unverified_claims=unverified_claims,
+                citation_check_passed=citation_check_passed,
+                uncited_phases=uncited_phases,
                 step_confidences=step_confidences,
                 mean_step_confidence=mean_conf,
                 passed=passed,
@@ -276,6 +324,8 @@ class OutputValidator:
                 "output_validator.done",
                 passed=passed,
                 grounding_score=grounding_score,
+                citation_check_passed=citation_check_passed,
+                uncited_phase_count=len(uncited_phases),
                 mean_step_confidence=mean_conf,
                 unverified_count=len(unverified_claims),
                 duration_ms=report.validation_duration_ms,
@@ -330,7 +380,7 @@ class OutputValidator:
                 HumanMessage(content=f"Roadmap:\n{json.dumps(roadmap, indent=2)}"),
             ]
         )
-        result = json.loads(str(response.content))
+        result = json.loads(_extract_json(str(response.content)))
         if not isinstance(result, dict):
             raise ValueError(f"Stage 1 expected dict, got {type(result).__name__}")
         return result
@@ -385,10 +435,64 @@ class OutputValidator:
                 HumanMessage(content=content),
             ]
         )
-        result = json.loads(str(response.content))
+        result = json.loads(_extract_json(str(response.content)))
         if not isinstance(result, dict):
             raise ValueError(f"Stage 2 expected dict, got {type(result).__name__}")
         return result
+
+    # ── Stage 2b ──────────────────────────────────────────────────────────
+
+    async def _stage2b_citation_check(
+        self,
+        roadmap: dict[str, Any],
+        *,
+        rag_available: bool,
+    ) -> tuple[bool, list[str]]:
+        """Stage 2b: structural check — every phase must have a non-empty sources list.
+
+        No LLM call is made; this is a pure dict inspection.  Skipped (always
+        passes) when RAG was not available for the synthesis run — no evidence
+        cards were present for the LLM to cite.
+
+        A phase passes if its ``sources`` list contains at least one non-blank
+        string. ``["[ASSUMPTION]"]`` and ``["[NO_EVIDENCE]"]`` are both valid
+        — they signal the synthesiser explicitly acknowledged the absence of a
+        backing source rather than silently omitting citations.
+        """
+        with _tracer.start_as_current_span("output_validator.stage2b") as span:
+            t0 = time.monotonic()
+            try:
+                if not rag_available:
+                    span.set_attribute("skipped", True)
+                    span.set_attribute("reason", "rag_not_available")
+                    return True, []
+
+                phases = roadmap.get("phases", [])
+                uncited: list[str] = []
+                for phase in phases:
+                    sources: list = phase.get("sources") or []
+                    has_citation = any(str(s).strip() for s in sources)
+                    if not has_citation:
+                        uncited.append(phase.get("title", f"Phase {len(uncited) + 1}"))
+
+                passed = len(uncited) == 0
+                span.set_attribute("uncited_count", len(uncited))
+                span.set_attribute("passed", passed)
+                span.set_status(Status(StatusCode.OK))
+                return passed, uncited
+
+            except Exception as exc:
+                span.record_exception(exc)
+                span.set_status(Status(StatusCode.ERROR, str(exc)))
+                logger.warning(
+                    "output_validator.stage2b_fallback",
+                    error=str(exc),
+                )
+                return True, []
+            finally:
+                VALIDATION_STAGE_DURATION.labels(stage="citation_check").observe(
+                    time.monotonic() - t0
+                )
 
     # ── Stage 3 ───────────────────────────────────────────────────────────
 
@@ -453,7 +557,7 @@ class OutputValidator:
                 HumanMessage(content=f"Roadmap:\n{json.dumps(roadmap, indent=2)}"),
             ]
         )
-        result = json.loads(str(response.content))
+        result = json.loads(_extract_json(str(response.content)))
         if not isinstance(result, list):
             raise ValueError(f"Stage 3 expected list, got {type(result).__name__}")
         return result
@@ -474,6 +578,8 @@ def _failed_report(stage1_notes: list[str], t0: float) -> ValidationReport:
         stage1_notes=stage1_notes,
         grounding_score=0.0,
         unverified_claims=[],
+        citation_check_passed=False,
+        uncited_phases=[],
         step_confidences=[],
         mean_step_confidence=0.0,
         passed=False,
@@ -487,6 +593,8 @@ def _record_outcome(report: ValidationReport, span: Any) -> None:
     VALIDATION_PASSED_TOTAL.labels(result=label).inc()
     span.set_attribute("passed", report.passed)
     span.set_attribute("grounding_score", report.grounding_score)
+    span.set_attribute("citation_check_passed", report.citation_check_passed)
+    span.set_attribute("uncited_phase_count", len(report.uncited_phases))
     span.set_attribute("mean_step_confidence", report.mean_step_confidence)
     span.set_attribute("unverified_claims_count", len(report.unverified_claims))
     span.set_attribute("duration_ms", report.validation_duration_ms)

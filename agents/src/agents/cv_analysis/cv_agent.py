@@ -125,6 +125,12 @@ class CVAgent(BaseAgent):
                 except Exception:
                     pass  # not base64 — treat as plain text
 
+            # Fall back to the raw text stored in the session during CV upload.
+            # This is the common path: the plan_snapshot rarely carries cv_document
+            # unless an upstream agent explicitly produced it.
+            if not cv_document:
+                cv_document = context.user_profile.additional.get("cv_text", "")
+
             # ── Step 1: PDF / text extraction ───────────────────────────
             self._emit_progress(context, "pdf_extraction", "Extracting CV text…")
             STEP_PROGRESS_TOTAL.labels(step_name="cv.pdf_extraction").inc()

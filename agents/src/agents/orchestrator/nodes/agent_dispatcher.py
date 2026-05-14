@@ -29,9 +29,14 @@ from agents.contracts.events import AgentEvent, AgentEventType
 from agents.contracts.results import AgentResult, AgentResultStatus
 from agents.contracts.tasks import AgentType
 from agents.core.agent_registry import registry
-from agents.core.context import AgentContext
+from agents.core.context import AgentContext, RagChunk
 from agents.core.exceptions import AgentTimeoutError
 from agents.core.logging import get_logger
+from agents.core.gateway_metrics import (
+    agent_duration_seconds,
+    agent_invocations_total,
+    push_gateway_metrics,
+)
 from agents.core.observability import (
     AGENT_DISPATCH_DURATION,
     AGENT_RETRY_TOTAL,
@@ -97,6 +102,9 @@ class AgentDispatcherNode:
                 else:
                     completed[agent_key] = result  # type: ignore[assignment]
 
+            # Push dashboard metrics to Pushgateway after each phase (best-effort).
+            asyncio.get_running_loop().run_in_executor(None, push_gateway_metrics)
+
         return {"agent_results": completed}
 
     # ── Per-agent retry + timeout ─────────────────────────────────────────
@@ -114,6 +122,7 @@ class AgentDispatcherNode:
         timeout_sec: float = float(policy["timeout_seconds"])
         backoff_sec: float = float(policy["backoff_seconds"])
         is_required: bool = bool(node.get("is_required", True))
+        t_start = time.monotonic()
 
         self._emit(AgentEvent(
             event_type=AgentEventType.AGENT_STARTED,
@@ -228,6 +237,11 @@ class AgentDispatcherNode:
                     session_id=state["session_id"],
                 )
 
+        # Record dashboard metrics for this invocation.
+        total_elapsed = time.monotonic() - t_start
+        agent_invocations_total.labels(agent_name=agent_key, outcome=result.status.value).inc()
+        agent_duration_seconds.labels(agent_name=agent_key).observe(total_elapsed)
+
         # Emit terminal event.
         event_type = (
             AgentEventType.AGENT_COMPLETED
@@ -260,6 +274,19 @@ def _build_context(
     state: OrchestratorState,
     prior_results: dict[str, AgentResult],
 ) -> AgentContext:
+    raw_chunks = state.get("rag_chunks") or []
+    rag_chunks = [
+        RagChunk(
+            chunk_id=c["chunk_id"],
+            content=c["content"],
+            source=c["source"],
+            relevance_score=c["relevance_score"],
+            title=c.get("title", ""),
+            source_url=c.get("source_url"),
+            metadata=c.get("metadata", {}),
+        )
+        for c in raw_chunks
+    ]
     return AgentContext(
         task_id=node["task_id"],
         session_id=state["session_id"],
@@ -269,6 +296,7 @@ def _build_context(
         user_profile=state["user_profile"],
         user_message=state.get("user_message", ""),
         plan_snapshot={k: v.output for k, v in prior_results.items()},
+        rag_chunks=rag_chunks,
     )
 
 

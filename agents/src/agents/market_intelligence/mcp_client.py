@@ -80,14 +80,20 @@ class HttpMCPClient:
         t0 = time.monotonic()
 
         try:
+            from opentelemetry import propagate as otel_propagate
+
+            headers: dict[str, str] = {
+                "Content-Type": "application/json",
+                "X-Correlation-ID": correlation_id,
+            }
+            # Inject W3C traceparent/tracestate so the MCP server continues the trace
+            otel_propagate.inject(headers)
+
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 resp = await client.post(
                     base_url,
                     json=request_body,
-                    headers={
-                        "Content-Type": "application/json",
-                        "X-Correlation-ID": correlation_id,
-                    },
+                    headers=headers,
                 )
                 resp.raise_for_status()
                 body: dict[str, Any] = resp.json()
@@ -241,96 +247,53 @@ def _stub_salary(role: str, country: str) -> dict[str, Any]:
     currency = _COUNTRY_CURRENCY.get(country, "USD")
     base = _COUNTRY_BASE_SALARY.get(country, 80_000)
     return {
+        "ranges": [
+            {
+                "role": role,
+                "country": country,
+                "currency": currency,
+                "experience_level": "mid",
+                "p25": int(base * 0.80),
+                "median": base,
+                "p75": int(base * 1.25),
+                "sample_count": 12,
+                "sources": ["Levels.fyi", "Glassdoor"],
+                "fetched_at": datetime.now(UTC).date().isoformat(),
+            }
+        ],
         "role": role,
         "country": country,
-        "median_annual": base,
-        "p25_annual": int(base * 0.80),
-        "p75_annual": int(base * 1.25),
-        "currency": currency,
-        "source": "Levels.fyi + Glassdoor",
-        "freshness_date": datetime.now(UTC).date().isoformat(),
+        "total_sources": 2,
+        "fetched_at": datetime.now(UTC).isoformat(),
     }
 
 
 def _stub_github_trends() -> dict[str, Any]:
     return {
-        "trending_repos": [
-            {
-                "name": "langchain-ai/langchain",
-                "topic": "LLM frameworks",
-                "stars_this_week": 4200,
-                "language": "Python",
-            },
-            {
-                "name": "microsoft/autogen",
-                "topic": "Multi-agent AI",
-                "stars_this_week": 3100,
-                "language": "Python",
-            },
-            {
-                "name": "tiangolo/fastapi",
-                "topic": "FastAPI",
-                "stars_this_week": 2800,
-                "language": "Python",
-            },
-            {
-                "name": "kubernetes/kubernetes",
-                "topic": "Kubernetes",
-                "stars_this_week": 1900,
-                "language": "Go",
-            },
-            {
-                "name": "hashicorp/terraform",
-                "topic": "Terraform",
-                "stars_this_week": 1700,
-                "language": "HCL",
-            },
+        "repos": [
+            {"name": "langchain-ai/langchain", "description": "LLM framework", "stars": 4200, "language": "Python", "url": "https://github.com/langchain-ai/langchain"},
+            {"name": "microsoft/autogen", "description": "Multi-agent AI", "stars": 3100, "language": "Python", "url": "https://github.com/microsoft/autogen"},
+            {"name": "tiangolo/fastapi", "description": "FastAPI framework", "stars": 2800, "language": "Python", "url": "https://github.com/tiangolo/fastapi"},
+            {"name": "kubernetes/kubernetes", "description": "Container orchestration", "stars": 1900, "language": "Go", "url": "https://github.com/kubernetes/kubernetes"},
+            {"name": "hashicorp/terraform", "description": "IaC tool", "stars": 1700, "language": "HCL", "url": "https://github.com/hashicorp/terraform"},
         ],
-        "trending_topics": [
-            "AI agents",
-            "LLMs",
-            "Kubernetes",
-            "FastAPI",
-            "Rust",
-            "WebAssembly",
-        ],
+        "total_count": 5,
+        "language": "python",
+        "since_days": 7,
         "fetched_at": datetime.now(UTC).isoformat(),
     }
 
 
 def _stub_social_signals() -> dict[str, Any]:
     return {
-        "hackernews": [
-            {
-                "title": "Ask HN: What skills matter most for AI engineers in 2026?",
-                "points": 450,
-                "url": "https://news.ycombinator.com/stub-1",
-            },
-            {
-                "title": "Kubernetes is still the standard for container orchestration",
-                "points": 380,
-                "url": "https://news.ycombinator.com/stub-2",
-            },
+        "topics": [
+            {"name": "AI agents", "score": 450, "signal_count": 8, "sources": ["hackernews", "reddit"], "category": "artificial intelligence"},
+            {"name": "LLMs", "score": 380, "signal_count": 6, "sources": ["hackernews", "reddit"], "category": "machine learning"},
+            {"name": "Kubernetes", "score": 320, "signal_count": 5, "sources": ["hackernews"], "category": "devops"},
+            {"name": "FastAPI", "score": 280, "signal_count": 4, "sources": ["reddit"], "category": "python"},
         ],
-        "reddit": [
-            {
-                "subreddit": "r/MachineLearning",
-                "title": "LLM agent frameworks comparison 2026",
-                "upvotes": 2100,
-                "url": "https://reddit.com/stub-1",
-            },
-            {
-                "subreddit": "r/Python",
-                "title": "FastAPI vs Django for AI services",
-                "upvotes": 1850,
-                "url": "https://reddit.com/stub-2",
-            },
-        ],
-        "trending_topics": [
-            "AI agents",
-            "prompt engineering",
-            "Rust for AI",
-            "serverless ML",
-        ],
+        "total_signals_analysed": 24,
+        "stacks_queried": ["python", "fastapi"],
+        "sources_queried": ["hackernews", "reddit"],
         "fetched_at": datetime.now(UTC).isoformat(),
     }

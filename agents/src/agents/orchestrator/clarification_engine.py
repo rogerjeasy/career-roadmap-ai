@@ -246,7 +246,7 @@ class ClarificationEngine:
                 QUESTION_GENERATION_DURATION.observe(duration)
                 CLARIFICATION_QUESTIONS_TOTAL.labels(status="generated").inc()
 
-                capped = questions[: agent_settings.max_clarification_questions]
+                capped = questions[:n_needed]
                 span.set_attribute("questions_generated", len(capped))
                 span.set_attribute("duration_ms", int(duration * 1000))
                 span.set_status(Status(StatusCode.OK))

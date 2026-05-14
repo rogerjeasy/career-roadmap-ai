@@ -19,7 +19,6 @@ Registration (Celery worker startup):
 """
 from __future__ import annotations
 
-import os
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -40,6 +39,7 @@ from agents.core.observability import (
     STEP_PROGRESS_TOTAL,
     get_tracer,
 )
+from agents.config import agent_settings
 from agents.opportunity.cv_tailor import CVTailor
 from agents.opportunity.job_scorer import JobScorer
 from agents.opportunity.mcp_client import JobBoardClientProtocol, JobBoardMCPClient
@@ -57,7 +57,7 @@ _DEFAULT_FETCH_LIMIT = 50
 
 
 def _default_model() -> str:
-    return os.getenv("OPPORTUNITY_MODEL", "claude-sonnet-4-6")
+    return agent_settings.opportunity_model
 
 
 class OpportunityAgent(BaseAgent):

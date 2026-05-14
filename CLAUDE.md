@@ -2,6 +2,7 @@
 
 > **Auto-loaded each session.** Read this before touching any file so you never need to scan the full codebase cold.
 > Extended backend patterns, domain deep-dives, and agent internals live in `.claude/backend-patterns.md`.
+> Extended frontend patterns, component conventions, and real-time data flows live in `.claude/frontend-patterns.md`.
 
 ---
 
@@ -37,7 +38,89 @@ career-roadmap-ai/
 
 ---
 
-## 3. Backend Tech Stack
+## 3. Frontend Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 — App Router, React 19 |
+| Language | TypeScript (strict mode) |
+| Styling | Tailwind CSS v4 |
+| Component library | shadcn/ui (Radix primitives) |
+| Client state | Zustand (`zustand/middleware` — `persist`, `immer`) |
+| Server state / cache | TanStack Query v5 |
+| Schema validation | Zod v3 |
+| Forms | React Hook Form v7 + `@hookform/resolvers/zod` |
+| HTTP client | Axios (with Firebase token interceptor) |
+| Real-time (SSE) | `EventSource` wrapper in `src/lib/sse.ts` |
+| Real-time (WS) | Native WebSocket wrapper in `src/lib/websocket.ts` |
+| Auth | Firebase JS SDK v10 (`firebase/auth`) |
+| Fonts | Geist + Geist Mono (`next/font/google`) |
+| Notifications | Sonner |
+
+Node version: `>=20`. Package manager: `npm` (workspace root) or `pnpm`.
+
+Frontend patterns deep-dive: `.claude/frontend-patterns.md`.
+
+---
+
+## 3a. Frontend Directory Map (`apps/web/src/`)
+
+```
+app/
+  (auth)/              ← public auth pages (login, register, forgot-password)
+  (app)/               ← protected app shell — all pages behind auth guard
+    layout.tsx         ← loads auth guard + app shell (sidebar, header)
+    dashboard/
+    roadmap/
+    coach/
+    cv-analysis/
+    market/
+    opportunities/
+    networking/
+    progress/
+    schedule/
+    monthly-plan/
+    books/
+    settings/
+  api/                 ← Next.js Route Handlers (BFF layer where needed)
+  layout.tsx           ← root layout: fonts, <Providers />, <ConditionalShell />
+  globals.css
+
+components/
+  ui/                  ← shadcn/ui primitives (never edit directly)
+  layout/              ← sidebar, header, breadcrumbs, mobile-nav, conditional-shell
+  coach/               ← chat window, chat message, typing indicator
+  cv-analysis/         ← upload dropzone, gap report, readiness meter
+  dashboard/           ← stat card, phase summary, quick actions, events widget
+  market/              ← signal card, salary card, trending skills chart
+  networking/          ← contact card, contact form, event calendar
+  opportunities/       ← job card, match score badge
+  roadmap/             ← phase card, week timeline, milestone badge
+  progress/            ← habit streak, weekly review form
+  shared/              ← confirm-dialog, error-boundary, loading-spinner, empty-state
+
+hooks/                 ← custom React hooks (one concern per file)
+lib/
+  api/                 ← one file per backend domain (client.ts = axios instance)
+  firebase.ts          ← Firebase app + auth singleton
+  auth.ts              ← client-side auth helpers
+  sse.ts               ← SSE manager
+  websocket.ts         ← WebSocket manager
+  cn.ts                ← cn() utility (clsx + tailwind-merge)
+  constants.ts         ← ROUTE_PATHS, QUERY_KEYS, EVENT_TYPES
+  date.ts              ← date formatting helpers (wraps date-fns)
+  utils.ts             ← misc pure utilities
+  validations.ts       ← Zod schemas reused across features
+
+providers/             ← React context providers (composed in providers/index.tsx)
+store/                 ← Zustand stores (one file per slice)
+styles/                ← global CSS overrides
+types/                 ← TypeScript interfaces (no Zod schemas here)
+```
+
+---
+
+## 4. Backend Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -60,7 +143,7 @@ Python version: `>=3.12,<3.14`. Package manager: Poetry.
 
 ---
 
-## 4. Three-Layer Architecture
+## 5. Three-Layer Architecture
 
 ### L1 — HTTP Gateway (`apps/api/src/`)
 
@@ -120,7 +203,7 @@ Full deep-dive in `.claude/backend-patterns.md § Agent Pipeline`.
 
 ---
 
-## 5. Domain File Convention
+## 6. Domain File Convention
 
 When adding a new domain in `apps/api/src/domains/<name>/`:
 1. `model.py` — SQLAlchemy model extending `Base` (from `src/db/base.py`)
@@ -133,9 +216,21 @@ When adding a new domain in `apps/api/src/domains/<name>/`:
 
 ---
 
-## 6. Coding Standards
+## 7. Coding Standards
 
-### Design principles
+### Frontend non-negotiables (enforced on every component, every PR)
+
+These three rules are co-enforced — a component is **not complete** until all three pass:
+
+1. **Full responsiveness.** Every component renders without content overflow or element overlap at every screen size from 375 px to 1536 px+. Design mobile-first using Tailwind's `sm:` / `md:` / `lg:` breakpoint prefixes. Use `min-w-0` on flex/grid children, `truncate` / `break-words` on user-generated text, and `max-w-*` + `w-full` instead of fixed pixel widths.
+
+2. **TypeScript strict mode.** Every prop, return type, hook input, and API boundary must be explicitly typed. Export a `<Name>Props` interface from every component file. Zero `tsc` errors permitted (`npm run typecheck` must pass).
+
+3. **No inline CSS.** Never use `style={{}}` for layout, spacing, colour, or typography. All styling goes through Tailwind utility classes (and `cn()` for merging). The only permitted exception is dynamic CSS custom properties — and even those must be consumed by a Tailwind arbitrary value, not raw inline style logic.
+
+Full patterns and examples: `.claude/frontend-patterns.md §§ 9–10`.
+
+### Backend design principles
 - **High cohesion, low coupling.** Each module has one clear responsibility. Controllers never touch the DB; services never import controllers; repositories never import services.
 - **Dependency injection over globals.** All shared resources (Redis, Firestore, HTTP client, DB session) are injected via FastAPI `Depends`. Never import `app.state` directly.
 - **Async by default.** All I/O paths are `async def`. No `time.sleep()`; use `asyncio.sleep()`.
@@ -159,7 +254,7 @@ All secrets come from environment variables validated by `Settings`. Never hardc
 
 ---
 
-## 7. Observability Stack (always include when building features)
+## 8. Observability Stack (always include when building features)
 
 Every new agent, service method, or controller endpoint must include:
 
@@ -184,7 +279,7 @@ Every important state transition emits a structlog event with all relevant IDs (
 
 ---
 
-## 8. Security, Privacy, and Responsible AI
+## 9. Security, Privacy, and Responsible AI
 
 ### Authentication & authorisation
 - Firebase ID tokens (short-lived, ~1h) in `Authorization: Bearer <token>` header.
@@ -214,7 +309,7 @@ Every MCP server call must emit a structured log event with the tool name, serve
 
 ---
 
-## 9. Running the Backend Locally
+## 10. Running the Backend Locally
 
 ```bash
 # From apps/api/
@@ -233,7 +328,20 @@ API docs (dev only): `GET /docs` (Swagger), `GET /redoc`.
 
 ---
 
-## 10. Key Environment Variables
+## 10a. Running the Frontend Locally
+
+```bash
+# From apps/web/
+npm install
+cp .env.local.example .env.local   # fill in Firebase config + API URL
+npm run dev                         # starts on http://localhost:3000
+```
+
+The dev proxy in `next.config.ts` forwards `/api/v1/**` to `http://localhost:8000` so you don't need CORS config locally.
+
+---
+
+## 11. Key Environment Variables
 
 | Variable | Purpose |
 |---|---|
@@ -252,12 +360,34 @@ API docs (dev only): `GET /docs` (Swagger), `GET /redoc`.
 | `COMPLETENESS_THRESHOLD` | Clarification score threshold (default: 0.75) |
 | `MAX_CLARIFICATION_ROUNDS` | Max clarification rounds (default: 3) |
 
+### Frontend env vars (`apps/web/.env.local`)
+
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | FastAPI base URL (default: `http://localhost:8000`) |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Web API key |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase Storage bucket |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase app ID |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for browser error tracking |
+
 ---
 
-## 11. Test Strategy
+## 12. Test Strategy
 
+### Backend
 - **Unit tests** for agents: mocked LLM clients, no network. Run with `pytest agents/`.
 - **Integration tests** for API: real Redis + Firestore emulator via `docker-compose.test.yml`. Run with `pytest apps/api/tests/`.
 - **Linting**: `ruff check .` (configured in `pyproject.toml`).
 - **Type checking**: `mypy src/` from `apps/api/`.
 - CI pipelines: `.github/workflows/ci-api.yml`, `ci-agents.yml`, `ci-mcp-servers.yml`.
+
+### Frontend
+- **Unit/component tests**: Vitest + React Testing Library. `npm test` from `apps/web/`.
+- **E2E tests**: Playwright (`apps/web/e2e/`). `npm run test:e2e`.
+- **Type checking**: `npm run typecheck` (`tsc --noEmit`).
+- **Linting**: `npm run lint` (ESLint with `@typescript-eslint` + `eslint-plugin-react-hooks`).
+- CI pipeline: `.github/workflows/ci-web.yml`.
+- Never test implementation details — test user-visible behaviour and integration with the store/query layer.

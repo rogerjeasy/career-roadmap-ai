@@ -32,6 +32,12 @@ playwright-report/
 # Misc
 .turbo/
 
+# Artifact files / misplaced directories
+agents/3.1.0
+agents/agents/
+agents/.bls_oes_cache/
+agents/data/knowledge-base/.bls_oes_wages_cache.json
+
 *.pyc
 */__pycache__/**
 *.pem
@@ -48,3 +54,7 @@ __pycache__/
 .venv/
 
 .claude/settings.local.json
+logs
+/logs
+.log
+*.log

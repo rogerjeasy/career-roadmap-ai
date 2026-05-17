@@ -37,6 +37,7 @@ class OrchestratorResult(BaseModel):
     user_id: str
     status: AgentResultStatus
     roadmap: dict[str, Any] | None = None
+    roadmap_id: str | None = None
     agent_results: dict[str, AgentResult] = Field(default_factory=dict)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     validation_passed: bool = True

@@ -46,7 +46,7 @@ _AGENT_SPECS: dict[AgentType, dict] = {
     },
     AgentType.GAP_ANALYSIS: {
         "is_required": True,
-        "retry_policy": {"max_attempts": 3, "timeout_seconds": 60, "backoff_seconds": 2.0},
+        "retry_policy": {"max_attempts": 3, "timeout_seconds": 120, "backoff_seconds": 2.0},
     },
     AgentType.ROADMAP_GENERATION: {
         "is_required": True,

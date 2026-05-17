@@ -72,6 +72,9 @@ class OrchestratorState(TypedDict):
     # ── Task planning (Node 3) ────────────────────────────────
     task_dag: list[TaskNode]
 
+    # ── Roadmap skeleton ID (set by initialize_roadmap node) ──
+    roadmap_id: str | None
+
     # ── RAG context (Node 4 — assemble_rag_context) ───────────
     # Serialised RagChunk dicts; deserialized back in _build_context().
     rag_chunks: list[dict]

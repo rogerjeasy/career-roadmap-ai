@@ -350,6 +350,14 @@ def _serialise_phase(p: Phase) -> dict:
         "duration_weeks": p.duration_weeks,
         "goals": p.goals,
         "skills_to_acquire": p.skills_to_acquire,
+        "skills": [
+            {"text": s.text, "is_priority": s.is_priority, "display_order": s.display_order}
+            for s in p.skills
+        ],
+        "actions": [
+            {"text": a.text, "sub_text": a.sub_text, "display_order": a.display_order}
+            for a in p.actions
+        ],
         "gaps_addressed": p.gaps_addressed,
         "market_relevance": p.market_relevance,
         "difficulty": p.difficulty.value,
@@ -362,6 +370,7 @@ def _serialise_milestone(m: Milestone) -> dict:
         "description": m.description,
         "phase_index": m.phase_index,
         "week_number": m.week_number,
+        "icon": m.icon,
         "success_criteria": m.success_criteria,
         "skills_demonstrated": m.skills_demonstrated,
         "deliverable": m.deliverable,
@@ -400,4 +409,5 @@ def _serialise_resource(r: Resource) -> dict:
         "estimated_hours": r.estimated_hours,
         "is_free": r.is_free,
         "description": r.description,
+        "phase_index": r.phase_index,
     }

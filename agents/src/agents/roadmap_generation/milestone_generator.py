@@ -37,6 +37,7 @@ OUTPUT — valid JSON only (no code fences, no markdown):
       "description": "What achieving this proves about the learner",
       "phase_index": 1,
       "week_number": 6,
+      "icon": "🚀",
       "success_criteria": [
         "Build X that does Y and handles Z",
         "Score ≥ 80% on an objective assessment for skill A",
@@ -56,7 +57,9 @@ RULES:
 4. At least 3 success_criteria per milestone
 5. deliverable must be a concrete, shareable artifact
 6. skills_demonstrated must come from the phase's skills_to_acquire
-7. Milestone names should feel like achievements ("Python Proficiency Checkpoint")
+7. Milestone names should feel like achievements ("Data Engineering Foundations Certified")
+8. icon: choose one emoji that best represents the milestone theme — use career-appropriate
+   icons such as 🚀 🎯 🏆 💡 🔧 📊 🌟 🎓 💼 🛠️ 📈 🔬 🤝 🎨 ⚡ 🏗️ 🧠 🔑 🌐 ✅
 """
 
 
@@ -161,6 +164,7 @@ def _parse_milestone(raw: dict[str, Any]) -> Milestone:
         description=str(raw.get("description", "")),
         phase_index=int(raw.get("phase_index", 1)),
         week_number=int(raw.get("week_number", 4)),
+        icon=str(raw.get("icon", "🎯")),
         success_criteria=_to_str_list(raw.get("success_criteria", [])),
         skills_demonstrated=_to_str_list(raw.get("skills_demonstrated", [])),
         deliverable=str(raw.get("deliverable", "Portfolio project on GitHub")),
@@ -173,6 +177,9 @@ def _to_str_list(val: Any) -> list[str]:
     return []
 
 
+_PHASE_ICONS = ["🏗️", "🚀", "🏆", "🌟", "🎓"]
+
+
 def _fallback_milestones(phases: list[Phase]) -> list[Milestone]:
     """One heuristic milestone per phase."""
     milestones: list[Milestone] = []
@@ -180,19 +187,21 @@ def _fallback_milestones(phases: list[Phase]) -> list[Milestone]:
     for phase in phases:
         cumulative += phase.duration_weeks
         skills = phase.skills_to_acquire[:3]
+        icon = _PHASE_ICONS[(phase.index - 1) % len(_PHASE_ICONS)]
         milestones.append(
             Milestone(
                 name=f"{phase.title} Checkpoint",
                 description=f"Demonstrate core competencies acquired during {phase.title}.",
                 phase_index=phase.index,
                 week_number=cumulative,
+                icon=icon,
                 success_criteria=[
                     f"Complete a project demonstrating {skills[0] if skills else 'core skills'}",
-                    "Push working, documented code to a public GitHub repository",
+                    "Push working, documented code to a public repository",
                     "Write a README that explains the project purpose and how to run it",
                 ],
                 skills_demonstrated=skills,
-                deliverable="GitHub repository with documented portfolio project",
+                deliverable="Public repository with documented portfolio project",
             )
         )
     return milestones

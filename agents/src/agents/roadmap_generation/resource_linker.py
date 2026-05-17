@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import dataclasses
+
 from agents.core.context import RagChunk
 from agents.core.logging import get_logger
 from agents.core.observability import ROADMAP_RESOURCE_LINK_TOTAL
@@ -345,7 +347,7 @@ class ResourceLinker:
                 key = _dedup_key(resource)
                 if key not in seen:
                     seen.add(key)
-                    resources.append(resource)
+                    resources.append(dataclasses.replace(resource, phase_index=phase.index))
                     ROADMAP_RESOURCE_LINK_TOTAL.labels(source="rag").inc()
                     count += 1
 
@@ -360,7 +362,7 @@ class ResourceLinker:
                     key = _dedup_key(r)
                     if key not in seen:
                         seen.add(key)
-                        resources.append(r)
+                        resources.append(dataclasses.replace(r, phase_index=phase.index))
                         ROADMAP_RESOURCE_LINK_TOTAL.labels(source="catalog").inc()
                         count += 1
 

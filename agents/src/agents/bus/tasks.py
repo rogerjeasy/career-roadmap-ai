@@ -48,28 +48,32 @@ async def _build_roadmap_store() -> "IRoadmapStore":
 async def _run_orchestration_pipeline(
     task_input: OrchestratorTaskInput,
 ) -> OrchestratorResult:
-    """Run orchestration and persist the result in a single event loop."""
+    """Run orchestration and finalize persistence in a single event loop.
+
+    The orchestrator now owns the store and writes each agent's output
+    incrementally during the pipeline.  This call only handles the final
+    ``finalize()`` step which marks the roadmap as completed.
+    """
     from agents.orchestrator.orchestrator import MasterOrchestrator  # noqa: PLC0415
 
     store = await _build_roadmap_store()
-    orchestrator = MasterOrchestrator()
+    orchestrator = MasterOrchestrator(store=store)
     result = await orchestrator.run(task_input)
 
-    if result.status == AgentResultStatus.COMPLETED and result.roadmap:
+    if result.status == AgentResultStatus.COMPLETED and result.roadmap_id:
         try:
-            roadmap_id = await store.save(result)
+            await store.finalize(result.roadmap_id, result)
             logger.info(
-                "orchestration.roadmap_persisted",
-                roadmap_id=roadmap_id,
+                "orchestration.roadmap_finalized",
+                roadmap_id=result.roadmap_id,
                 user_id=result.user_id,
                 session_id=result.session_id,
             )
         except Exception as exc:
-            # Persistence failure must not fail the task — the roadmap was
-            # already delivered to the client via SSE.
             logger.error(
-                "orchestration.persist_failed",
+                "orchestration.finalize_failed",
                 error=str(exc),
+                roadmap_id=result.roadmap_id,
                 user_id=result.user_id,
                 exc_info=True,
             )

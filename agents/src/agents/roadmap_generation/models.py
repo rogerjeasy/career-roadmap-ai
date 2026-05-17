@@ -25,6 +25,24 @@ class ResourceType(str, Enum):
 
 
 @dataclass(frozen=True)
+class SkillItem:
+    """A skill with priority flag and ordering — shown in phase skill cards."""
+
+    text: str
+    is_priority: bool = False
+    display_order: int = 0
+
+
+@dataclass(frozen=True)
+class ActionItem:
+    """A concrete action step with supporting context — shown as ordered action list."""
+
+    text: str
+    sub_text: str = ""
+    display_order: int = 0
+
+
+@dataclass(frozen=True)
 class Resource:
     """A curated learning resource linked to one or more skills."""
 
@@ -37,6 +55,7 @@ class Resource:
     estimated_hours: float | None = None
     is_free: bool = True
     description: str = ""
+    phase_index: int = 0
 
 
 @dataclass(frozen=True)
@@ -73,6 +92,7 @@ class Milestone:
     success_criteria: list[str]
     skills_demonstrated: list[str]
     deliverable: str
+    icon: str = "🎯"
 
 
 @dataclass(frozen=True)
@@ -84,10 +104,12 @@ class Phase:
     description: str
     duration_weeks: int
     goals: list[str]
-    skills_to_acquire: list[str]
-    gaps_addressed: list[str]
-    market_relevance: str
-    difficulty: DifficultyLevel
+    skills_to_acquire: list[str]          # flat list kept for backward compat + resource linking
+    skills: list[SkillItem] = field(default_factory=list)   # structured, with is_priority
+    actions: list[ActionItem] = field(default_factory=list) # concrete steps with sub_text
+    gaps_addressed: list[str] = field(default_factory=list)
+    market_relevance: str = ""
+    difficulty: DifficultyLevel = DifficultyLevel.BEGINNER
 
 
 @dataclass(frozen=True)

@@ -50,6 +50,8 @@ from agents.orchestrator.output_validator import make_output_validator
 from agents.orchestrator.result_aggregator import ResultAggregator
 from agents.orchestrator.state import OrchestratorState
 from agents.orchestrator.task_planner import TaskPlanner
+from agents.persistence.interfaces import IRoadmapStore
+from agents.persistence.noop_store import NoOpRoadmapStore
 
 # RAG imports are optional — if keys are missing the node returns [] gracefully.
 try:
@@ -71,6 +73,7 @@ _PIPELINE_STEPS = [
     "parse_intent",
     "score_completeness",
     "build_dag",
+    "initialize_roadmap",
     "assemble_rag_context",
     "dispatch_and_collect",
     "synthesize",
@@ -87,7 +90,7 @@ class MasterOrchestrator:
     Celery task stays thin and the orchestrator is independently testable.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, store: IRoadmapStore | None = None) -> None:
         # Synchronous Redis client for event publishing (Celery worker context)
         self._redis = redis.from_url(
             str(agent_settings.redis_url), decode_responses=True
@@ -96,6 +99,7 @@ class MasterOrchestrator:
         self._clarification_engine = ClarificationEngine()
         self._task_planner = TaskPlanner()
         self._result_aggregator = ResultAggregator()
+        self._store: IRoadmapStore = store or NoOpRoadmapStore()
 
         # Build node instances
         _validator = make_output_validator()
@@ -103,7 +107,7 @@ class MasterOrchestrator:
         self._completeness_scorer = make_completeness_scorer(self._clarification_engine)
         self._dag_builder = make_dag_builder(self._task_planner)
         self._rag_assembler_node = _make_rag_assembler_node()
-        self._agent_dispatcher = make_agent_dispatcher(self._event_publisher)
+        self._agent_dispatcher = make_agent_dispatcher(self._event_publisher, self._store)
         self._output_validator = make_output_validator_node(_validator)
         self._synthesizer = make_synthesizer(aggregator=self._result_aggregator)
 
@@ -149,6 +153,7 @@ class MasterOrchestrator:
                 "clarification_round": task_input.clarification_round,
                 "clarification_questions": task_input.previous_clarification_questions,
                 "task_dag": [],
+                "roadmap_id": None,
                 "rag_chunks": [],
                 "agent_results": {},
                 "validation_passed": False,
@@ -177,6 +182,7 @@ class MasterOrchestrator:
                 user_id=task_input.user_id,
                 status=final_state.get("status", AgentResultStatus.COMPLETED),
                 roadmap=final_output or None,
+                roadmap_id=final_state.get("roadmap_id"),
                 agent_results=final_state.get("agent_results", {}),
                 confidence=final_output.get("confidence", 1.0),
                 validation_passed=final_state.get("validation_passed", True),
@@ -225,6 +231,7 @@ class MasterOrchestrator:
             ("parse_intent",          self._intent_parser),
             ("score_completeness",    self._completeness_scorer),
             ("build_dag",             self._dag_builder),
+            ("initialize_roadmap",    self._initialize_roadmap_node()),
             ("assemble_rag_context",  self._rag_assembler_node),
             ("dispatch_and_collect",  self._agent_dispatcher),
             ("synthesize",            self._synthesizer),
@@ -247,7 +254,8 @@ class MasterOrchestrator:
             },
         )
 
-        graph.add_edge("build_dag", "assemble_rag_context")
+        graph.add_edge("build_dag", "initialize_roadmap")
+        graph.add_edge("initialize_roadmap", "assemble_rag_context")
         graph.add_edge("assemble_rag_context", "dispatch_and_collect")
         graph.add_edge("dispatch_and_collect", "synthesize")
 
@@ -266,6 +274,24 @@ class MasterOrchestrator:
         )
 
         return graph.compile()
+
+    def _initialize_roadmap_node(self):
+        """Return an async node that creates the Firestore skeleton and writes roadmap_id to state."""
+        store = self._store
+
+        async def _initialize_roadmap(state: OrchestratorState) -> dict:
+            try:
+                roadmap_id = await store.create_skeleton(
+                    user_id=state["user_id"],
+                    session_id=state["session_id"],
+                    request_id=state["request_id"],
+                )
+            except Exception as exc:
+                logger.warning("orchestrator.init_roadmap_failed", error=str(exc))
+                roadmap_id = None
+            return {"roadmap_id": roadmap_id}
+
+        return _initialize_roadmap
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

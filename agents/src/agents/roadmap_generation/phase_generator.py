@@ -21,7 +21,7 @@ from agents.core.observability import (
     ROADMAP_PHASE_GEN_TOTAL,
     get_tracer,
 )
-from agents.roadmap_generation.models import DifficultyLevel, Phase
+from agents.roadmap_generation.models import ActionItem, DifficultyLevel, Phase, SkillItem
 
 logger = get_logger(__name__)
 _tracer = get_tracer("agents.roadmap_generation.phase_generator")
@@ -29,7 +29,7 @@ _tracer = get_tracer("agents.roadmap_generation.phase_generator")
 _SYSTEM_PROMPT = """\
 You are an expert career roadmap architect. Design a structured, phased learning plan
 that closes skill gaps efficiently, ordered by prerequisite dependency, and grounded
-in real market demand.
+in real market demand. This roadmap is for any career anywhere in the world.
 
 OUTPUT — valid JSON only (no code fences, no markdown):
 {
@@ -41,6 +41,22 @@ OUTPUT — valid JSON only (no code fences, no markdown):
       "duration_weeks": 6,
       "goals": ["Build X that does Y", "Deploy Z to production"],
       "skills_to_acquire": ["Skill1", "Skill2"],
+      "skills": [
+        {"text": "Skill1", "is_priority": true, "display_order": 0},
+        {"text": "Skill2", "is_priority": false, "display_order": 1}
+      ],
+      "actions": [
+        {
+          "text": "Set up your development environment",
+          "sub_text": "Install required tools and configure your workspace before writing any code",
+          "display_order": 0
+        },
+        {
+          "text": "Complete the core learning module",
+          "sub_text": "Focus on hands-on exercises — don't just read, build something each session",
+          "display_order": 1
+        }
+      ],
       "gaps_addressed": ["exact_gap_name_from_input"],
       "market_relevance": "Cite specific numbers from the input data",
       "difficulty": "beginner"
@@ -57,8 +73,12 @@ RULES:
 6. market_relevance must quote specific input data (job count, salary, skill signal count)
 7. All goals must start with an action verb and be deliverable within the phase
 8. gaps_addressed values must exactly match gap names from the prioritised_gaps input
-9. skills_to_acquire should be learnable within duration_weeks at weekly_hours_available
-10. Do not invent facts not present in the input
+9. skills_to_acquire (flat list) and skills (structured list) must contain the same skills
+10. Mark the 2-3 most critical skills as is_priority: true in the skills array
+11. actions: provide 3-5 concrete, ordered steps a learner must take during this phase
+12. Each action sub_text must explain WHY or HOW, adding context beyond the action text
+13. skills and actions display_order must start at 0 and increment by 1
+14. Do not invent facts not present in the input
 """
 
 
@@ -229,13 +249,49 @@ def _parse_phase(raw: dict[str, Any], default_index: int) -> Phase:
     except ValueError:
         difficulty = DifficultyLevel.BEGINNER
 
+    skills_to_acquire = _to_str_list(raw.get("skills_to_acquire", []))
+
+    skills: list[SkillItem] = []
+    raw_skills = raw.get("skills", [])
+    if isinstance(raw_skills, list):
+        for i, s in enumerate(raw_skills):
+            if isinstance(s, dict):
+                skills.append(SkillItem(
+                    text=str(s.get("text", "")),
+                    is_priority=bool(s.get("is_priority", False)),
+                    display_order=int(s.get("display_order", i)),
+                ))
+            elif isinstance(s, str):
+                skills.append(SkillItem(text=s, is_priority=False, display_order=i))
+
+    if not skills and skills_to_acquire:
+        skills = [
+            SkillItem(text=sk, is_priority=(i < 2), display_order=i)
+            for i, sk in enumerate(skills_to_acquire)
+        ]
+
+    actions: list[ActionItem] = []
+    raw_actions = raw.get("actions", [])
+    if isinstance(raw_actions, list):
+        for i, a in enumerate(raw_actions):
+            if isinstance(a, dict):
+                actions.append(ActionItem(
+                    text=str(a.get("text", "")),
+                    sub_text=str(a.get("sub_text", "")),
+                    display_order=int(a.get("display_order", i)),
+                ))
+            elif isinstance(a, str):
+                actions.append(ActionItem(text=a, sub_text="", display_order=i))
+
     return Phase(
         index=int(raw.get("index", default_index)),
         title=str(raw.get("title", f"Phase {default_index}")),
         description=str(raw.get("description", "")),
         duration_weeks=max(1, int(raw.get("duration_weeks", 4))),
         goals=_to_str_list(raw.get("goals", [])),
-        skills_to_acquire=_to_str_list(raw.get("skills_to_acquire", [])),
+        skills_to_acquire=skills_to_acquire,
+        skills=skills,
+        actions=actions,
         gaps_addressed=_to_str_list(raw.get("gaps_addressed", [])),
         market_relevance=str(raw.get("market_relevance", "")),
         difficulty=difficulty,
@@ -265,6 +321,18 @@ def _fallback_phases(
         if g.get("severity") not in ("critical", "high")
     ][:5]
 
+    def _make_skills(names: list[str], fallback: str) -> tuple[list[str], list[SkillItem]]:
+        skill_names = names or [fallback]
+        items = [
+            SkillItem(text=n, is_priority=(i < 2), display_order=i)
+            for i, n in enumerate(skill_names)
+        ]
+        return skill_names, items
+
+    crit_names, crit_skills = _make_skills(critical, "core technical skills")
+    high_names, high_skills = _make_skills(high, "applied technical skills")
+    other_names, other_skills = _make_skills(others, "advanced specialisation")
+
     return [
         Phase(
             index=1,
@@ -272,7 +340,13 @@ def _fallback_phases(
             description=f"Close critical skill gaps and establish core competencies for {target_role}.",
             duration_weeks=durations[0],
             goals=["Build foundational skills for the role", "Complete at least one portfolio project"],
-            skills_to_acquire=critical or ["core technical skills"],
+            skills_to_acquire=crit_names,
+            skills=crit_skills,
+            actions=[
+                ActionItem(text="Audit your current skill set", sub_text="Compare your existing skills against the critical gaps to prioritise where to start", display_order=0),
+                ActionItem(text="Set up your learning environment", sub_text="Configure tools, accounts, and workspace before diving into coursework", display_order=1),
+                ActionItem(text="Build a foundational project", sub_text="Apply each new skill in a small, real project rather than isolated exercises", display_order=2),
+            ],
             gaps_addressed=critical,
             market_relevance=f"Critical skills for {target_role} with current market demand.",
             difficulty=DifficultyLevel.BEGINNER,
@@ -283,7 +357,13 @@ def _fallback_phases(
             description="Build applied, job-ready competencies addressing high-priority gaps.",
             duration_weeks=durations[1],
             goals=["Apply skills in realistic projects", "Build portfolio demonstrating job readiness"],
-            skills_to_acquire=high or ["applied technical skills"],
+            skills_to_acquire=high_names,
+            skills=high_skills,
+            actions=[
+                ActionItem(text="Tackle a real-world project", sub_text="Choose a project that reflects actual work in your target role, not a tutorial clone", display_order=0),
+                ActionItem(text="Seek and act on feedback", sub_text="Share your work with communities or mentors — external feedback accelerates growth faster than solo practice", display_order=1),
+                ActionItem(text="Document your process", sub_text="Write about what you built and the decisions you made — this becomes interview material", display_order=2),
+            ],
             gaps_addressed=high,
             market_relevance=f"High-demand skills for {target_role} in the current hiring market.",
             difficulty=DifficultyLevel.INTERMEDIATE,
@@ -294,7 +374,13 @@ def _fallback_phases(
             description="Develop advanced, differentiating expertise to stand out as a candidate.",
             duration_weeks=durations[2],
             goals=["Demonstrate advanced competencies", "Complete a capstone portfolio project"],
-            skills_to_acquire=others or ["advanced specialisation"],
+            skills_to_acquire=other_names,
+            skills=other_skills,
+            actions=[
+                ActionItem(text="Build a capstone project", sub_text="Combine skills from all phases into one substantial, public portfolio piece", display_order=0),
+                ActionItem(text="Contribute to open source or community", sub_text="External contributions validate your skills to employers in a way that solo projects cannot", display_order=1),
+                ActionItem(text="Prepare for job applications", sub_text="Polish your resume, LinkedIn, and GitHub using the projects and milestones from this roadmap", display_order=2),
+            ],
             gaps_addressed=others,
             market_relevance=f"Differentiating skills that elevate candidate standing for {target_role}.",
             difficulty=DifficultyLevel.ADVANCED,

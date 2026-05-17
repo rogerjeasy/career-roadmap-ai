@@ -44,6 +44,8 @@ from agents.core.observability import (
     get_tracer,
 )
 from agents.orchestrator.state import OrchestratorState, TaskNode
+from agents.persistence.interfaces import IRoadmapStore
+from agents.persistence.noop_store import NoOpRoadmapStore
 
 logger = get_logger(__name__)
 _tracer = get_tracer("agents.orchestrator.nodes.agent_dispatcher")
@@ -57,16 +59,21 @@ _DEFAULT_POLICY: dict[str, Any] = {
 }
 
 
-def make_agent_dispatcher(event_publisher: EventPublisher) -> "AgentDispatcherNode":
-    return AgentDispatcherNode(event_publisher)
+def make_agent_dispatcher(
+    event_publisher: EventPublisher,
+    store: IRoadmapStore | None = None,
+) -> "AgentDispatcherNode":
+    return AgentDispatcherNode(event_publisher, store or NoOpRoadmapStore())
 
 
 class AgentDispatcherNode:
-    def __init__(self, event_publisher: EventPublisher) -> None:
+    def __init__(self, event_publisher: EventPublisher, store: IRoadmapStore) -> None:
         self._events = event_publisher
+        self._store = store
 
     async def __call__(self, state: OrchestratorState) -> dict:
         dag: list[TaskNode] = state["task_dag"]
+        roadmap_id: str | None = state.get("roadmap_id")
         completed: dict[str, AgentResult] = {}
 
         phases = _topological_phases(dag)
@@ -87,7 +94,6 @@ class AgentDispatcherNode:
             for node, result in zip(phase_nodes, phase_results):
                 agent_key = node["agent_type"].value
                 if isinstance(result, Exception):
-                    # Unhandled exception escaped the retry loop — always FAILED.
                     logger.error(
                         "node.dispatcher.unhandled_exception",
                         agent=agent_key,
@@ -101,6 +107,24 @@ class AgentDispatcherNode:
                     )
                 else:
                     completed[agent_key] = result  # type: ignore[assignment]
+                    # Persist this agent's output incrementally as soon as it completes.
+                    if (
+                        roadmap_id
+                        and not isinstance(result, Exception)
+                        and result.status == AgentResultStatus.COMPLETED
+                        and result.output
+                    ):
+                        try:
+                            await self._store.persist_agent_output(
+                                roadmap_id, agent_key, result.output
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "node.dispatcher.persist_failed",
+                                agent=agent_key,
+                                roadmap_id=roadmap_id,
+                                error=str(exc),
+                            )
 
             # Push dashboard metrics to Pushgateway after each phase (best-effort).
             asyncio.get_running_loop().run_in_executor(None, push_gateway_metrics)

@@ -1,0 +1,58 @@
+groups:
+  - name: l4_mcp_recording_rules
+    interval: 60s
+    rules:
+      # ── Audit-based error ratio (cross-server) ────────────────────────────────
+      # Uses the shared audit counter which has server_id + tool labels.
+
+      - record: career_mcp:tool_error_ratio:rate5m
+        expr: |
+          sum(rate(mcp_tool_audit_events_total{outcome="error"}[5m])) by (server_id, tool)
+          /
+          (sum(rate(mcp_tool_audit_events_total[5m])) by (server_id, tool) + 1)
+
+      - record: career_mcp:tool_success_ratio:rate5m
+        expr: |
+          sum(rate(mcp_tool_audit_events_total{outcome="ok"}[5m])) by (server_id, tool)
+          /
+          (sum(rate(mcp_tool_audit_events_total[5m])) by (server_id, tool) + 1)
+
+      # ── Cache hit ratio per server and tool ───────────────────────────────────
+
+      - record: career_mcp:cache_hit_ratio:rate5m
+        expr: |
+          sum(rate(mcp_tool_audit_events_total{outcome="cache_hit"}[5m])) by (server_id)
+          /
+          (sum(rate(mcp_tool_audit_events_total[5m])) by (server_id) + 1)
+
+      # ── Rate-limit ratio per server ───────────────────────────────────────────
+
+      - record: career_mcp:rate_limit_ratio:rate5m
+        expr: |
+          sum(rate(mcp_tool_audit_events_total{outcome="rate_limited"}[5m])) by (server_id, tool)
+          /
+          (sum(rate(mcp_tool_audit_events_total[5m])) by (server_id, tool) + 1)
+
+      # ── Circuit breaker rejection ratio ───────────────────────────────────────
+
+      - record: career_mcp:circuit_breaker_rejection_ratio:rate5m
+        expr: |
+          sum(rate(mcp_circuit_breaker_rejections_total[5m])) by (server_id, dependency)
+          /
+          (
+            sum(rate(mcp_circuit_breaker_rejections_total[5m])) by (server_id, dependency)
+            + sum(rate(mcp_tool_audit_events_total[5m])) by (server_id)
+            + 1
+          )
+
+      # ── Overall MCP tool throughput ───────────────────────────────────────────
+
+      - record: career_mcp:tool_call_rate:rate5m
+        expr: |
+          sum(rate(mcp_tool_audit_events_total[5m])) by (server_id, tool, outcome)
+
+      # ── Scrape availability (1 = up, 0 = down) ────────────────────────────────
+
+      - record: career_mcp:server_availability:instant
+        expr: |
+          up{job="mcp-servers"}

@@ -13,6 +13,8 @@ GET /api/v1/orchestrator/status/{request_id}
 """
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, status
+from opentelemetry import trace
+from opentelemetry.trace import StatusCode
 from pydantic import BaseModel, Field
 
 from agents.bus.channel import channel_for_session
@@ -27,6 +29,7 @@ from src.session.models import UserProfileContext
 
 router = APIRouter(prefix="/orchestrator", tags=["orchestrator"])
 logger = get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 _task_publisher = TaskPublisher()
 
@@ -107,37 +110,45 @@ async def generate_roadmap(
     session = await mgr.get_or_create(user.uid, user.email)
     stream_channel = channel_for_session(user.uid, session.user_id)
 
-    # Purge the event replay log from any previous run so a subscriber that
-    # connects after this 202 response never replays stale terminal events.
-    replay_log_key = f"event_log:{stream_channel}"
-    await redis_client.delete(replay_log_key)
+    with tracer.start_as_current_span("orchestrator.generate") as span:
+        span.set_attribute("user.id", user.uid)
+        span.set_attribute("session.id", session.user_id)
+        span.set_attribute("stream.channel", stream_channel)
 
-    task_input = OrchestratorTaskInput(
-        session_id=session.user_id,
-        user_id=user.uid,
-        user_message=body.message,
-        user_profile=_to_profile_snapshot(session.user_profile_context),
-        stream_channel=stream_channel,
-    )
+        # Purge the event replay log from any previous run so a subscriber that
+        # connects after this 202 response never replays stale terminal events.
+        replay_log_key = f"event_log:{stream_channel}"
+        await redis_client.delete(replay_log_key)
 
-    try:
-        task_id = _task_publisher.dispatch_orchestration(task_input)
-    except Exception as exc:
-        logger.error(
-            "orchestrator.dispatch_failed",
-            error=str(exc),
+        task_input = OrchestratorTaskInput(
+            session_id=session.user_id,
             user_id=user.uid,
+            user_message=body.message,
+            user_profile=_to_profile_snapshot(session.user_profile_context),
+            stream_channel=stream_channel,
         )
-        raise ExternalServiceError(
-            "Failed to start roadmap generation. Please try again."
-        ) from exc
 
-    logger.info(
-        "orchestrator.generation_dispatched",
-        task_id=task_id,
-        user_id=user.uid,
-        session_id=session.user_id,
-    )
+        try:
+            task_id = _task_publisher.dispatch_orchestration(task_input)
+        except Exception as exc:
+            span.record_exception(exc)
+            span.set_status(StatusCode.ERROR, str(exc))
+            logger.error(
+                "orchestrator.dispatch_failed",
+                error=str(exc),
+                user_id=user.uid,
+            )
+            raise ExternalServiceError(
+                "Failed to start roadmap generation. Please try again."
+            ) from exc
+
+        span.set_attribute("task.id", task_id)
+        logger.info(
+            "orchestrator.generation_dispatched",
+            task_id=task_id,
+            user_id=user.uid,
+            session_id=session.user_id,
+        )
 
     return GenerateRoadmapResponse(
         request_id=task_id,
@@ -163,13 +174,18 @@ async def get_task_status(
     from agents.bus.celery_app import celery_app  # noqa: PLC0415
     from celery.result import AsyncResult  # noqa: PLC0415
 
-    result: AsyncResult = celery_app.AsyncResult(request_id)
-    state = result.state
+    with tracer.start_as_current_span("orchestrator.task_status") as span:
+        span.set_attribute("user.id", user.uid)
+        span.set_attribute("task.id", request_id)
 
-    if state == "SUCCESS":
-        return TaskStatusResponse(request_id=request_id, state=state, result=result.result)
-    if state == "FAILURE":
-        return TaskStatusResponse(
-            request_id=request_id, state=state, error=str(result.result)
-        )
-    return TaskStatusResponse(request_id=request_id, state=state)
+        result: AsyncResult = celery_app.AsyncResult(request_id)
+        state = result.state
+        span.set_attribute("task.state", state)
+
+        if state == "SUCCESS":
+            return TaskStatusResponse(request_id=request_id, state=state, result=result.result)
+        if state == "FAILURE":
+            return TaskStatusResponse(
+                request_id=request_id, state=state, error=str(result.result)
+            )
+        return TaskStatusResponse(request_id=request_id, state=state)

@@ -204,6 +204,15 @@ services:
   # ── FastAPI SSE (long-lived streaming connections) ─────────────────────────
   # Separate service entry so we can set 1-hour timeouts and disable buffering
   # without affecting regular API calls.
+  #
+  # Two paths are covered:
+  #   /stream          — legacy path (kept for backwards-compat / health tooling)
+  #   /api/v1/stream   — canonical path used by the frontend SSE Route Handler
+  #
+  # Kong path specificity: /api/v1/stream is longer than /api/v1, so this
+  # service wins over the generic api-v1 route for stream requests even at the
+  # same regex_priority. The higher regex_priority (15 vs 10) is belt-and-
+  # braces insurance.
   - name: fastapi-sse
     host: fastapi.upstream
     protocol: http
@@ -216,6 +225,7 @@ services:
       - name: stream-sse
         paths:
           - /stream
+          - /api/v1/stream
         methods: [GET, OPTIONS]
         strip_path: false
         response_buffering: false

@@ -1,0 +1,158 @@
+groups:
+  - name: l1_availability_alerts
+    rules:
+      - alert: APIDown
+        expr: up{job="career-roadmap-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: api
+        annotations:
+          summary: "Career Roadmap API is unreachable"
+          description: >
+            Prometheus cannot scrape the API /metrics endpoint. The FastAPI
+            process may be down or the port is not reachable. Check `uvicorn`
+            process and Docker networking (host.docker.internal resolution).
+          runbook: "https://docs.internal/runbooks/api-down"
+
+      - alert: KongDown
+        expr: up{job="kong"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: api
+        annotations:
+          summary: "Kong API gateway is unreachable"
+          description: >
+            Prometheus cannot scrape Kong's /metrics endpoint on port 8001.
+            All traffic entering via Kong is affected. Check the `crai-kong`
+            container and the `KONG_STATUS_LISTEN` configuration.
+          runbook: "https://docs.internal/runbooks/kong-down"
+
+  - name: l1_error_rate_alerts
+    rules:
+      - alert: APIHighErrorRate
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status=~"5..",job="career-roadmap-api"}[5m])) by (handler)
+          /
+          sum(rate(http_request_duration_seconds_count{job="career-roadmap-api"}[5m])) by (handler)
+          > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+          component: api
+        annotations:
+          summary: "API 5xx error rate > 5% on {{ $labels.handler }}"
+          description: >
+            Handler {{ $labels.handler }} has a 5xx error rate of
+            {{ $value | humanizePercentage }} over the last 5 minutes.
+            Check structured logs for `error_code` fields and Sentry for
+            stack traces.
+          runbook: "https://docs.internal/runbooks/api-high-error-rate"
+
+      - alert: APIAuthFailureSpike
+        expr: |
+          rate(http_request_duration_seconds_count{status=~"401|403",job="career-roadmap-api"}[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+          component: api
+        annotations:
+          summary: "Auth failure spike (401/403) on API"
+          description: >
+            More than 5 auth failures per second detected. This may indicate
+            an expired Firebase token refresh issue, a misconfigured client,
+            or a brute-force attempt. Check `get_current_user` and Firebase
+            Admin SDK logs.
+          runbook: "https://docs.internal/runbooks/api-auth-failures"
+
+      - alert: APIRateLimitingHigh
+        expr: |
+          rate(http_request_duration_seconds_count{status="429",job="career-roadmap-api"}[5m]) > 2
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+          component: api
+        annotations:
+          summary: "High rate-limiting (429) responses from API"
+          description: >
+            More than 2 rate-limited requests per second. Legitimate users
+            may be blocked. Consider raising RATE_LIMIT_PER_MINUTE or
+            investigating runaway clients. Check slowapi Redis logs.
+          runbook: "https://docs.internal/runbooks/api-rate-limiting"
+
+  - name: l1_latency_alerts
+    rules:
+      - alert: APIHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="career-roadmap-api"}[5m])) by (handler, le)
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: api
+        annotations:
+          summary: "API p95 latency > 2 s on {{ $labels.handler }}"
+          description: >
+            Handler {{ $labels.handler }} p95 latency is
+            {{ $value | printf "%.2f" }}s. Likely causes: downstream service
+            slowness (Firestore, Redis, Celery dispatch), or an ORM query
+            without proper index. Check the OTel trace for the slow span.
+          runbook: "https://docs.internal/runbooks/api-high-latency"
+
+      - alert: APICaseConversionErrors
+        expr: |
+          increase(case_conversion_errors_total{direction="response"}[15m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+          component: api
+        annotations:
+          summary: "JSON response case conversion failures detected"
+          description: >
+            The CaseConversionMiddleware has failed to convert snake_case to
+            camelCase {{ $value | printf "%.0f" }} times in 15 minutes.
+            Clients receive raw snake_case keys, breaking the API contract.
+            Find the affected handler and fix its response serialisation.
+          runbook: "https://docs.internal/runbooks/case-conversion-errors"
+
+  - name: l1_middleware_alerts
+    rules:
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: api
+        annotations:
+          summary: "Redis exporter unreachable — Redis may be down"
+          description: >
+            The Redis exporter is not responding. Sessions, rate limiting,
+            and Celery broker all depend on Redis. Verify the `crai-redis`
+            container and `REDIS_URL` configuration.
+          runbook: "https://docs.internal/runbooks/redis-down"
+
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: api
+        annotations:
+          summary: "PostgreSQL exporter unreachable — Postgres may be down"
+          description: >
+            The Postgres exporter is not responding. SQLAlchemy-backed
+            repositories (user, cv, progress, etc.) will fail. Check the
+            `crai-postgres` container and `DATABASE_URL` configuration.
+          runbook: "https://docs.internal/runbooks/postgres-down"

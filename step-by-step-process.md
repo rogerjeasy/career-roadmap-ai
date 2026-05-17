@@ -116,9 +116,11 @@ crai-postgres           Up X seconds (healthy)
 crai-redis              Up X seconds (healthy)
 crai-tempo              Up X seconds (healthy)
 crai-prometheus         Up X seconds (healthy)
+crai-alertmanager       Up X seconds (healthy)
 crai-loki               Up X seconds (healthy)
-crai-grafana            Up X seconds
+crai-grafana            Up X seconds (healthy)
 crai-promtail           Up X seconds
+crai-pushgateway        Up X seconds (healthy)
 crai-redis-exporter     Up X seconds
 crai-postgres-exporter  Up X seconds
 ```
@@ -188,7 +190,7 @@ make worker
 
 ## Step 5a — Start MCP servers (optional — activates live data)
 
-MCP servers supply real-world data to agents: job postings, course catalogues, salary ranges, GitHub trends, social signals, and industry news. Without them the agents use stub data tagged `source: "stub"`.
+MCP servers supply real-world data to agents: job postings, course catalogues, salary ranges, GitHub trends, social signals, calendar integration, industry news, LinkedIn profile analysis, and document storage. Without them the agents use stub data tagged `source: "stub"`.
 
 Open a new terminal and run:
 
@@ -196,7 +198,7 @@ Open a new terminal and run:
 make mcp-start
 ```
 
-This starts all 6 servers in the background (logs written to `logs/mcp/<name>.log`) and polls each `/livez` endpoint until they are all healthy. Expected output:
+This starts all 9 servers in the background (logs written to `logs/mcp/<name>.log`) and polls each `/livez` endpoint until they are all healthy. Expected output:
 
 ```
 Starting MCP servers...
@@ -206,7 +208,10 @@ Starting MCP servers...
   salary-benchmark       port 3003   PID ...   log: logs/mcp/salary-benchmark.log
   github-trends          port 3004   PID ...   log: logs/mcp/github-trends.log
   social-signals         port 3005   PID ...   log: logs/mcp/social-signals.log
+  calendar               port 3006   PID ...   log: logs/mcp/calendar.log
   industry-news          port 3007   PID ...   log: logs/mcp/industry-news.log
+  linkedin-profile       port 3008   PID ...   log: logs/mcp/linkedin-profile.log
+  document-store         port 3009   PID ...   log: logs/mcp/document-store.log
 ------------------------------------------------------------
 
 Waiting for /livez on all servers (30s timeout)...
@@ -215,10 +220,21 @@ Waiting for /livez on all servers (30s timeout)...
   salary-benchmark       UP
   github-trends          UP
   social-signals         UP
+  calendar               UP
   industry-news          UP
+  linkedin-profile       UP
+  document-store         UP
 ```
 
 After all servers are UP, add the MCP URL vars to `apps/api/.env` (see Step 1) and restart FastAPI so the agents pick them up.
+
+Verify Prometheus is scraping all 9 servers:
+
+```bash
+make mcp-metrics
+```
+
+Each line should show `UP`. If any server shows `DOWN`, check `logs/mcp/<name>.log.err`.
 
 ### Managing individual servers
 
@@ -235,7 +251,7 @@ make mcp-restart-course-catalogue
 make mcp-logs-course-catalogue
 ```
 
-Same pattern works for all six: `job-board`, `course-catalogue`, `salary-benchmark`, `github-trends`, `social-signals`, `industry-news`.
+Same pattern works for all nine: `job-board`, `course-catalogue`, `salary-benchmark`, `github-trends`, `social-signals`, `calendar`, `industry-news`, `linkedin-profile`, `document-store`.
 
 ### After code changes
 
@@ -309,18 +325,39 @@ The `X-Kong-*` headers confirm the request passed through Kong. The security hea
 
 > Note: the endpoint is `/livez` (with a `z`), not `/live`. A 404 from FastAPI means Kong routing works but you used the wrong path.
 
-### 7c — Confirm Prometheus is scraping Kong
+### 7c — Confirm Prometheus is scraping all targets
 
 Open **http://localhost:9090/targets**
 
 All scrape targets should show **State: UP**:
 
-| Job | Target |
-|---|---|
-| `career-roadmap-api` | `host.docker.internal:8000` |
-| `kong` | `kong:8001` |
-| `redis` | `redis-exporter:9121` |
-| `postgres` | `postgres-exporter:9187` |
+| Job | Target | Layer |
+|---|---|---|
+| `career-roadmap-api` | `host.docker.internal:8000` | L1 API |
+| `kong` | `kong:8001` | L1 Gateway |
+| `redis` | `redis-exporter:9121` | Infrastructure |
+| `postgres` | `postgres-exporter:9187` | Infrastructure |
+| `pushgateway` | `pushgateway:9091` | L3/L5 Celery workers |
+| `mcp-servers` | `host.docker.internal:3001` … `:3009` | L4 MCP (9 targets) |
+| `alertmanager` | `alertmanager:9093` | Monitoring |
+| `prometheus` | `localhost:9090` | Monitoring |
+
+If MCP server targets are DOWN, confirm the servers are running with `make mcp-status` and that `host.docker.internal` resolves correctly from within the Prometheus container.
+
+### 7d — Confirm alert rules are loaded
+
+Open **http://localhost:9090/rules**
+
+You should see all rule groups listed with status `OK`:
+
+- `l1_availability_alerts`, `l1_error_rate_alerts`, `l1_latency_alerts`, `l1_middleware_alerts`
+- `l2_session_alerts`, `l2_orchestrator_alerts`, `l2_sse_alerts`, `l2_middleware_alerts`
+- `l3_agent_error_alerts`, `l3_agent_latency_alerts`, `l3_llm_alerts`, `l3_clarification_alerts`
+- `l4_mcp_availability_alerts`, `l4_mcp_circuit_breaker_alerts`, `l4_mcp_error_rate_alerts`, `l4_mcp_latency_alerts`, `l4_mcp_rate_limit_alerts`
+- `rag_ingestion_alerts`, `rag_retrieval_alerts`, `rag_realtime_alerts`, `rag_cache_alerts`, `rag_quality_alerts`, `rag_cost_alerts`, `rag_storage_alerts`
+- All corresponding recording rule groups
+
+If a group shows an error, the PromQL expression references a metric that hasn't been emitted yet (normal in a fresh stack — alerts will become active once traffic flows).
 
 ---
 
@@ -398,7 +435,21 @@ kong-gateway   [root span — full request duration]
 
 This waterfall confirms the OTel pipeline is working end-to-end from Kong through FastAPI.
 
-### 9c — Structured logs in Loki
+### 9c — Alertmanager routing
+
+Open **http://localhost:9093**
+
+The Alertmanager UI shows:
+- **Alerts** tab — any currently firing alerts (empty in a healthy stack)
+- **Silences** tab — manage alert silences
+- **Status** tab — confirm the routing config loaded correctly
+
+By default all alerts route to the `devnull` receiver (no notifications sent) until you wire up real credentials in `infrastructure/monitoring/alertmanager.yml`. To activate Slack/PagerDuty notifications:
+
+1. Edit `infrastructure/monitoring/alertmanager.yml` — uncomment and fill in the receiver blocks
+2. Run `make alertmanager-reload` to apply without restarting
+
+### 9d — Structured logs in Loki
 
 1. In Grafana → **Explore**
 2. Select the **Loki** datasource
@@ -466,15 +517,20 @@ Skipping step 2 means any queued tasks survive in the Redis volume and will repl
 | Kong Admin | http://localhost:8001 | Route / plugin inspection (`make gateway-admin`) |
 | FastAPI docs | http://localhost:8000/docs | Swagger UI (dev only, direct access) |
 | Grafana | http://localhost:3300 | Dashboards — Kong + API metrics |
-| Prometheus | http://localhost:9090 | Raw metrics + scrape target status |
+| Prometheus | http://localhost:9090 | Raw metrics, scrape targets (`/targets`), alert rules (`/rules`) |
+| Alertmanager | http://localhost:9093 | Alert routing + silences (fill in `alertmanager.yml` for notifications) |
 | Tempo | http://localhost:3200 | Distributed trace storage |
 | Loki | http://localhost:3100 | Log aggregation |
+| Pushgateway | http://localhost:9091 | Celery worker metric push target (L3/L5) |
 | MCP — Job Board | http://localhost:3001 | Job postings (LinkedIn, Indeed, Swiss Jobs) |
 | MCP — Course Catalogue | http://localhost:3002 | Courses (100+ curated + Coursera public API; Udemy/YouTube/O'Reilly optional) |
 | MCP — Salary Benchmark | http://localhost:3003 | Salary ranges (levels.fyi, curated dataset) |
 | MCP — GitHub Trends | http://localhost:3004 | Trending repos + good-first-issues |
 | MCP — Social Signals | http://localhost:3005 | HackerNews, Reddit, Dev.to signals |
+| MCP — Calendar | http://localhost:3006 | Calendar integration (Google Calendar, scheduling) |
 | MCP — Industry News | http://localhost:3007 | RSS feeds + NewsAPI digest |
+| MCP — LinkedIn Profile | http://localhost:3008 | LinkedIn profile analysis + outreach drafting |
+| MCP — Document Store | http://localhost:3009 | CV and document storage + retrieval |
 
 **Worker commands:**
 
@@ -486,21 +542,32 @@ Skipping step 2 means any queued tasks survive in the Redis volume and will repl
 
 > Run `make worker-purge` **before** `make gateway-obs-down` during teardown, and **after** `make gateway-obs-up` during startup, whenever you are restarting the stack across sessions.
 
+**Observability commands:**
+
+| Command | Action |
+|---|---|
+| `make obs-status` | Health-check all observability containers at once |
+| `make obs-reload` | Hot-reload Prometheus config + alert rules (no restart) |
+| `make prom-check` | Validate `prometheus.yml` syntax before reloading |
+| `make alertmanager-reload` | Hot-reload Alertmanager routing config (after filling in credentials) |
+| `make mcp-metrics` | Smoke-test `/metrics` endpoint on all 9 MCP servers |
+
 **MCP commands:**
 
 | Command | Action |
 |---|---|
-| `make mcp-start` | Start all 6 servers in background + wait for health |
-| `make mcp-stop` | Stop all 6 servers (full process tree kill) |
+| `make mcp-start` | Start all 9 servers in background + wait for health |
+| `make mcp-stop` | Stop all 9 servers (full process tree kill) |
 | `make mcp-restart` | Stop all → start all + health check |
-| `make mcp-status` | Show UP/DOWN status for all 6 servers |
+| `make mcp-status` | Show UP/DOWN status for all 9 servers |
+| `make mcp-metrics` | Smoke-test `/metrics` on all 9 servers (confirms Prometheus can scrape them) |
 | `make mcp-logs` | Tail all server logs interleaved (Ctrl+C to stop) |
 | | |
 | `make mcp-stop-<name>` | Stop one server, e.g. `mcp-stop-course-catalogue` |
 | `make mcp-restart-<name>` | Restart one server, e.g. `mcp-restart-social-signals` |
 | `make mcp-logs-<name>` | Tail one server's log, e.g. `mcp-logs-github-trends` |
 
-Valid `<name>` values: `job-board`, `course-catalogue`, `salary-benchmark`, `github-trends`, `social-signals`, `industry-news`.
+Valid `<name>` values: `job-board`, `course-catalogue`, `salary-benchmark`, `github-trends`, `social-signals`, `calendar`, `industry-news`, `linkedin-profile`, `document-store`.
 
 ---
 
@@ -530,3 +597,84 @@ Valid `<name>` values: `job-board`, `course-catalogue`, `salary-benchmark`, `git
 | Code changes to an MCP server have no effect | The uvicorn reloader may be stuck with stale `.pyc` files — run `make mcp-restart-<name>` to kill the full process tree and relaunch cleanly |
 | `make mcp-stop` doesn't kill the server | The process may have been started outside the scripts (no PID file); `make mcp-stop` falls back to port-based kill with `taskkill /T /F`, which should always work |
 | Course catalogue returns 0 courses | This was a known bug (fixed): `BaseCourseClient` lazy-init was missing and the edX Discovery API requires auth. Now fixed — curated dataset + Coursera public API are always active with no API keys needed |
+| MCP servers show DOWN in Prometheus `/targets` | Confirm the servers are running (`make mcp-status`); confirm `host.docker.internal` resolves from inside the Prometheus container (`make prom-check`); check `extra_hosts` in `docker-compose.dev.yml` |
+| Alertmanager UI not accessible at `:9093` | Alertmanager is part of the `observability` profile — run `make gateway-obs-up` first |
+| Alert rules show errors in Prometheus `/rules` | The PromQL expression references a metric not yet emitted — this is normal at startup before traffic flows. If it persists, validate with `make prom-check` |
+| Alerts fire but no Slack/PagerDuty notification | Fill in receiver credentials in `infrastructure/monitoring/alertmanager.yml` then run `make alertmanager-reload` |
+| `make obs-reload` returns "connection refused" | Prometheus is not running (or `--web.enable-lifecycle` flag is missing — it is set in the Compose file) |
+| `make prom-check` says config invalid after editing `prometheus.yml` | Check YAML indentation — `rule_files` and `alerting` must be at the top level (no leading spaces) |
+
+---
+
+## Full Stack Launch Cheatsheet
+
+Run these commands in order across four terminals. Steps marked **T1–T4** indicate which terminal.
+
+### Clean slate (run once per session restart)
+
+```bash
+# T1 — purge stale Celery tasks while Redis is still up from a previous session
+make worker-purge        # skip if this is a first-ever run
+
+# T1 — stop all containers from any previous session
+make mcp-stop            # kill all 9 MCP server processes
+make gateway-obs-down    # stop all Docker containers
+```
+
+### Start infrastructure (T1)
+
+```bash
+make gateway-obs-up      # PostgreSQL + Redis + Kong + Tempo + Prometheus + Alertmanager + Grafana + Loki + Pushgateway
+make db-migrate          # apply any pending Alembic migrations
+make worker-purge        # clear broker queues after infra restart
+```
+
+### Start backend services (T1, T2, T3)
+
+```bash
+# T2 — FastAPI (keep this terminal open)
+make dev
+
+# T3 — Celery worker (keep this terminal open)
+make worker
+
+# T4 — MCP servers (background — terminal returns immediately)
+make mcp-start
+```
+
+### Start frontend (T1)
+
+```bash
+make web-dev             # Next.js on http://localhost:3000
+```
+
+### Verify everything is up
+
+```bash
+make obs-status          # all observability containers healthy
+make mcp-status          # all 9 MCP servers UP
+make mcp-metrics         # all 9 /metrics endpoints reachable by Prometheus
+curl.exe http://localhost:8080/livez   # Kong → FastAPI → {"status":"alive"}
+```
+
+Open in browser:
+
+| URL | What to check |
+|---|---|
+| http://localhost:3000 | Frontend loads, login works |
+| http://localhost:9090/targets | All scrape targets State: UP |
+| http://localhost:9090/rules | All alert rule groups status: OK |
+| http://localhost:9093 | Alertmanager UI loads, 0 firing alerts |
+| http://localhost:3300 | Grafana dashboards show data after first request |
+
+### Teardown (ordered — order matters)
+
+```bash
+# 1. Ctrl+C  → Celery worker terminal (T3)
+# 2. Ctrl+C  → FastAPI terminal (T2)
+# 3. Ctrl+C  → Next.js terminal (T1 or wherever web-dev is running)
+
+make worker-purge        # discard queued tasks before Redis goes down
+make mcp-stop            # kill all 9 MCP server processes
+make gateway-obs-down    # stop all Docker containers
+```

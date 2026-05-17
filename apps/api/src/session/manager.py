@@ -18,7 +18,9 @@ from fastapi import Depends
 
 from src.config import settings
 from src.core.auth import AuthenticatedUser, get_current_user
+from src.core.logging import get_logger
 from src.db.redis import get_redis
+from src.observability.metrics import session_operations_total
 from src.session.models import (
     ClarificationFlags,
     ClarificationQuestion,
@@ -29,6 +31,9 @@ from src.session.models import (
     SessionData,
     UserProfileContext,
 )
+
+
+logger = get_logger(__name__)
 
 
 class SessionManager:
@@ -60,7 +65,13 @@ class SessionManager:
 
     async def get(self, user_id: str) -> SessionData | None:
         """Return the session or None if it does not exist / has expired."""
-        return await self._load(user_id)
+        result = await self._load(user_id)
+        if result is None:
+            session_operations_total.labels(operation="get", outcome="not_found").inc()
+            logger.info("session.not_found", user_id=user_id)
+        else:
+            session_operations_total.labels(operation="get", outcome="found").inc()
+        return result
 
     async def create(self, user_id: str, email: str | None) -> SessionData:
         """Create a fresh session, overwriting any existing one."""
@@ -71,18 +82,26 @@ class SessionManager:
             created_at=now,
             last_active_at=now,
         )
-        return await self._save(session)
+        result = await self._save(session)
+        session_operations_total.labels(operation="create", outcome="success").inc()
+        logger.info("session.created", user_id=user_id)
+        return result
 
     async def get_or_create(self, user_id: str, email: str | None) -> SessionData:
         """Load an existing session or create a new one; always refreshes last_active_at."""
         session = await self._load(user_id)
         if session is None:
-            return await self.create(user_id, email)
-        return await self._save(session)
+            return await self.create(user_id, email)  # create() handles logging + metric
+        result = await self._save(session)
+        session_operations_total.labels(operation="get_or_create", outcome="resumed").inc()
+        logger.info("session.resumed", user_id=user_id)
+        return result
 
     async def delete(self, user_id: str) -> None:
         """Delete the session from Redis immediately."""
         await self._redis.delete(self._key(user_id))
+        session_operations_total.labels(operation="delete", outcome="success").inc()
+        logger.info("session.deleted", user_id=user_id)
 
     # ── Conversation state ────────────────────────────────────────────────────
 

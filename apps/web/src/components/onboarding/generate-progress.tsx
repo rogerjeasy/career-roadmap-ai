@@ -30,6 +30,11 @@ const PIPELINE_STEPS = [
     detail: "Constructing the specialist-agent execution plan",
   },
   {
+    key: "initialize_roadmap",
+    label: "Initialising your roadmap",
+    detail: "Creating your roadmap workspace",
+  },
+  {
     key: "assemble_rag_context",
     label: "Gathering career intelligence",
     detail: "Retrieving relevant knowledge, examples, and market data",
@@ -121,10 +126,17 @@ function eventDetail(evt: AgentEvent): string {
       return name + dur;
     }
     case "step_progress": {
-      const sn = p.step_name as string;
-      const sp = p.pct as number;
-      const label = PIPELINE_STEPS.find((s) => s.key === sn)?.label ?? sn;
-      return `${label} · ${sp}%`;
+      // Orchestrator-level: {step_name, step_index, total_steps, pct}
+      if (typeof p.step_name === "string") {
+        const label = PIPELINE_STEPS.find((s) => s.key === p.step_name)?.label ?? (p.step_name as string);
+        return `${label} · ${p.pct as number}%`;
+      }
+      // Agent-level: {agent, step, description} — show agent name + internal step
+      if (typeof p.step === "string") {
+        const agentLabel = AGENT_LABELS[p.agent as string] ?? (p.agent as string) ?? "";
+        return agentLabel ? `${agentLabel}: ${p.step as string}` : (p.step as string);
+      }
+      return "";
     }
     case "orchestration_started":
       return "Pipeline initialised";
@@ -373,7 +385,7 @@ export function GenerateProgress({
             Pipeline
           </span>
           <span className="font-mono text-[10px] tabular-nums text-ink-3">
-            {stepIndex >= 0 ? `${Math.min(stepIndex + 1, 7)} / 7` : "—"}
+            {stepIndex >= 0 ? `${Math.min(stepIndex + 1, PIPELINE_STEPS.length)} / ${PIPELINE_STEPS.length}` : "—"}
           </span>
         </div>
 

@@ -78,13 +78,18 @@ export const useAgentStore = create<AgentState>()((set) => ({
         break;
 
       case "step_progress": {
-        const p = payload as { step_name: string; step_index: number; total_steps: number; pct: number };
-        set({
-          currentPct: p.pct,
-          currentStepIndex: p.step_index,
-          currentStepName: p.step_name,
-          totalSteps: p.total_steps,
-        });
+        // Orchestrator-level events carry {step_name, step_index, total_steps, pct}.
+        // Individual agent _emit_progress() calls carry {agent, step, description} —
+        // those only go to the event log and must not overwrite pipeline progress state.
+        const p = payload as Record<string, unknown>;
+        if (typeof p.step_name === "string" && typeof p.pct === "number") {
+          set({
+            currentPct: p.pct,
+            currentStepIndex: typeof p.step_index === "number" ? p.step_index : -1,
+            currentStepName: p.step_name,
+            totalSteps: typeof p.total_steps === "number" ? p.total_steps : 8,
+          });
+        }
         break;
       }
 

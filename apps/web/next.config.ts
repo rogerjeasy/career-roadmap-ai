@@ -7,8 +7,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
-      // All API calls route through Kong, which forwards to FastAPI and MCP servers.
-      // Kong handles CORS, rate limiting, and routing — no duplicate config needed here.
+      // NOTE: /api/v1/stream/:path* is handled by the Route Handler at
+      // src/app/api/v1/stream/[sessionId]/route.ts — it pipes the upstream
+      // ReadableStream directly without buffering. Kong's fastapi-sse service
+      // covers this path with response_buffering:false and 1-hour timeouts.
+      // Do NOT add a rewrite for that path here — Route Handlers take
+      // precedence over rewrites anyway.
+
+      // All other API calls route through Kong.
       {
         source: "/api/v1/:path*",
         destination: `${API_URL}/api/v1/:path*`,

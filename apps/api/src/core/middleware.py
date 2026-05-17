@@ -12,6 +12,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from src.config import settings
 from src.core.case_converter import keys_to_camel, keys_to_snake, to_snake_case
+from src.observability.metrics import case_conversion_errors_total
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
 
@@ -124,6 +125,7 @@ class _RequestReceiver:
             try:
                 body = json.dumps(keys_to_snake(json.loads(body))).encode()
             except (ValueError, TypeError):
+                case_conversion_errors_total.labels(direction="request").inc()
                 pass  # non-JSON body — pass through unchanged
 
         return {"type": "http.request", "body": body, "more_body": False}
@@ -171,6 +173,7 @@ class _ResponseSender:
                         keys_to_camel(json.loads(body)), default=str
                     ).encode()
                 except (ValueError, TypeError):
+                    case_conversion_errors_total.labels(direction="response").inc()
                     pass  # malformed JSON — send as-is
 
             # Rebuild headers with the correct Content-Length

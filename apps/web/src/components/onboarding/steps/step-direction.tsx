@@ -1,21 +1,20 @@
-﻿"use client";
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DirectionChat } from "@/components/onboarding/direction-chat";
 import { CvContextCard } from "@/components/onboarding/cv-context-card";
 import { useOnboardingStore } from "@/store/onboarding-store";
-import type { CvAnalysisResult, OnboardingChatMessage } from "@/types/onboarding.types";
+import { intakeApi } from "@/lib/api/intake";
+import { subscribeToAgentStream } from "@/lib/sse";
+import type { SSESubscription } from "@/lib/sse";
+import type { AgentEvent } from "@/types/agent.types";
+import type {
+  IntakeClarificationPayload,
+  IntakeResolvedPayload,
+  OnboardingChatMessage,
+} from "@/types/onboarding.types";
 
 const TIME_CHIPS = ["3 months · soon", "6 months", "12–18 months · build it right", "Open / not sure"];
-
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 const TIMELINE_MAP: Record<string, number | null> = {
   "3 months · soon": 3,
@@ -24,90 +23,13 @@ const TIMELINE_MAP: Record<string, number | null> = {
   "Open / not sure": null,
 };
 
-function deriveCareerPaths(cvResult: CvAnalysisResult): string[] {
-  const skillNames = cvResult.skills.map((s) => s.name.toLowerCase());
-  const hasSkill = (keywords: string[]) =>
-    skillNames.some((name) => keywords.some((k) => name.includes(k)));
-
-  const roleText = [
-    cvResult.currentRole ?? "",
-    ...cvResult.roles.map((r) => `${r.title} ${r.company ?? ""}`),
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  const isAiMl =
-    hasSkill([
-      "machine learning", "deep learning", "neural", "nlp", "llm", "langchain",
-      "pytorch", "tensorflow", "transformers", "scikit", "computer vision",
-      "reinforcement", "generative ai",
-    ]) ||
-    /\bml\b|ai\b|machine learning/.test(roleText);
-
-  const isInfra =
-    hasSkill([
-      "kubernetes", "k8s", "terraform", "devops", "sre", "aws", "gcp", "azure",
-      "cloud", "docker", "ci/cd", "infrastructure", "platform engineering", "helm", "ansible",
-    ]) ||
-    /platform|devops|sre/.test(roleText);
-
-  const isData =
-    hasSkill([
-      "spark", "kafka", "flink", "airflow", "dbt", "bigquery", "snowflake",
-      "data pipeline", "etl", "data engineering", "databricks",
-    ]) || roleText.includes("data engineer");
-
-  const isBackend = hasSkill([
-    "python", "java", "go", "golang", "rust", "fastapi", "django", "spring",
-    "microservices", "distributed", "grpc", "graphql",
-  ]);
-
-  const isFrontend = hasSkill([
-    "react", "vue", "angular", "next.js", "typescript", "javascript", "frontend",
-  ]);
-
-  const hasResearchBackground =
-    cvResult.roles.some(
-      (r) =>
-        r.title.toLowerCase().includes("research") ||
-        r.company?.toLowerCase().includes("university") ||
-        r.company?.toLowerCase().includes("lab") ||
-        r.company?.toLowerCase().includes("institute"),
-    ) ||
-    cvResult.projects.some(
-      (p) =>
-        p.description?.toLowerCase().includes("research") ||
-        p.description?.toLowerCase().includes("fp7") ||
-        p.description?.toLowerCase().includes("horizon"),
-    );
-
-  const isSenior = cvResult.yearsOfExperience >= 6;
-  const isVeryExperienced = cvResult.yearsOfExperience >= 10;
-  const hasLeadership = cvResult.leadershipSignals >= 2;
-
-  const paths: string[] = [];
-
-  if (isAiMl && hasResearchBackground) paths.push("🔬 AI Research Engineer");
-  else if (isAiMl) paths.push("🧠 AI / ML Engineer");
-  if (isInfra) paths.push("🛠️ Platform / Infra Engineer");
-  if (isData && !isAiMl) paths.push("📊 Data Engineer");
-  if ((isVeryExperienced || hasLeadership) && isBackend) paths.push("🏗️ Staff / Principal Engineer");
-  else if (isSenior && isBackend && !isAiMl && !isInfra) paths.push("🏗️ Senior Backend Engineer");
-  if (isFrontend && isBackend) paths.push("🎨 Fullstack Tech Lead");
-  if (isSenior || hasLeadership) paths.push("🌱 Founding / Early-stage Eng.");
-
-  const unique = [...new Set(paths)].slice(0, 4);
-
-  if (unique.length < 2) {
-    return [
-      "🧠 AI / ML Engineer",
-      "🏗️ Staff / Principal Engineer",
-      "🌱 Founding / Early-stage Eng.",
-      "🛠️ Platform / Infra Engineer",
-    ];
-  }
-
-  return unique;
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function makeId() {
@@ -125,122 +47,262 @@ export interface StepDirectionProps {
 }
 
 export function StepDirection({ onBack, onNext, userName }: StepDirectionProps) {
-  const { cvResult, chatMessages, addChatMessage, selectChip, setDirection, direction } =
-    useOnboardingStore();
+  const {
+    cvResult,
+    chatMessages,
+    addChatMessage,
+    selectChip,
+    setDirection,
+    direction,
+    setLocation,
+    intakePendingQuestions,
+    intakeComplete,
+    setIntakeSessionId,
+    setIntakePendingQuestions,
+    setIntakeClarificationRound,
+    setIntakeComplete,
+  } = useOnboardingStore();
 
-  const firstProject = cvResult?.projects[0];
+  const [isBotTyping, setIsBotTyping] = useState(false);
 
-  // Guards against double-init from React Strict Mode's cleanup/re-run cycle and
-  // from Zustand persist hydration transiently resetting chatMessages to [] after
-  // the first effect run (which would otherwise make length drop back to 0 and
-  // re-trigger the effect, producing duplicate greeting messages).
   const chatInitialized = useRef(false);
+  const sseSubscription = useRef<SSESubscription | null>(null);
+  // Stable ref to the latest handler so the one-time SSE subscription always
+  // calls the current closure (avoids stale chatMessages.length capture).
+  const handleSseEventRef = useRef<(event: AgentEvent) => void>(() => undefined);
+
+  // ── SSE event handler ──────────────────────────────────────────────────────
+
+  const handleSseEvent = useCallback(
+    (event: AgentEvent) => {
+      setIsBotTyping(false);
+
+      if (event.event_type === "clarification_required") {
+        const payload = event.payload as unknown as IntakeClarificationPayload;
+        const questions = payload.questions ?? [];
+        const round = payload.round ?? 1;
+        const suggestions = payload.career_path_suggestions ?? [];
+
+        setIntakeClarificationRound(round);
+        setIntakePendingQuestions(
+          questions.map((q) => ({
+            id: q.id,
+            question: q.question,
+            field_name: q.field_name,
+            priority: q.priority,
+          }))
+        );
+
+        if (round === 1) {
+          const safeUserName = escHtml(userName ?? "there");
+          const firstProject = cvResult?.projects[0];
+          const safeProjectName = firstProject?.name ? escHtml(firstProject.name) : null;
+
+          const greeting: OnboardingChatMessage = {
+            id: makeId(),
+            from: "twin",
+            content: `Hi <b>${safeUserName}</b> 👋 ${
+              safeProjectName
+                ? `I just finished reading your CV — really impressive work on <b>${safeProjectName}</b>.`
+                : "I just finished reading your CV — great background."
+            } Before we map out where you&apos;re going, I want to understand what you&apos;re <em>actually</em> looking for. A few quick questions:`,
+            timestamp: now(),
+          };
+          addChatMessage(greeting);
+
+          if (suggestions.length > 0) {
+            const pathMsg: OnboardingChatMessage = {
+              id: makeId(),
+              from: "twin",
+              content:
+                "Looking at your trajectory, <b>these paths seem strongest</b>. Which one excites you most? (You can pick one — or type your own below.)",
+              chips: suggestions.slice(0, 4),
+              selectedChip: null,
+              timestamp: now(),
+            };
+            addChatMessage(pathMsg);
+          } else if (questions.length > 0 && questions[0].field_name === "target_role") {
+            // No suggestions — show plain question for target_role
+            const q = questions[0];
+            const qMsg: OnboardingChatMessage = {
+              id: makeId(),
+              from: "twin",
+              content: q.question,
+              timestamp: now(),
+            };
+            addChatMessage(qMsg);
+          }
+        } else {
+          // Rounds 2+ — show question(s) directly
+          for (const q of questions) {
+            const isTimeline = q.field_name === "timeline_months";
+            const qMsg: OnboardingChatMessage = {
+              id: makeId(),
+              from: "twin",
+              content: q.question,
+              chips: isTimeline ? TIME_CHIPS : undefined,
+              selectedChip: isTimeline ? null : undefined,
+              timestamp: now(),
+            };
+            addChatMessage(qMsg);
+          }
+        }
+      } else if (event.event_type === "clarification_resolved") {
+        const payload = event.payload as unknown as IntakeResolvedPayload;
+        const suggestions = payload.career_path_suggestions ?? [];
+
+        setIntakeComplete(true);
+        setIntakePendingQuestions([]);
+
+        // If resolved on start (returning user / complete profile), still show path chips
+        if (chatMessages.length === 0 && suggestions.length > 0) {
+          const safeUserName = escHtml(userName ?? "there");
+          const greeting: OnboardingChatMessage = {
+            id: makeId(),
+            from: "twin",
+            content: `Welcome back, <b>${safeUserName}</b>! Your profile is up to date. Here are some directions we can explore:`,
+            timestamp: now(),
+          };
+          const pathMsg: OnboardingChatMessage = {
+            id: makeId(),
+            from: "twin",
+            content:
+              "Which path are you focusing on? (You can also type your own goal below.)",
+            chips: suggestions.slice(0, 4),
+            selectedChip: null,
+            timestamp: now(),
+          };
+          addChatMessage(greeting);
+          addChatMessage(pathMsg);
+        } else {
+          const readyMsg: OnboardingChatMessage = {
+            id: makeId(),
+            from: "twin",
+            content:
+              "I&apos;ve got everything I need. Click <b>Continue</b> below and I&apos;ll start building your personalised roadmap.",
+            timestamp: now(),
+          };
+          addChatMessage(readyMsg);
+        }
+      }
+    },
+    [
+      userName,
+      cvResult,
+      chatMessages.length,
+      addChatMessage,
+      setIntakeClarificationRound,
+      setIntakePendingQuestions,
+      setIntakeComplete,
+    ],
+  );
+
+  // Keep the ref in sync with the latest callback version.
+  useEffect(() => {
+    handleSseEventRef.current = handleSseEvent;
+  }, [handleSseEvent]);
+
+  // ── Mount: start intake ────────────────────────────────────────────────────
 
   useEffect(() => {
     if (chatInitialized.current || chatMessages.length > 0) return;
     chatInitialized.current = true;
 
-    const greetingId = makeId();
-    const pathId = makeId();
+    setIsBotTyping(true);
 
-    const safeUserName = escHtml(userName ?? "there");
-    const safeProjectName = firstProject?.name ? escHtml(firstProject.name) : null;
+    // Call intake/start first to get the session_id, then subscribe to SSE.
+    // The server writes events to an event_log replay list before publishing,
+    // so late subscribers still receive them via the replay mechanism in the
+    // stream controller.
+    intakeApi
+      .start()
+      .then(({ sessionId }) => {
+        setIntakeSessionId(sessionId);
+        const sub = subscribeToAgentStream(
+          sessionId,
+          (event) => handleSseEventRef.current(event),
+          (err) => {
+            setIsBotTyping(false);
+            addChatMessage({
+              id: makeId(),
+              from: "twin",
+              content: `I had trouble connecting — please refresh and try again. (${escHtml(err.message)})`,
+              timestamp: now(),
+            });
+          },
+          () => {
+            /* stream closed normally */
+          },
+        );
+        sseSubscription.current = sub;
+      })
+      .catch((err: unknown) => {
+        setIsBotTyping(false);
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        addChatMessage({
+          id: makeId(),
+          from: "twin",
+          content: `Something went wrong starting the intake. Please refresh. (${escHtml(msg)})`,
+          timestamp: now(),
+        });
+      });
 
-    const greeting: OnboardingChatMessage = {
-      id: greetingId,
-      from: "twin",
-      content: `Hi <b>${safeUserName}</b> 👋 ${
-        safeProjectName
-          ? `I just finished reading your CV — really impressive work on <b>${safeProjectName}</b>.`
-          : "I just finished reading your CV — great background."
-      } Before we map out where you&apos;re going, I want to understand what you&apos;re <em>actually</em> looking for. A few quick questions:`,
-      timestamp: now(),
+    return () => {
+      sseSubscription.current?.close();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const pathOptions = cvResult ? deriveCareerPaths(cvResult) : [];
-
-    const pathMsg: OnboardingChatMessage = {
-      id: pathId,
-      from: "twin",
-      content:
-        pathOptions.length > 0
-          ? "Looking at your trajectory, <b>these paths seem strongest</b>. Which one excites you most? (You can pick one — or type your own below.)"
-          : "What career path are you aiming for? Describe it in your own words — there's no wrong answer.",
-      chips: pathOptions.length > 0 ? pathOptions : undefined,
-      selectedChip: null,
-      timestamp: now(),
-    };
-
-    addChatMessage(greeting);
-    addChatMessage(pathMsg);
-  }, [chatMessages.length, addChatMessage, userName, cvResult, firstProject]);
-
-  const timelineMessageId = useMemo(
-    () => chatMessages.find((m) => m.chips?.some((c) => TIME_CHIPS.includes(c)))?.id,
-    [chatMessages],
-  );
+  // ── Chip selection ─────────────────────────────────────────────────────────
 
   const handleSelectChip = useCallback(
-    (messageId: string, chip: string) => {
+    async (messageId: string, chip: string) => {
       selectChip(messageId, chip);
 
-      const isPathMessage = chatMessages
-        .find((m) => m.id === messageId)
-        ?.chips?.some((c) => !TIME_CHIPS.includes(c));
+      const userMsg: OnboardingChatMessage = {
+        id: makeId(),
+        from: "user",
+        content: chip,
+        timestamp: now(),
+      };
+      addChatMessage(userMsg);
 
-      const isTimelineMessage = TIME_CHIPS.includes(chip);
+      const isTimeline = TIME_CHIPS.includes(chip);
 
-      if (isPathMessage) {
+      if (isTimeline) {
+        setDirection({ timelineMonths: TIMELINE_MAP[chip] ?? null });
+      } else {
+        // Treat as career path / goal selection
         setDirection({ goal: chip });
+      }
 
-        // Add user reply
-        const userMsg: OnboardingChatMessage = {
-          id: makeId(),
-          from: "user",
-          content: chip,
-          timestamp: now(),
-        };
-        addChatMessage(userMsg);
-
-        // Add twin follow-up with timeline chips (after brief delay)
-        if (!timelineMessageId) {
-          const twinMsg: OnboardingChatMessage = {
+      if (!intakeComplete) {
+        setIsBotTyping(true);
+        try {
+          await intakeApi.reply(chip);
+        } catch {
+          setIsBotTyping(false);
+        }
+      } else {
+        // Intake resolved — add a continuation message for timeline chips
+        if (isTimeline) {
+          addChatMessage({
             id: makeId(),
             from: "twin",
             content:
-              "Got it — noted. And what&apos;s your <b>time horizon?</b> Are you in a &quot;land a role soon&quot; mode, or building the strongest possible profile over twelve to eighteen months?",
-            chips: TIME_CHIPS,
-            selectedChip: null,
+              "Perfect — I&apos;ve noted your goal and timeline. Click <b>Continue</b> below to set your practical constraints.",
             timestamp: now(),
-          };
-          addChatMessage(twinMsg);
+          });
         }
-      } else if (isTimelineMessage) {
-        setDirection({ timelineMonths: TIMELINE_MAP[chip] ?? null });
-
-        const userMsg: OnboardingChatMessage = {
-          id: makeId(),
-          from: "user",
-          content: chip,
-          timestamp: now(),
-        };
-        addChatMessage(userMsg);
-
-        const twinMsg: OnboardingChatMessage = {
-          id: makeId(),
-          from: "twin",
-          content:
-            "Perfect — I&apos;ve noted your goal and timeline. Click <b>Continue</b> below to set your practical constraints and I&apos;ll start building your roadmap.",
-          timestamp: now(),
-        };
-        addChatMessage(twinMsg);
       }
     },
-    [chatMessages, selectChip, addChatMessage, setDirection, timelineMessageId],
+    [selectChip, addChatMessage, setDirection, intakeComplete],
   );
 
+  // ── Text input ─────────────────────────────────────────────────────────────
+
   const handleSend = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const userMsg: OnboardingChatMessage = {
         id: makeId(),
         from: "user",
@@ -249,29 +311,45 @@ export function StepDirection({ onBack, onNext, userName }: StepDirectionProps) 
       };
       addChatMessage(userMsg);
 
-      if (!direction.goal) {
+      // Optimistically set local direction fields based on pending question context
+      const pendingField = intakePendingQuestions[0]?.field_name;
+      if (pendingField === "target_role" || !direction.goal) {
         setDirection({ goal: text });
-        const twinMsg: OnboardingChatMessage = {
-          id: makeId(),
-          from: "twin",
-          content: `Great — <b>${text.slice(0, 80)}</b> is noted as your goal. What&apos;s your time horizon?`,
-          chips: TIME_CHIPS,
-          selectedChip: null,
-          timestamp: now(),
-        };
-        addChatMessage(twinMsg);
+      } else if (pendingField === "location") {
+        setLocation(text);
+      } else if (pendingField === "timeline_months") {
+        const months = parseInt(text, 10);
+        if (!isNaN(months)) setDirection({ timelineMonths: months });
+      }
+
+      if (!intakeComplete) {
+        setIsBotTyping(true);
+        try {
+          await intakeApi.reply(text);
+        } catch {
+          setIsBotTyping(false);
+          addChatMessage({
+            id: makeId(),
+            from: "twin",
+            content: "I had trouble processing that — please try again.",
+            timestamp: now(),
+          });
+        }
       } else {
-        const twinMsg: OnboardingChatMessage = {
+        addChatMessage({
           id: makeId(),
           from: "twin",
-          content: "Understood. Click <b>Continue</b> when you&apos;re ready to set your constraints.",
+          content: "Understood. Click <b>Continue</b> when you&apos;re ready.",
           timestamp: now(),
-        };
-        addChatMessage(twinMsg);
+        });
       }
     },
-    [addChatMessage, direction.goal, setDirection],
+    [addChatMessage, direction.goal, intakeComplete, intakePendingQuestions, setDirection, setLocation],
   );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const canContinue = !!(direction.goal || intakeComplete);
 
   return (
     <section>
@@ -297,6 +375,7 @@ export function StepDirection({ onBack, onNext, userName }: StepDirectionProps) 
           userName={userName}
           onSend={handleSend}
           onSelectChip={handleSelectChip}
+          isBotTyping={isBotTyping}
         />
         {cvResult && <CvContextCard cvResult={cvResult} userName={userName} />}
       </div>
@@ -310,16 +389,13 @@ export function StepDirection({ onBack, onNext, userName }: StepDirectionProps) 
           ← Back
         </button>
         <div className="flex items-center gap-3">
-          {!direction.goal && (
+          {!canContinue && (
             <button
               type="button"
-              onClick={() => {
-                setDirection({ goal: "AI Systems Engineer" });
-                onNext();
-              }}
+              onClick={onNext}
               className="text-[14px] font-medium text-green transition-colors hover:text-green-2"
             >
-              Skip — let AI suggest 3 paths
+              Skip — let AI decide
             </button>
           )}
           <button
@@ -337,4 +413,3 @@ export function StepDirection({ onBack, onNext, userName }: StepDirectionProps) 
     </section>
   );
 }
-

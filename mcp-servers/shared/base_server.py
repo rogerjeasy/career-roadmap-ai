@@ -263,6 +263,7 @@ class MCPApp:
 
         except Exception as exc:
             self._rpc_requests.labels(method=method or "unknown", status="internal_error").inc()
+            _capture_exception(exc)
             logger.error(
                 "mcp.tool_call_internal_error",
                 server_id=self.server_id,
@@ -277,6 +278,23 @@ class MCPApp:
                     "Internal server error",
                 )
             )
+
+
+# ── Sentry capture helper ─────────────────────────────────────────────────────
+
+
+def _capture_exception(exc: BaseException) -> None:
+    """Forward an unhandled exception to Sentry.
+
+    Called explicitly for exceptions caught-and-swallowed inside the JSON-RPC
+    dispatcher, which never reach the Starlette error handler that the Sentry
+    FastAPI integration hooks into.
+    """
+    try:
+        import sentry_sdk
+        sentry_sdk.capture_exception(exc)
+    except ImportError:
+        pass
 
 
 # ── Logging / tracing / Sentry setup ─────────────────────────────────────────

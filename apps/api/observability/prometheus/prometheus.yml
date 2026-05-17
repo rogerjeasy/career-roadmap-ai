@@ -5,14 +5,38 @@ global:
     service: career-roadmap-api
     environment: development
 
+# ── Alert rule files ───────────────────────────────────────────────────────────
+# Mounted from infrastructure/monitoring/ into /etc/prometheus/rules/
+rule_files:
+  - /etc/prometheus/rules/l1_alerts.yml
+  - /etc/prometheus/rules/l1_recording_rules.yml
+  - /etc/prometheus/rules/l2_alerts.yml
+  - /etc/prometheus/rules/l2_recording_rules.yml
+  - /etc/prometheus/rules/l3_alerts.yml
+  - /etc/prometheus/rules/l3_recording_rules.yml
+  - /etc/prometheus/rules/l4_alerts.yml
+  - /etc/prometheus/rules/l4_recording_rules.yml
+  - /etc/prometheus/rules/rag_alerts.yml
+  - /etc/prometheus/rules/rag_recording_rules.yml
+
+# ── Alertmanager ───────────────────────────────────────────────────────────────
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+      timeout: 10s
+
+# ── Scrape configs ─────────────────────────────────────────────────────────────
 
 scrape_configs:
+  # L1 — FastAPI API gateway
   - job_name: career-roadmap-api
     static_configs:
       - targets: ["host.docker.internal:8000"]
     metrics_path: /metrics
     scrape_interval: 10s
 
+  # Infrastructure exporters
   - job_name: redis
     static_configs:
       - targets: ["redis-exporter:9121"]
@@ -32,7 +56,7 @@ scrape_configs:
     metrics_path: /metrics
     scrape_interval: 15s
 
-  # Celery workers push agent/LLM/MCP metrics here after each agent invocation.
+  # L3/L5 — Celery workers push agent/RAG metrics here after each invocation.
   # honor_labels preserves the job="career-agents" label pushed by the workers.
   - job_name: pushgateway
     static_configs:
@@ -40,6 +64,29 @@ scrape_configs:
     honor_labels: true
     scrape_interval: 15s
 
+  # L4 — MCP tool servers (9 servers, ports 3001-3009)
+  # Each server exposes GET /metrics via prometheus_client.
+  # host.docker.internal resolves to the Docker host on Linux (extra_hosts) and
+  # automatically on Windows/Mac Docker Desktop.
+  - job_name: mcp-servers
+    static_configs:
+      - targets:
+          - "host.docker.internal:3001"  # job-board
+          - "host.docker.internal:3002"  # course-catalogue
+          - "host.docker.internal:3003"  # salary-benchmark
+          - "host.docker.internal:3004"  # github-trends
+          - "host.docker.internal:3005"  # social-signals
+          - "host.docker.internal:3006"  # calendar
+          - "host.docker.internal:3007"  # industry-news
+          - "host.docker.internal:3008"  # linkedin-profile
+          - "host.docker.internal:3009"  # document-store
+    metrics_path: /metrics
+    scrape_interval: 15s
+
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]

@@ -1,0 +1,135 @@
+groups:
+  - name: l4_mcp_availability_alerts
+    rules:
+      - alert: MCPServerDown
+        expr: up{job="mcp-servers"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: mcp
+        annotations:
+          summary: "MCP server {{ $labels.instance }} is unreachable"
+          description: >
+            Prometheus cannot scrape the /metrics endpoint on MCP server
+            {{ $labels.instance }}. Agent tool calls to this server will fail
+            or be blocked by the circuit breaker. Check the server process and
+            port binding.
+          runbook: "https://docs.internal/runbooks/mcp-server-down"
+
+  - name: l4_mcp_circuit_breaker_alerts
+    rules:
+      - alert: MCPCircuitBreakerOpen
+        expr: mcp_circuit_breaker_state > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: mcp
+        annotations:
+          summary: "MCP circuit breaker OPEN on {{ $labels.server_id }}/{{ $labels.dependency }}"
+          description: >
+            The circuit breaker for {{ $labels.dependency }} on
+            {{ $labels.server_id }} is in state
+            {{ if eq $value 1.0 }}OPEN{{ else }}HALF-OPEN{{ end }}.
+            All tool calls to this dependency are being rejected immediately.
+            Check external API status (job boards, LinkedIn, GitHub, etc.) and
+            `mcp.circuit_breaker.*` log events for the root cause.
+          runbook: "https://docs.internal/runbooks/mcp-circuit-breaker-open"
+
+      - alert: MCPCircuitBreakerTripRate
+        expr: |
+          sum(rate(mcp_circuit_breaker_trips_total[15m])) by (server_id, dependency) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: mcp
+        annotations:
+          summary: "MCP circuit breaker tripping frequently on {{ $labels.server_id }}/{{ $labels.dependency }}"
+          description: >
+            The circuit breaker for {{ $labels.dependency }} on
+            {{ $labels.server_id }} is tripping more than 0.1 times per second
+            over the last 15 minutes. The underlying dependency is flapping.
+            Consider increasing the failure threshold or reviewing retry logic.
+          runbook: "https://docs.internal/runbooks/mcp-circuit-breaker-tripping"
+
+  - name: l4_mcp_error_rate_alerts
+    rules:
+      - alert: MCPToolHighErrorRate
+        expr: |
+          sum(rate(mcp_tool_audit_events_total{outcome="error"}[5m])) by (server_id, tool)
+          /
+          (sum(rate(mcp_tool_audit_events_total[5m])) by (server_id, tool) + 1)
+          > 0.1
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+          component: mcp
+        annotations:
+          summary: "MCP tool {{ $labels.tool }} on {{ $labels.server_id }} error rate > 10%"
+          description: >
+            Tool {{ $labels.tool }} on {{ $labels.server_id }} has a
+            {{ $value | humanizePercentage }} error rate over the last 5 minutes.
+            Check `mcp.tool_call_internal_error` logs and Sentry for the root
+            cause. External API quota exhaustion is a common culprit.
+          runbook: "https://docs.internal/runbooks/mcp-tool-error-rate"
+
+      - alert: MCPToolInternalErrors
+        expr: |
+          sum(rate(mcp_tool_audit_events_total{outcome="error"}[5m])) by (server_id) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          component: mcp
+        annotations:
+          summary: "MCP server {{ $labels.server_id }} generating internal errors"
+          description: >
+            More than 0.5 internal errors per second from {{ $labels.server_id }}.
+            These errors are caught-and-swallowed by the JSON-RPC dispatcher and
+            are now captured to Sentry. Check Sentry for the exception type and
+            `mcp.tool_call_internal_error` structured log events.
+          runbook: "https://docs.internal/runbooks/mcp-internal-errors"
+
+  - name: l4_mcp_latency_alerts
+    rules:
+      - alert: MCPToolHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(mcp_tool_audit_events_total[5m])) by (server_id, le)
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: mcp
+        annotations:
+          summary: "MCP server {{ $labels.server_id }} p95 tool latency > 10 s"
+          description: >
+            95th percentile tool call latency on {{ $labels.server_id }} has
+            exceeded 10 seconds. Tool calls approaching the 30s timeout
+            (MCP_REQUEST_TIMEOUT_S). Check upstream API latency and whether
+            the circuit breaker threshold should be lowered.
+          runbook: "https://docs.internal/runbooks/mcp-high-latency"
+
+  - name: l4_mcp_rate_limit_alerts
+    rules:
+      - alert: MCPRateLimitingHigh
+        expr: |
+          sum(rate(mcp_tool_audit_events_total{outcome="rate_limited"}[5m])) by (server_id, tool) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: mcp
+        annotations:
+          summary: "MCP tool {{ $labels.tool }} on {{ $labels.server_id }} hitting rate limits"
+          description: >
+            More than 1 rate-limited call per second for tool {{ $labels.tool }}
+            on {{ $labels.server_id }}. External API quota may be insufficient
+            for current traffic. Consider request throttling, caching, or
+            upgrading the external API plan.
+          runbook: "https://docs.internal/runbooks/mcp-rate-limited"

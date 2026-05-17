@@ -27,11 +27,15 @@ from google.cloud.firestore_v1.async_document import AsyncDocumentReference
 
 from src.core.logging import get_logger
 from src.domains.roadmap.schemas import (
+    ActionItem,
+    LearningResource,
     NextStep,
     RoadmapDocument,
     RoadmapPhase,
     RoadmapSummary,
+    SkillItem,
     WeeklyHabit,
+    WeeklyTask,
 )
 
 logger = get_logger(__name__)
@@ -40,6 +44,7 @@ _COL_ROADMAPS = "roadmaps"
 _COL_PHASES = "phases"
 _COL_WEEKLY_HABITS = "weekly_habits"
 _COL_NEXT_STEPS = "next_steps"
+_COL_MARKET_DATA = "market_data"
 
 
 class FirestoreRoadmapRepository:
@@ -72,6 +77,7 @@ class FirestoreRoadmapRepository:
             "unverified_claims": doc.unverified_claims,
             "duration_ms": doc.duration_ms,
             "phase_count": len(doc.phases),
+            "market_grounding": doc.market_grounding,
             "created_at": doc.created_at,
             "deleted_at": None,
         })
@@ -81,15 +87,73 @@ class FirestoreRoadmapRepository:
             batch.set(ref, {
                 "order": phase.order,
                 "title": phase.title,
+                "description": phase.description,
                 "duration_weeks": phase.duration_weeks,
+                "goals": phase.goals,
                 "milestones": phase.milestones,
                 "skills_to_gain": phase.skills_to_gain,
+                "skills": [
+                    {"text": s.text, "is_priority": s.is_priority, "display_order": s.display_order}
+                    for s in phase.skills
+                ],
+                "actions": [
+                    {"text": a.text, "sub_text": a.sub_text, "display_order": a.display_order}
+                    for a in phase.actions
+                ],
+                "gaps_addressed": phase.gaps_addressed,
+                "market_relevance": phase.market_relevance,
+                "difficulty": phase.difficulty,
+                "deliverables": phase.deliverables,
                 "confidence": phase.confidence,
+                "resources": [
+                    {
+                        "title": r.title,
+                        "resource_type": r.resource_type,
+                        "provider": r.provider,
+                        "difficulty": r.difficulty,
+                        "tags": r.tags,
+                        "url": r.url,
+                        "estimated_hours": r.estimated_hours,
+                        "is_free": r.is_free,
+                        "description": r.description,
+                    }
+                    for r in phase.resources
+                ],
+                "curated_resources": [
+                    {
+                        "title": r.title,
+                        "resource_type": r.resource_type,
+                        "provider": r.provider,
+                        "difficulty": r.difficulty,
+                        "tags": r.tags,
+                        "url": r.url,
+                        "estimated_hours": r.estimated_hours,
+                        "is_free": r.is_free,
+                        "description": r.description,
+                    }
+                    for r in phase.curated_resources
+                ],
+                "weekly_tasks": [
+                    {
+                        "week_number": t.week_number,
+                        "focus_area": t.focus_area,
+                        "tasks": t.tasks,
+                        "estimated_hours": t.estimated_hours,
+                        "deliverable": t.deliverable,
+                    }
+                    for t in phase.weekly_tasks
+                ],
             })
 
         for habit in doc.weekly_habits:
             ref = roadmap_ref.collection(_COL_WEEKLY_HABITS).document(habit.id)
-            batch.set(ref, {"order": habit.order, "text": habit.text})
+            batch.set(ref, {
+                "order": habit.order,
+                "text": habit.text,
+                "frequency": habit.frequency,
+                "duration_minutes": habit.duration_minutes,
+                "rationale": habit.rationale,
+            })
 
         for step in doc.next_steps:
             ref = roadmap_ref.collection(_COL_NEXT_STEPS).document(step.id)
@@ -115,6 +179,7 @@ class FirestoreRoadmapRepository:
         phases = await self._load_phases(ref)
         habits = await self._load_habits(ref)
         steps = await self._load_next_steps(ref)
+        market_grounding = await self._load_market_grounding(ref)
 
         return RoadmapDocument(
             id=snap.id,
@@ -127,6 +192,7 @@ class FirestoreRoadmapRepository:
             validation_passed=data.get("validation_passed", True),
             unverified_claims=data.get("unverified_claims", []),
             duration_ms=data.get("duration_ms", 0),
+            market_grounding=data.get("market_grounding") or market_grounding,
             phases=phases,
             weekly_habits=habits,
             next_steps=steps,
@@ -242,14 +308,84 @@ class FirestoreRoadmapRepository:
         phases: list[RoadmapPhase] = []
         async for snap in roadmap_ref.collection(_COL_PHASES).order_by("order").stream():
             d: dict = snap.to_dict() or {}
+
+            resources = [
+                LearningResource(
+                    title=r.get("title", ""),
+                    resource_type=r.get("resource_type", "tutorial"),
+                    provider=r.get("provider", ""),
+                    difficulty=r.get("difficulty", "intermediate"),
+                    tags=r.get("tags", []),
+                    url=r.get("url"),
+                    estimated_hours=r.get("estimated_hours"),
+                    is_free=bool(r.get("is_free", True)),
+                    description=r.get("description", ""),
+                )
+                for r in d.get("resources", [])
+            ]
+            curated_resources = [
+                LearningResource(
+                    title=r.get("title", ""),
+                    resource_type=r.get("resource_type", "tutorial"),
+                    provider=r.get("provider", ""),
+                    difficulty=r.get("difficulty", "intermediate"),
+                    tags=r.get("tags", []),
+                    url=r.get("url"),
+                    estimated_hours=r.get("estimated_hours"),
+                    is_free=bool(r.get("is_free", True)),
+                    description=r.get("description", ""),
+                )
+                for r in d.get("curated_resources", [])
+            ]
+            weekly_tasks = [
+                WeeklyTask(
+                    week_number=int(t.get("week_number", 0)),
+                    focus_area=t.get("focus_area", ""),
+                    tasks=t.get("tasks", []),
+                    estimated_hours=float(t.get("estimated_hours", 0)),
+                    deliverable=t.get("deliverable"),
+                )
+                for t in d.get("weekly_tasks", [])
+            ]
+
+            skills = [
+                SkillItem(
+                    text=s.get("text", ""),
+                    is_priority=bool(s.get("is_priority", False)),
+                    display_order=int(s.get("display_order", i)),
+                )
+                for i, s in enumerate(d.get("skills", []))
+                if isinstance(s, dict)
+            ]
+            actions = [
+                ActionItem(
+                    text=a.get("text", ""),
+                    sub_text=a.get("sub_text", ""),
+                    display_order=int(a.get("display_order", i)),
+                )
+                for i, a in enumerate(d.get("actions", []))
+                if isinstance(a, dict)
+            ]
+
             phases.append(RoadmapPhase(
                 id=snap.id,
                 order=d["order"],
-                title=d["title"],
-                duration_weeks=d["duration_weeks"],
+                title=d.get("title", ""),
+                description=d.get("description", ""),
+                duration_weeks=d.get("duration_weeks", 0),
+                goals=d.get("goals", []),
                 milestones=d.get("milestones", []),
                 skills_to_gain=d.get("skills_to_gain", []),
+                skills=skills,
+                actions=actions,
+                gaps_addressed=d.get("gaps_addressed", []),
+                market_relevance=d.get("market_relevance", ""),
+                difficulty=d.get("difficulty", "intermediate"),
+                deliverables=d.get("deliverables", []),
                 confidence=d.get("confidence", 1.0),
+                resources=resources,
+                curated_resources=curated_resources,
+                weekly_tasks=weekly_tasks,
             ))
         return phases
 
@@ -257,7 +393,14 @@ class FirestoreRoadmapRepository:
         habits: list[WeeklyHabit] = []
         async for snap in roadmap_ref.collection(_COL_WEEKLY_HABITS).order_by("order").stream():
             d: dict = snap.to_dict() or {}
-            habits.append(WeeklyHabit(id=snap.id, order=d["order"], text=d["text"]))
+            habits.append(WeeklyHabit(
+                id=snap.id,
+                order=d["order"],
+                text=d.get("text", ""),
+                frequency=d.get("frequency", "daily"),
+                duration_minutes=int(d.get("duration_minutes", 0)),
+                rationale=d.get("rationale", ""),
+            ))
         return habits
 
     async def _load_next_steps(self, roadmap_ref: AsyncDocumentReference) -> list[NextStep]:
@@ -266,3 +409,13 @@ class FirestoreRoadmapRepository:
             d: dict = snap.to_dict() or {}
             steps.append(NextStep(id=snap.id, order=d["order"], action=d["action"]))
         return steps
+
+    async def _load_market_grounding(self, roadmap_ref: AsyncDocumentReference) -> dict:
+        """Load market intelligence from its subcollection snapshot, if present."""
+        try:
+            snap = await roadmap_ref.collection(_COL_MARKET_DATA).document("snapshot").get()
+            if snap.exists:
+                return snap.to_dict() or {}
+        except Exception:
+            pass
+        return {}

@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { fixMojibake } from "@/lib/utils";
 import type {
   CvAnalysisResult,
+  IntakeClarificationQuestion,
   LocationPreference,
   OnboardingChatMessage,
   OnboardingConstraints,
@@ -28,6 +29,10 @@ interface OnboardingState {
   chatMessages: OnboardingChatMessage[];
   generationRequestId: string | null;
   generationSessionId: string | null;
+  intakeSessionId: string | null;
+  intakePendingQuestions: IntakeClarificationQuestion[];
+  intakeClarificationRound: number;
+  intakeComplete: boolean;
 
   setStep: (step: OnboardingStep) => void;
   setCvResult: (result: CvAnalysisResult | null) => void;
@@ -42,6 +47,10 @@ interface OnboardingState {
   addChatMessage: (msg: OnboardingChatMessage) => void;
   selectChip: (messageId: string, chip: string) => void;
   setGenerationIds: (requestId: string, sessionId: string) => void;
+  setIntakeSessionId: (id: string | null) => void;
+  setIntakePendingQuestions: (questions: IntakeClarificationQuestion[]) => void;
+  setIntakeClarificationRound: (round: number) => void;
+  setIntakeComplete: (complete: boolean) => void;
   /** Clears all state accumulated AFTER the CV step (direction, constraints,
    *  chat, generation IDs) without touching `step` or `cvResult`. Call this
    *  whenever a new CV is uploaded so steps 3–5 start from a clean slate. */
@@ -59,9 +68,22 @@ export const useOnboardingStore = create<OnboardingState>()(
       chatMessages: [],
       generationRequestId: null,
       generationSessionId: null,
+      intakeSessionId: null,
+      intakePendingQuestions: [],
+      intakeClarificationRound: 0,
+      intakeComplete: false,
 
       setStep: (step) => set({ step }),
-      setCvResult: (cvResult) => set({ cvResult }),
+      setCvResult: (cvResult) =>
+        set((s) => ({
+          cvResult,
+          // Pre-fill location from CV when the field exists and the user hasn't
+          // typed one manually yet (don't overwrite an existing entry).
+          constraints:
+            cvResult?.location && !s.constraints.location
+              ? { ...s.constraints, location: cvResult.location }
+              : s.constraints,
+        })),
       setDirection: (patch) =>
         set((s) => ({ direction: { ...s.direction, ...patch } })),
       setWeeklyHours: (weeklyHours) =>
@@ -95,6 +117,10 @@ export const useOnboardingStore = create<OnboardingState>()(
         })),
       setGenerationIds: (generationRequestId, generationSessionId) =>
         set({ generationRequestId, generationSessionId }),
+      setIntakeSessionId: (intakeSessionId) => set({ intakeSessionId }),
+      setIntakePendingQuestions: (intakePendingQuestions) => set({ intakePendingQuestions }),
+      setIntakeClarificationRound: (intakeClarificationRound) => set({ intakeClarificationRound }),
+      setIntakeComplete: (intakeComplete) => set({ intakeComplete }),
       resetDownstreamSteps: () =>
         set({
           direction: { goal: "", timelineMonths: null },
@@ -102,6 +128,10 @@ export const useOnboardingStore = create<OnboardingState>()(
           chatMessages: [],
           generationRequestId: null,
           generationSessionId: null,
+          intakeSessionId: null,
+          intakePendingQuestions: [],
+          intakeClarificationRound: 0,
+          intakeComplete: false,
         }),
       reset: () =>
         set({
@@ -112,11 +142,15 @@ export const useOnboardingStore = create<OnboardingState>()(
           chatMessages: [],
           generationRequestId: null,
           generationSessionId: null,
+          intakeSessionId: null,
+          intakePendingQuestions: [],
+          intakeClarificationRound: 0,
+          intakeComplete: false,
         }),
     }),
     {
       name: "crai-onboarding",
-      version: 2,
+      version: 3,
       migrate(persisted, fromVersion) {
         const s = persisted as Partial<OnboardingState>;
 
@@ -125,6 +159,14 @@ export const useOnboardingStore = create<OnboardingState>()(
         // StepDirection re-seeds the chat on next mount via the useRef guard.
         if (fromVersion < 2) {
           s.chatMessages = [];
+        }
+
+        // v2 → v3: add intake state fields introduced for SSE-driven clarification flow.
+        if (fromVersion < 3) {
+          s.intakeSessionId = null;
+          s.intakePendingQuestions = [];
+          s.intakeClarificationRound = 0;
+          s.intakeComplete = false;
         }
 
         if (s.direction?.goal) {
@@ -138,7 +180,7 @@ export const useOnboardingStore = create<OnboardingState>()(
             selectedChip: m.selectedChip ? fixMojibake(m.selectedChip) : m.selectedChip,
           }));
         }
-        return s;
+        return s as OnboardingState;
       },
       partialize: (s) => ({
         step: s.step,
@@ -148,6 +190,10 @@ export const useOnboardingStore = create<OnboardingState>()(
         chatMessages: s.chatMessages,
         generationRequestId: s.generationRequestId,
         generationSessionId: s.generationSessionId,
+        intakeSessionId: s.intakeSessionId,
+        intakePendingQuestions: s.intakePendingQuestions,
+        intakeClarificationRound: s.intakeClarificationRound,
+        intakeComplete: s.intakeComplete,
       }),
     },
   ),

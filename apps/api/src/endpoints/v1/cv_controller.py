@@ -133,6 +133,7 @@ async def upload_cv(
             session = await mgr.get_or_create(user.uid, user.email)
             profile = session.user_profile_context or UserProfileContext()
             profile.additional["cv_text"] = cv_text[:14_000]  # match LLM context cap
+            profile.additional["career_path_suggestions"] = result.career_path_suggestions
             await mgr.set_user_profile_context(user.uid, profile, user.email)
             logger.info(
                 "cv.text_stored_in_session",

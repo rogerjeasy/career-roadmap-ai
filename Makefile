@@ -1,15 +1,20 @@
 # Career Roadmap AI — monorepo task runner
 #
 # Usage:
-#   make install        → full first-time setup (agents + api + web)
-#   make dev            → start Docker infra + API dev server
-#   make dev-full       → infra + gateway + observability + API (everything)
-#   make gateway-up     → start Kong API Gateway only
-#   make gateway-obs-up → start Kong + full observability stack
-#   make worker         → start Celery worker
-#   make test           → run all test suites
-#   make lint           → lint all packages
-#   make help           → list all targets
+#   make install           → full first-time setup (agents + api + web)
+#   make dev               → start Docker infra + API dev server
+#   make dev-full          → infra + gateway + observability + API (everything)
+#   make gateway-up        → start Kong API Gateway only
+#   make gateway-obs-up    → start Kong + full observability stack (incl. Alertmanager)
+#   make worker            → start Celery worker
+#   make obs-status        → health-check all observability containers
+#   make obs-reload        → hot-reload Prometheus config + rules (no restart)
+#   make alertmanager-reload → hot-reload Alertmanager routing config
+#   make prom-check        → validate prometheus.yml before reloading
+#   make mcp-metrics       → smoke-test /metrics on all 9 MCP servers
+#   make test              → run all test suites
+#   make lint              → lint all packages
+#   make help              → list all targets
 #
 # Prerequisites: Python 3.12+, Poetry 2+, Docker Desktop, Node.js 20+
 
@@ -17,8 +22,9 @@
         dev dev-full \
         infra-up infra-down \
         gateway-up gateway-down gateway-reload gateway-logs gateway-admin \
-        obs-up obs-down \
+        obs-up obs-down obs-status obs-reload prom-check alertmanager-reload \
         gateway-obs-up gateway-obs-down \
+        mcp-metrics \
         deck-diff deck-sync \
         worker worker-purge worker-flush \
         mcp-start mcp-stop mcp-status mcp-all \
@@ -154,14 +160,16 @@ gateway-admin:  ## Smoke-test the Kong Admin API (lists all routes)
 
 # ── Observability stack ───────────────────────────────────────────────────────
 
-obs-up: infra-up  ## Start observability stack (Tempo + Prometheus + Loki + Grafana)
+obs-up: infra-up  ## Start observability stack (Tempo + Prometheus + Alertmanager + Loki + Grafana)
 	$(COMPOSE) --profile observability up -d
 	@echo ""
 	@echo "Observability stack started:"
-	@echo "  Grafana    → http://localhost:3300"
-	@echo "  Prometheus → http://localhost:9090"
-	@echo "  Tempo      → http://localhost:3200"
-	@echo "  Loki       → http://localhost:3100"
+	@echo "  Grafana      → http://localhost:3300"
+	@echo "  Prometheus   → http://localhost:9090"
+	@echo "  Alertmanager → http://localhost:9093  (fill in alertmanager.yml to enable notifications)"
+	@echo "  Tempo        → http://localhost:3200"
+	@echo "  Loki         → http://localhost:3100"
+	@echo "  Pushgateway  → http://localhost:9091  (Celery workers push agent metrics here)"
 	@echo ""
 	@echo "Enable tracing in .env:"
 	@echo "  OTEL_TRACING_ENABLED=true"
@@ -170,13 +178,35 @@ obs-up: infra-up  ## Start observability stack (Tempo + Prometheus + Loki + Graf
 obs-down:  ## Stop observability stack only
 	$(COMPOSE) --profile observability stop
 
+obs-status:  ## Health-check all observability containers
+	@echo "=== Observability container health ==="
+	@docker inspect --format "{{.Name}}  {{.State.Status}}  ({{.State.Health.Status}})" \
+		crai-prometheus crai-alertmanager crai-grafana crai-loki crai-tempo \
+		crai-pushgateway crai-redis-exporter crai-postgres-exporter crai-promtail \
+		2>/dev/null | sed 's|/||' || echo "One or more containers not found — run make gateway-obs-up first"
+
+obs-reload:  ## Hot-reload Prometheus config + alert rules without restart (requires running stack)
+	@echo "Reloading Prometheus config..."
+	@curl -sf -X POST http://localhost:9090/-/reload && echo "Prometheus config reloaded." \
+		|| echo "Failed — is Prometheus running? (make gateway-obs-up)"
+
+prom-check:  ## Validate prometheus.yml syntax before reloading
+	@docker exec crai-prometheus promtool check config /etc/prometheus/prometheus.yml \
+		|| echo "Validation failed — fix prometheus.yml before reloading"
+
+alertmanager-reload:  ## Hot-reload Alertmanager routing config without restart
+	@echo "Reloading Alertmanager config..."
+	@curl -sf -X POST http://localhost:9093/-/reload && echo "Alertmanager config reloaded." \
+		|| echo "Failed — is Alertmanager running? (make gateway-obs-up)"
+
 gateway-obs-up: obs-up  ## Start Kong (always-on) + full observability stack together
 	@echo ""
 	@echo "Kong + Observability running:"
-	@echo "  Kong proxy  → http://localhost:8080"
-	@echo "  Grafana     → http://localhost:3300  (Kong dashboard: uid=kong-gateway)"
-	@echo "  Prometheus  → http://localhost:9090"
-	@echo "  Tempo       → http://localhost:3200"
+	@echo "  Kong proxy   → http://localhost:8080"
+	@echo "  Grafana      → http://localhost:3300  (Kong dashboard: uid=kong-gateway)"
+	@echo "  Prometheus   → http://localhost:9090  (targets: api, kong, redis, postgres, 9 MCP servers)"
+	@echo "  Alertmanager → http://localhost:9093"
+	@echo "  Tempo        → http://localhost:3200"
 
 gateway-obs-down:  ## Stop observability stack (Kong stays running with infra)
 	$(COMPOSE) --profile observability down
@@ -226,10 +256,13 @@ web-lint:  ## Lint frontend code
 # ── MCP Servers ───────────────────────────────────────────────────────────────
 # All 9 MCP servers share apps/api/.venv (no separate 'poetry install' needed).
 # Set MCP_*_URL vars in apps/api/.env to route agents to the live servers.
+# Each server exposes /metrics (Prometheus), /livez, and /readyz.
+# Prometheus scrapes all 9 via the mcp-servers job (ports 3001-3009).
 #
 # Recommended workflow on Windows:
 #   make mcp-start    → start all 9 servers in the background (logs in logs/mcp/)
 #   make mcp-status   → health check all 9 servers
+#   make mcp-metrics  → smoke-test /metrics endpoint on all 9 servers
 #   make mcp-stop     → stop all 9 servers
 #
 # Individual one-shot servers (foreground, for debugging):
@@ -239,7 +272,13 @@ MCP_SCRIPT_START  := powershell.exe -NoProfile -ExecutionPolicy Bypass -File scr
 MCP_SCRIPT_STOP   := powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/stop-mcp-servers.ps1
 MCP_SCRIPT_STATUS := powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/status-mcp-servers.ps1
 
-mcp-start:  ## Start all 6 MCP servers in background (logs → logs/mcp/<name>.log)
+mcp-metrics:  ## Smoke-test /metrics endpoint on all 9 MCP servers
+	@for port in 3001 3002 3003 3004 3005 3006 3007 3008 3009; do \
+		status=$$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:$$port/metrics 2>/dev/null && echo UP || echo DOWN); \
+		printf "  :%-5s  %s\n" $$port $$status; \
+	done
+
+mcp-start:  ## Start all 9 MCP servers in background (logs → logs/mcp/<name>.log)
 	$(MCP_SCRIPT_START) -WaitForHealth
 
 mcp-stop:  ## Stop all running MCP servers

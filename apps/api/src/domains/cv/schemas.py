@@ -55,6 +55,8 @@ class CvAnalysisResult(BaseModel):
     years_of_experience: int = 0
     current_role: str | None = None
     summary: str | None = None
+    location: str | None = None
+    career_path_suggestions: list[str] = []
 
     @computed_field  # type: ignore[prop-decorator]
     @property

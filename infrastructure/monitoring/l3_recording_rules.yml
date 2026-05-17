@@ -1,0 +1,70 @@
+groups:
+  - name: l3_agent_recording_rules
+    interval: 60s
+    rules:
+      # ── Agent success ratio per agent ─────────────────────────────────────────
+
+      - record: career_agents:agent_success_ratio:rate10m
+        expr: |
+          sum(rate(agent_invocations_total{outcome="success"}[10m])) by (agent_name)
+          /
+          sum(rate(agent_invocations_total[10m])) by (agent_name)
+
+      # ── Agent error ratio per agent ───────────────────────────────────────────
+
+      - record: career_agents:agent_error_ratio:rate10m
+        expr: |
+          sum(rate(agent_invocations_total{outcome="error"}[10m])) by (agent_name)
+          /
+          sum(rate(agent_invocations_total[10m])) by (agent_name)
+
+      # ── Agent p50 / p95 / p99 duration ───────────────────────────────────────
+
+      - record: career_agents:agent_duration_p50:rate10m
+        expr: |
+          histogram_quantile(
+            0.50,
+            sum(rate(agent_duration_seconds_bucket[10m])) by (agent_name, le)
+          )
+
+      - record: career_agents:agent_duration_p95:rate10m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(agent_duration_seconds_bucket[10m])) by (agent_name, le)
+          )
+
+      - record: career_agents:agent_duration_p99:rate10m
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(agent_duration_seconds_bucket[10m])) by (agent_name, le)
+          )
+
+      # ── Overall agent throughput ──────────────────────────────────────────────
+
+      - record: career_agents:agent_invocation_rate:rate5m
+        expr: |
+          sum(rate(agent_invocations_total[5m])) by (agent_name, outcome)
+
+      # ── LLM token consumption rate by model and direction ─────────────────────
+
+      - record: career_agents:llm_token_rate:rate5m
+        expr: |
+          sum(rate(llm_tokens_total[5m])) by (model, direction)
+
+      # ── LLM output-to-input token ratio ──────────────────────────────────────
+
+      - record: career_agents:llm_output_input_ratio:rate10m
+        expr: |
+          rate(llm_tokens_total{direction="output"}[10m])
+          /
+          (rate(llm_tokens_total{direction="input"}[10m]) + 1)
+
+      # ── Clarification resolution rate ─────────────────────────────────────────
+
+      - record: career_agents:clarification_resolved_ratio:rate30m
+        expr: |
+          rate(agent_invocations_total{agent_name="clarification",outcome="success"}[30m])
+          /
+          rate(agent_invocations_total{agent_name="clarification"}[30m])

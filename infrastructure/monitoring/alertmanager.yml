@@ -1,0 +1,99 @@
+global:
+  resolve_timeout: 5m
+  # SMTP configuration — fill in for email notifications
+  # smtp_smarthost: "smtp.example.com:587"
+  # smtp_from: "alerts@career-roadmap.ai"
+  # smtp_auth_username: "alerts@career-roadmap.ai"
+  # smtp_auth_password: "<SMTP_PASSWORD>"
+
+# ── Notification templates ─────────────────────────────────────────────────────
+# templates:
+#   - /etc/alertmanager/templates/*.tmpl
+
+# ── Routing tree ───────────────────────────────────────────────────────────────
+route:
+  receiver: devnull               # default: silence until credentials are wired up
+  group_by: [alertname, severity, component]
+  group_wait: 30s                 # wait before sending first alert in a group
+  group_interval: 5m              # how long to wait before re-sending a group
+  repeat_interval: 4h             # how long before re-sending a resolved alert
+
+  routes:
+    # Critical alerts → oncall (PagerDuty / Slack #incidents)
+    - match:
+        severity: critical
+      receiver: oncall
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: true              # also send to devnull so we see it in the UI
+
+    # Warning alerts → team Slack channel
+    - match:
+        severity: warning
+      receiver: team-slack
+      repeat_interval: 4h
+
+    # MLOps-owned alerts → separate Slack channel
+    - match:
+        team: mlops
+      receiver: mlops-slack
+      repeat_interval: 4h
+
+# ── Inhibition rules ───────────────────────────────────────────────────────────
+inhibit_rules:
+  # Suppress warning-level alerts when a critical alert fires for the same
+  # component — avoids alert fatigue during outages.
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: [component]
+
+  # Suppress all L4 MCP alerts when L1 API is down — MCP errors are
+  # secondary when the gateway itself is unavailable.
+  - source_match:
+      alertname: APIDown
+    target_match:
+      component: mcp
+    equal: []
+
+# ── Receivers ─────────────────────────────────────────────────────────────────
+receivers:
+  - name: devnull
+    # Catch-all: no-op — alerts appear in Alertmanager UI but are not sent anywhere.
+    # Replace this with a real receiver in production.
+
+  - name: oncall
+    # PagerDuty — fill in PAGERDUTY_ROUTING_KEY
+    # pagerduty_configs:
+    #   - routing_key: "<PAGERDUTY_ROUTING_KEY>"
+    #     description: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}"
+    #     severity: "{{ .CommonLabels.severity }}"
+    #     client: "Prometheus / career-roadmap-ai"
+    #     client_url: "http://localhost:9090"
+    # Slack fallback for oncall until PagerDuty is wired up:
+    # slack_configs:
+    #   - api_url: "<SLACK_WEBHOOK_URL_INCIDENTS>"
+    #     channel: "#incidents"
+    #     title: "{{ .CommonLabels.alertname }} — {{ .CommonLabels.severity | toUpper }}"
+    #     text: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"
+    #     icon_emoji: ":fire:"
+
+  - name: team-slack
+    # Slack — fill in SLACK_WEBHOOK_URL
+    # slack_configs:
+    #   - api_url: "<SLACK_WEBHOOK_URL_PLATFORM>"
+    #     channel: "#platform-alerts"
+    #     title: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+    #     text: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n{{ end }}"
+    #     icon_emoji: ":warning:"
+    #     send_resolved: true
+
+  - name: mlops-slack
+    # Slack — fill in SLACK_WEBHOOK_URL_MLOPS
+    # slack_configs:
+    #   - api_url: "<SLACK_WEBHOOK_URL_MLOPS>"
+    #     channel: "#mlops-alerts"
+    #     title: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+    #     text: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n{{ end }}"
+    #     send_resolved: true

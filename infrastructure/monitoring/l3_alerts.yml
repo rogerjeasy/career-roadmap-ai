@@ -1,0 +1,158 @@
+groups:
+  - name: l3_agent_error_alerts
+    rules:
+      - alert: AgentHighErrorRate
+        expr: |
+          sum(rate(agent_invocations_total{outcome="error"}[10m])) by (agent_name)
+          /
+          sum(rate(agent_invocations_total[10m])) by (agent_name)
+          > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          component: agents
+        annotations:
+          summary: "Agent {{ $labels.agent_name }} error rate > 10%"
+          description: >
+            Agent {{ $labels.agent_name }} has a {{ $value | humanizePercentage }}
+            error rate over the last 10 minutes. This directly degrades roadmap
+            generation quality. Check Celery worker logs for
+            `agent.invocation.failed` events and Sentry for stack traces.
+          runbook: "https://docs.internal/runbooks/agent-high-error-rate"
+
+      - alert: AgentNoActivity
+        expr: |
+          sum(increase(agent_invocations_total[30m])) == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          component: agents
+        annotations:
+          summary: "No agent invocations in 30 minutes"
+          description: >
+            The Celery workers have not processed any agent tasks in the last
+            30 minutes. Either no users are generating roadmaps (low-traffic
+            expected) or workers have silently stopped. Check `celery inspect
+            active` and the dead-letter queue for accumulated tasks.
+          runbook: "https://docs.internal/runbooks/agent-no-activity"
+
+      - alert: OrchestratorDispatchFailures
+        expr: |
+          increase(agent_invocations_total{agent_name="orchestrator",outcome="error"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: agents
+        annotations:
+          summary: "Orchestrator task dispatch failing"
+          description: >
+            Roadmap generation requests are failing at Celery dispatch. Users
+            receive 503. Check Redis broker connectivity, `TaskPublisher` logs
+            (`orchestrator.dispatch_failed`), and Celery worker health.
+          runbook: "https://docs.internal/runbooks/orchestrator-dispatch-failed"
+
+  - name: l3_agent_latency_alerts
+    rules:
+      - alert: AgentHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(agent_duration_seconds_bucket[10m])
+          ) > 180
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          component: agents
+        annotations:
+          summary: "Agent pipeline p95 duration > 3 min"
+          description: >
+            The 95th percentile agent invocation duration has exceeded 180
+            seconds. End-to-end roadmap generation is slow for users. Check
+            for LLM API rate limiting, slow MCP tool calls (circuit breakers),
+            or Pinecone latency in the RAG pipeline.
+          runbook: "https://docs.internal/runbooks/agent-high-latency"
+
+      - alert: AgentCriticallyHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(agent_duration_seconds_bucket[10m])
+          ) > 300
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          component: agents
+        annotations:
+          summary: "Agent pipeline p95 duration > 5 min (Celery timeout risk)"
+          description: >
+            Agent p95 duration has exceeded 300 seconds, approaching the default
+            Celery task timeout. Tasks are at risk of being terminated mid-flight,
+            leaving users with incomplete roadmaps. Investigate immediately.
+          runbook: "https://docs.internal/runbooks/agent-critical-latency"
+
+  - name: l3_llm_alerts
+    rules:
+      - alert: LLMTokenConsumptionSpike
+        expr: |
+          sum(rate(llm_tokens_total[5m])) > 5000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: agents
+        annotations:
+          summary: "LLM token consumption > 5k tokens/s"
+          description: >
+            LLM token consumption has spiked to
+            {{ $value | printf "%.0f" }} tokens/s. At typical pricing this may
+            indicate a runaway prompt loop, an unexpectedly large context window,
+            or a traffic spike. Check `llm_tokens_total` by model and direction.
+          runbook: "https://docs.internal/runbooks/llm-token-spike"
+
+      - alert: LLMHighInputOutputRatio
+        expr: |
+          rate(llm_tokens_total{direction="output"}[10m])
+          /
+          (rate(llm_tokens_total{direction="input"}[10m]) + 1)
+          > 2
+        for: 10m
+        labels:
+          severity: warning
+          team: mlops
+          component: agents
+        annotations:
+          summary: "LLM output/input token ratio unusually high (> 2×)"
+          description: >
+            Output tokens are more than double input tokens over the last 10
+            minutes. This may indicate prompts that produce unexpectedly verbose
+            outputs, leading to cost overruns and slow responses. Review
+            agent prompt templates and max_tokens settings.
+          runbook: "https://docs.internal/runbooks/llm-token-ratio"
+
+  - name: l3_clarification_alerts
+    rules:
+      - alert: ClarificationMaxRoundsSpike
+        expr: |
+          rate(agent_invocations_total{agent_name="clarification",outcome="clarification_needed"}[10m])
+          /
+          (rate(agent_invocations_total{agent_name="clarification"}[10m]) + 1)
+          > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          team: mlops
+          component: agents
+        annotations:
+          summary: "Clarification agent hitting max rounds > 50% of invocations"
+          description: >
+            More than 50% of clarification agent runs are reaching the maximum
+            round limit without achieving the completeness threshold. Users may
+            be stuck in clarification loops. Check COMPLETENESS_THRESHOLD and
+            MAX_CLARIFICATION_ROUNDS settings, and review clarification prompt
+            quality.
+          runbook: "https://docs.internal/runbooks/clarification-max-rounds"

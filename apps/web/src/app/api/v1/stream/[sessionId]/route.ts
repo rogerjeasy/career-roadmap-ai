@@ -1,21 +1,26 @@
 /**
- * SSE stream proxy — bypasses the Next.js rewrite layer.
+ * SSE stream proxy — fallback for server-side SSE consumers (e.g. server
+ * components, integration tests). Browser clients should NOT go through this
+ * Route Handler; instead they use sse.ts which connects directly to FastAPI
+ * (via NEXT_PUBLIC_SSE_URL) to avoid undici / Next.js response buffering.
  *
- * Next.js `rewrites()` buffer the entire upstream response before sending it
- * to the client, which breaks Server-Sent Events. This Route Handler solves
- * the problem by piping the upstream ReadableStream directly through Node.js
- * without buffering.
- *
- * All requests to /api/v1/stream/{sessionId} are handled here instead of the
- * catch-all /api/v1/:path* rewrite in next.config.ts.
+ * In dev we bypass Kong and hit FastAPI directly so SSE chunks are never
+ * held in Kong's response buffer before reaching the caller.
+ * In prod all traffic goes through Kong, which is configured with
+ * response_buffering:false and 1-hour timeouts on /api/v1/stream.
  */
 import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const UPSTREAM_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+const IS_PROD = process.env.NODE_ENV === "production";
+// In dev bypass Kong — undici (Node.js fetch) is used here and it does not
+// buffer SSE chunks, but Kong's 60s read timeout on the api-v1 route would
+// cut long-running streams. FastAPI directly has no such timeout.
+const UPSTREAM_BASE = IS_PROD
+  ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080")
+  : (process.env.FASTAPI_DIRECT_URL ?? "http://localhost:8000");
 
 export async function GET(
   request: NextRequest,
@@ -31,7 +36,7 @@ export async function GET(
   let upstream: Response;
   try {
     upstream = await fetch(
-      `${UPSTREAM_BASE}/stream/${encodeURIComponent(sessionId)}`,
+      `${UPSTREAM_BASE}/api/v1/stream/${encodeURIComponent(sessionId)}`,
       {
         headers: {
           Authorization: authHeader,

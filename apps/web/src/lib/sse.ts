@@ -6,6 +6,29 @@ const TERMINAL_EVENTS: ReadonlySet<string> = new Set([
   "orchestration_failed",
 ]);
 
+// Direct upstream base for SSE — the browser connects here without any
+// intermediate Next.js Route Handler or proxy layer.
+//
+// Why bypass the Route Handler: Node.js fetch (undici) buffers SSE chunks
+// internally before exposing them on the ReadableStream, and Next.js may
+// hold the response body until the buffer fills. Going direct eliminates
+// every buffering hop between FastAPI and the browser.
+//
+// FastAPI has CORSMiddleware with allow_credentials=True and
+// CORS_ORIGINS=["http://localhost:3000"], so direct cross-origin fetch works.
+//
+// Priority:
+//   1. NEXT_PUBLIC_SSE_URL   — explicit override (set to http://localhost:8000 in dev)
+//   2. NEXT_PUBLIC_API_URL   — API gateway (Kong in prod, same host in some envs)
+//   3. ""                    — fall back to the Route Handler path (safe default)
+//
+// .env.local (dev):  NEXT_PUBLIC_SSE_URL=http://localhost:8000
+// .env (prod):       NEXT_PUBLIC_SSE_URL=https://your-kong-or-api-domain.com
+const SSE_UPSTREAM: string =
+  process.env.NEXT_PUBLIC_SSE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "";
+
 export type SSEEventHandler = (event: AgentEvent) => void;
 
 export interface SSESubscription {
@@ -74,7 +97,13 @@ export function subscribeToAgentStream(
 
         const token = await user.getIdToken();
 
-        const response = await fetch(`/api/v1/stream/${encodeURIComponent(sessionId)}`, {
+        // Build the stream URL. When SSE_UPSTREAM is set we bypass the
+        // Next.js Route Handler and hit FastAPI/Kong directly from the browser.
+        const streamUrl = SSE_UPSTREAM
+          ? `${SSE_UPSTREAM}/api/v1/stream/${encodeURIComponent(sessionId)}`
+          : `/api/v1/stream/${encodeURIComponent(sessionId)}`;
+
+        const response = await fetch(streamUrl, {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });

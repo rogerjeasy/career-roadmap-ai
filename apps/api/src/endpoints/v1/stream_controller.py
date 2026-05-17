@@ -24,6 +24,7 @@ and load-balancers from closing idle connections during long agent phases.
 import asyncio
 import contextlib
 import json
+import time
 from collections.abc import AsyncGenerator
 
 import redis.asyncio as aioredis
@@ -36,6 +37,12 @@ from agents.contracts.events import AgentEvent
 from src.core.auth import AuthenticatedUser, get_current_user
 from src.core.logging import get_logger
 from src.db.redis import get_redis
+from src.observability.metrics import (
+    sse_active_connections,
+    sse_events_dropped_total,
+    sse_events_forwarded_total,
+    sse_subscription_duration_seconds,
+)
 
 router = APIRouter(prefix="/stream", tags=["streaming"])
 logger = get_logger(__name__)
@@ -90,6 +97,10 @@ async def stream_agent_events(
     logger.info("stream.subscribed", channel=channel, user_id=user.uid)
 
     async def _event_generator() -> AsyncGenerator[str, None]:
+        sse_active_connections.inc()
+        _start = time.monotonic()
+        _outcome = "completed"
+
         # Immediate keepalive so the client knows the connection is open
         # before the first real event arrives.
         yield ": keepalive\n\n"
@@ -125,6 +136,9 @@ async def stream_agent_events(
                             # Terminal events must be delivered — block until space opens.
                             await bridge.put(event)
                         else:
+                            sse_events_dropped_total.labels(
+                                event_type=str(event.event_type)
+                            ).inc()
                             logger.error(
                                 "stream.event_dropped",
                                 channel=channel,
@@ -146,6 +160,7 @@ async def stream_agent_events(
         try:
             while True:
                 if await request.is_disconnected():
+                    _outcome = "client_disconnected"
                     logger.info("stream.client_disconnected", channel=channel)
                     return
 
@@ -163,14 +178,20 @@ async def stream_agent_events(
                     return
 
                 yield _format_sse(item)
+                sse_events_forwarded_total.labels(event_type=str(item.event_type)).inc()
 
                 if item.is_terminal:
                     return
 
         except Exception as exc:
+            _outcome = "error"
             logger.error("stream.error", channel=channel, error=str(exc))
             yield f"event: error\ndata: {json.dumps({'error': 'Stream interrupted', 'detail': str(exc)})}\n\n"
         finally:
+            sse_active_connections.dec()
+            sse_subscription_duration_seconds.labels(outcome=_outcome).observe(
+                time.monotonic() - _start
+            )
             drain_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await drain_task

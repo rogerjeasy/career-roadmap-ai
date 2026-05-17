@@ -1,0 +1,68 @@
+groups:
+  - name: l1_api_recording_rules
+    interval: 60s
+    rules:
+      # ── HTTP error ratio ──────────────────────────────────────────────────────
+
+      - record: career_api:http_error_ratio:rate5m
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status=~"5..",job="career-roadmap-api"}[5m])) by (handler)
+          /
+          sum(rate(http_request_duration_seconds_count{job="career-roadmap-api"}[5m])) by (handler)
+
+      - record: career_api:http_4xx_ratio:rate5m
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status=~"4..",job="career-roadmap-api"}[5m])) by (handler)
+          /
+          sum(rate(http_request_duration_seconds_count{job="career-roadmap-api"}[5m])) by (handler)
+
+      # ── HTTP latency percentiles ──────────────────────────────────────────────
+
+      - record: career_api:http_latency_p50:rate5m
+        expr: |
+          histogram_quantile(
+            0.50,
+            sum(rate(http_request_duration_seconds_bucket{job="career-roadmap-api"}[5m])) by (handler, le)
+          )
+
+      - record: career_api:http_latency_p95:rate5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="career-roadmap-api"}[5m])) by (handler, le)
+          )
+
+      - record: career_api:http_latency_p99:rate5m
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(http_request_duration_seconds_bucket{job="career-roadmap-api"}[5m])) by (handler, le)
+          )
+
+      # ── Request throughput ────────────────────────────────────────────────────
+
+      - record: career_api:http_request_rate:rate5m
+        expr: |
+          sum(rate(http_request_duration_seconds_count{job="career-roadmap-api"}[5m])) by (handler, method)
+
+      # ── Agent invocation success ratio ────────────────────────────────────────
+
+      - record: career_api:agent_success_ratio:rate5m
+        expr: |
+          rate(agent_invocations_total{outcome="success"}[5m])
+          /
+          rate(agent_invocations_total[5m])
+
+      # ── MCP tool success ratio (from API perspective) ─────────────────────────
+
+      - record: career_api:mcp_tool_success_ratio:rate5m
+        expr: |
+          rate(mcp_tool_calls_total{outcome="success"}[5m])
+          /
+          rate(mcp_tool_calls_total[5m])
+
+      # ── LLM token consumption rate ────────────────────────────────────────────
+
+      - record: career_api:llm_token_rate:rate5m
+        expr: |
+          sum(rate(llm_tokens_total[5m])) by (model, direction)

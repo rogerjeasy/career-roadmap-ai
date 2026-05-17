@@ -3,7 +3,7 @@
 Includes default RED metrics from instrumentator + custom AI counters.
 """
 from fastapi import FastAPI
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 
 # ── Custom AI metrics ──────────────────────────────────────
@@ -30,6 +30,47 @@ agent_duration_seconds = Histogram(
     "Duration of agent invocations in seconds",
     ["agent_name"],
     buckets=(0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0),
+)
+
+# ── Session Manager metrics ────────────────────────────────
+session_operations_total = Counter(
+    "session_operations_total",
+    "Session lifecycle operations by type and outcome",
+    ["operation", "outcome"],
+    # operation: create | get | get_or_create | delete
+    # outcome:   success | not_found | resumed | error
+)
+
+# ── SSE stream metrics ─────────────────────────────────────
+sse_active_connections = Gauge(
+    "sse_active_connections",
+    "Number of currently active SSE connections",
+)
+
+sse_subscription_duration_seconds = Histogram(
+    "sse_subscription_duration_seconds",
+    "Duration of SSE connections from subscribe to close",
+    ["outcome"],  # completed | client_disconnected | error
+    buckets=(5.0, 15.0, 30.0, 60.0, 120.0, 180.0, 300.0),
+)
+
+sse_events_forwarded_total = Counter(
+    "sse_events_forwarded_total",
+    "SSE events forwarded to clients by event type",
+    ["event_type"],
+)
+
+sse_events_dropped_total = Counter(
+    "sse_events_dropped_total",
+    "SSE events dropped due to slow consumer backpressure",
+    ["event_type"],
+)
+
+# ── Middleware metrics ─────────────────────────────────────
+case_conversion_errors_total = Counter(
+    "case_conversion_errors_total",
+    "JSON key case conversion failures in CaseConversionMiddleware",
+    ["direction"],  # request | response
 )
 
 

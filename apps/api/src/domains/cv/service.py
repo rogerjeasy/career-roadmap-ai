@@ -31,7 +31,14 @@ Extract structured information and return ONLY a valid JSON object with this exa
   "leadership_signals": integer,
   "years_of_experience": integer,
   "current_role": "most recent job title as string or null",
-  "summary": "one sentence professional summary"
+  "summary": "one sentence professional summary",
+  "location": "city and country extracted from the CV, or null if not mentioned",
+  "career_path_suggestions": [
+    "emoji Short role title (max 6 words)",
+    "emoji Short role title (max 6 words)",
+    "emoji Short role title (max 6 words)",
+    "emoji Short role title (max 6 words)"
+  ]
 }
 
 Classification rules:
@@ -39,6 +46,17 @@ Classification rules:
 - "supporting" skills: mentioned but not central to the roles.
 - leadership_signals: total count of team lead, manager, mentor, or director references.
 - years_of_experience: span from earliest to most recent role, rounded to integer.
+- location: extract city and/or country if explicitly stated anywhere in the CV (e.g. address, contact section, "Based in London").
+
+career_path_suggestions rules:
+- Generate exactly 3–4 suggestions tailored to THIS specific person's background.
+- Each suggestion is a plausible NEXT STEP or CAREER TRANSITION — a role the person could realistically aim for.
+- Include roles from the same domain (promotion path) AND adjacent/pivot paths (e.g. moving from technical to strategic, or adding a specialism).
+- Start each suggestion with a single relevant emoji, then a concise role title (max 6 words).
+- Base suggestions entirely on the actual CV content — skills, roles, projects, education, and years of experience.
+- Do NOT use generic tech roles (AI Engineer, DevOps, etc.) unless the CV clearly shows those skills.
+- Cover diverse career directions so the person has meaningful choices, not four variations of the same path.
+- The application serves users worldwide in any career domain — suggestions should reflect that range.
 """
 
 _TEXT_USER_MSG = "Extract the CV information as described. CV text:\n\n{text}"
@@ -72,7 +90,7 @@ class CvService:
         pdf_b64 = base64.standard_b64encode(data).decode("utf-8")
         response = await self._client.messages.create(
             model=self._model,
-            max_tokens=2048,
+            max_tokens=3072,
             system=_SYSTEM_PROMPT,
             messages=[
                 {
@@ -96,7 +114,7 @@ class CvService:
     async def _parse_text(self, text: str) -> CvAnalysisResult:
         response = await self._client.messages.create(
             model=self._model,
-            max_tokens=2048,
+            max_tokens=3072,
             system=_SYSTEM_PROMPT,
             messages=[
                 {

@@ -216,7 +216,7 @@ FIREBASE_WEB_API_KEY=...
 ANTHROPIC_API_KEY=...
 
 # Redis & Celery (defaults work with docker compose)
-REDIS_URL=
+REDIS_URL= 
 CELERY_BROKER_URL=redis://localhost:6379/1
 CELERY_RESULT_BACKEND=redis://localhost:6379/2
 ```

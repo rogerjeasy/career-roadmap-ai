@@ -1,0 +1,90 @@
+groups:
+  - name: l2_session_recording_rules
+    interval: 60s
+    rules:
+      # ── Session cache hit ratio ───────────────────────────────────────────────
+      # Measures how often get_or_create finds an existing session vs. creating new.
+
+      - record: career_api:session_hit_ratio:rate5m
+        expr: |
+          rate(session_operations_total{operation="get_or_create",outcome="resumed"}[5m])
+          /
+          (
+            rate(session_operations_total{operation="get_or_create",outcome="resumed"}[5m])
+            + rate(session_operations_total{operation="create",outcome="success"}[5m])
+          )
+
+      # ── Session creation rate ─────────────────────────────────────────────────
+
+      - record: career_api:session_create_rate:rate5m
+        expr: |
+          rate(session_operations_total{operation="create",outcome="success"}[5m])
+
+      # ── Session miss rate (explicit get returning not_found) ──────────────────
+
+      - record: career_api:session_miss_rate:rate5m
+        expr: |
+          rate(session_operations_total{operation="get",outcome="not_found"}[5m])
+
+      # ── Session delete rate ───────────────────────────────────────────────────
+
+      - record: career_api:session_delete_rate:rate5m
+        expr: |
+          rate(session_operations_total{operation="delete",outcome="success"}[5m])
+
+  - name: l2_sse_recording_rules
+    interval: 60s
+    rules:
+      # ── SSE connection quality ────────────────────────────────────────────────
+
+      - record: career_api:sse_completed_ratio:rate5m
+        expr: |
+          rate(sse_subscription_duration_seconds_count{outcome="completed"}[5m])
+          /
+          rate(sse_subscription_duration_seconds_count[5m])
+
+      - record: career_api:sse_error_ratio:rate5m
+        expr: |
+          rate(sse_subscription_duration_seconds_count{outcome="error"}[5m])
+          /
+          rate(sse_subscription_duration_seconds_count[5m])
+
+      # ── SSE event throughput ──────────────────────────────────────────────────
+
+      - record: career_api:sse_event_rate:rate5m
+        expr: |
+          sum(rate(sse_events_forwarded_total[5m])) by (event_type)
+
+      # ── SSE event drop ratio ──────────────────────────────────────────────────
+
+      - record: career_api:sse_drop_ratio:rate5m
+        expr: |
+          sum(rate(sse_events_dropped_total[5m]))
+          /
+          (sum(rate(sse_events_forwarded_total[5m])) + sum(rate(sse_events_dropped_total[5m])) + 1)
+
+      # ── SSE p95 connection duration ───────────────────────────────────────────
+
+      - record: career_api:sse_duration_p95:rate5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(sse_subscription_duration_seconds_bucket[5m])
+          )
+
+  - name: l2_orchestrator_recording_rules
+    interval: 60s
+    rules:
+      # ── Orchestrator p95 latency (202 dispatch endpoint) ─────────────────────
+
+      - record: career_api:orchestrator_dispatch_p95:rate5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(
+              http_request_duration_seconds_bucket{
+                job="career-roadmap-api",
+                handler=~".*/orchestrator/generate"
+              }[5m]
+            )) by (le)
+          )

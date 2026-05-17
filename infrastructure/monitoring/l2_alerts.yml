@@ -1,0 +1,189 @@
+groups:
+  - name: l2_session_alerts
+    rules:
+      - alert: SessionCreateHighErrorRate
+        expr: |
+          increase(session_operations_total{operation="create",outcome="error"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: session
+        annotations:
+          summary: "Session creation failures detected"
+          description: >
+            Session create operations are failing. Users cannot start new roadmap
+            generation sessions. Check Redis connectivity and `session.created`
+            log events for error context.
+          runbook: "https://docs.internal/runbooks/session-create-failed"
+
+      - alert: SessionDeleteFailures
+        expr: |
+          increase(session_operations_total{operation="delete",outcome="error"}[15m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+          component: session
+        annotations:
+          summary: "Session delete operations failing"
+          description: >
+            Redis delete calls for user sessions are failing. Stale session data
+            will accumulate until TTL expiry. Check Redis connectivity.
+          runbook: "https://docs.internal/runbooks/session-delete-failed"
+
+      - alert: SessionNotFoundSpike
+        expr: |
+          rate(session_operations_total{operation="get",outcome="not_found"}[5m])
+          /
+          (rate(session_operations_total{operation="get"}[5m]) + 1)
+          > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: session
+        annotations:
+          summary: "Session cache miss rate above 50%"
+          description: >
+            More than 50% of session lookups are returning not_found. This may
+            indicate Redis data loss (restart, eviction), a TTL that is too short,
+            or a client sending invalid session IDs. Check `session.not_found`
+            log volume and Redis maxmemory-policy setting.
+          runbook: "https://docs.internal/runbooks/session-miss-high"
+
+  - name: l2_orchestrator_alerts
+    rules:
+      - alert: OrchestratorDispatchFailures
+        expr: |
+          increase(agent_invocations_total{agent_name="orchestrator",outcome="error"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: orchestrator
+        annotations:
+          summary: "Orchestrator task dispatch failing"
+          description: >
+            Roadmap generation requests are failing at the Celery dispatch step.
+            Users receive 503. Check Celery broker connectivity (Redis), worker
+            health, and `orchestrator.dispatch_failed` log events.
+          runbook: "https://docs.internal/runbooks/orchestrator-dispatch-failed"
+
+      - alert: OrchestratorHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(http_request_duration_seconds_bucket{handler="/api/v1/orchestrator/generate"}[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: orchestrator
+        annotations:
+          summary: "Orchestrator /generate p95 latency > 5 s"
+          description: >
+            The POST /orchestrator/generate endpoint (202 dispatch) p95 latency
+            has exceeded 5 seconds. This endpoint should return immediately after
+            Celery dispatch. Elevated latency suggests Redis contention or session
+            lookup bottlenecks. Check the `orchestrator.generate` OTel span.
+          runbook: "https://docs.internal/runbooks/orchestrator-latency"
+
+  - name: l2_sse_alerts
+    rules:
+      - alert: SSEConnectionCountHigh
+        expr: sse_active_connections > 500
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+          component: stream
+        annotations:
+          summary: "SSE active connections above 500"
+          description: >
+            There are currently {{ $value | printf "%.0f" }} active SSE connections.
+            Each connection holds a Redis pub/sub subscription and an async task.
+            Check for client reconnect loops or missing terminal-event handling on
+            the frontend. Consider scaling the API pod count.
+          runbook: "https://docs.internal/runbooks/sse-connections-high"
+
+      - alert: SSEHighDropRate
+        expr: |
+          sum(rate(sse_events_dropped_total[5m])) > 1
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+          component: stream
+        annotations:
+          summary: "SSE events being dropped (slow consumer)"
+          description: >
+            {{ $value | printf "%.2f" }} events/s are being dropped due to slow
+            consumer backpressure. Clients may miss non-terminal agent events
+            (progress updates). Check client network conditions and SSE bridge
+            queue depth. Consider increasing _BRIDGE_QUEUE_SIZE if this is
+            sustained.
+          runbook: "https://docs.internal/runbooks/sse-events-dropped"
+
+      - alert: SSELongConnections
+        expr: |
+          histogram_quantile(
+            0.95,
+            rate(sse_subscription_duration_seconds_bucket[15m])
+          ) > 290
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: stream
+        annotations:
+          summary: "SSE p95 connection duration approaching server timeout"
+          description: >
+            95th percentile SSE connection duration is {{ $value | printf "%.0f" }}s,
+            close to the 300s server-side timeout (_STREAM_TIMEOUT_SECONDS). This
+            may indicate agent pipelines hanging without emitting terminal events.
+            Check for stuck Celery tasks and `ORCHESTRATION_COMPLETED` /
+            `ORCHESTRATION_FAILED` event delivery.
+          runbook: "https://docs.internal/runbooks/sse-timeout-approaching"
+
+      - alert: SSEHighErrorOutcomeRate
+        expr: |
+          rate(sse_subscription_duration_seconds_count{outcome="error"}[5m])
+          /
+          (rate(sse_subscription_duration_seconds_count[5m]) + 1)
+          > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          component: stream
+        annotations:
+          summary: "SSE stream error rate above 10%"
+          description: >
+            More than 10% of SSE connections are terminating with outcome=error.
+            Check `stream.error` and `stream.subscriber_error` log events. Likely
+            causes: Redis pub/sub failures, async generator exceptions, or network
+            interruptions between the API pod and the Redis instance.
+          runbook: "https://docs.internal/runbooks/sse-errors"
+
+  - name: l2_middleware_alerts
+    rules:
+      - alert: CaseConversionResponseErrors
+        expr: |
+          increase(case_conversion_errors_total{direction="response"}[15m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+          component: middleware
+        annotations:
+          summary: "JSON response case conversion failures detected"
+          description: >
+            The CaseConversionMiddleware has failed to convert JSON response keys
+            to camelCase {{ $value | printf "%.0f" }} times in the last 15 minutes.
+            Clients will receive raw snake_case keys, breaking the API contract.
+            This indicates a controller returning malformed or non-serialisable JSON.
+            Check `case_conversion_errors_total{direction="response"}` for affected
+            endpoints.
+          runbook: "https://docs.internal/runbooks/case-conversion-errors"

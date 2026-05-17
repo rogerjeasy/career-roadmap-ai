@@ -35,6 +35,10 @@ export interface CvAnalysisResult {
   summary: string | null;
   strongSkillsCount: number;
   supportingSkillsCount: number;
+  /** City/country extracted from the CV, or null when not found. */
+  location?: string | null;
+  /** AI-generated next-step / career-transition suggestions derived from the CV. */
+  careerPathSuggestions?: string[];
 }
 
 export interface OnboardingDirection {
@@ -61,4 +65,27 @@ export interface OnboardingChatMessage {
   chips?: string[];
   selectedChip?: string | null;
   timestamp: string;
+}
+
+export interface IntakeClarificationQuestion {
+  id?: string;
+  question: string;
+  /** snake_case — SSE payloads bypass the camelCase middleware */
+  field_name?: string;
+  priority?: number;
+}
+
+export interface IntakeClarificationPayload {
+  questions: IntakeClarificationQuestion[];
+  round: number;
+  /** snake_case — SSE payloads bypass the camelCase middleware */
+  career_path_suggestions?: string[];
+  completeness?: number;
+}
+
+export interface IntakeResolvedPayload {
+  completeness: number;
+  /** snake_case — SSE payloads bypass the camelCase middleware */
+  career_path_suggestions?: string[];
+  applied_fields?: string[];
 }

@@ -1,13 +1,17 @@
 """RoadmapAgent — L3 Specialist Agent: structured career roadmap generation.
 
 Four-step pipeline:
-  1. PhaseGenerator     (LLM: claude-sonnet-4-6)      — learning phases from gap + market
-  2. MilestoneGenerator (LLM: claude-haiku-4-5)        — measurable checkpoints per phase
-  3. WeeklyPlanner      (pure computation)              — weekly tasks + habit recommendations
-  4. ResourceLinker     (RAG + catalog)                 — curated resources per phase
+  1. PhaseGenerator     (LLM cascade: Claude → OpenAI → DeepSeek)  — phases from gap + market
+  2. MilestoneGenerator (LLM cascade: Claude → OpenAI → DeepSeek)  — measurable checkpoints
+  3. WeeklyPlanner      (pure computation)                        — weekly tasks + habits
+  4. ResourceLinker     (RAG + catalog + LLM fallback)            — curated resources
 
 Steps 1→2 are sequential (milestones depend on phases).
-Steps 3 and 4 run after step 2; both are pure computation (no I/O).
+Step 4 is async — LLM-generated resources fill gaps when catalog/RAG coverage is insufficient.
+
+Research mode: when job_posting_count < threshold AND salary_benchmark is None AND rag_chunks is
+empty, PhaseGenerator and ResourceLinker switch to research mode so the LLM draws on its training
+knowledge to generate realistic market context, salary estimates, and comprehensive resources.
 
 Input (via context.plan_snapshot + context.user_profile + context.rag_chunks):
   plan_snapshot["gap_analysis"]["prioritised_gaps"]        : list[dict]
@@ -46,9 +50,9 @@ Registration (at Celery worker startup):
 """
 from __future__ import annotations
 
-from langchain_anthropic import ChatAnthropic
 from opentelemetry.trace import Status, StatusCode
 
+from agents.config import agent_settings
 from agents.contracts.events import AgentEvent, AgentEventType
 from agents.contracts.tasks import AgentType
 from agents.core.base_agent import BaseAgent
@@ -63,6 +67,7 @@ from agents.core.observability import (
 )
 from agents.roadmap_generation.milestone_generator import MilestoneGenerator
 from agents.roadmap_generation.models import (
+    DailyActivity,
     Habit,
     Milestone,
     Phase,
@@ -96,8 +101,6 @@ class RoadmapAgent(BaseAgent):
         RAG + catalog resource linker. Defaults to ``ResourceLinker()``.
     event_publisher:
         Optional SSE publisher for STEP_PROGRESS events.
-    llm:
-        Override LLM forwarded to both LLM-dependent components when not explicitly provided.
     """
 
     def __init__(
@@ -108,10 +111,9 @@ class RoadmapAgent(BaseAgent):
         weekly_planner: WeeklyPlanner | None = None,
         resource_linker: ResourceLinker | None = None,
         event_publisher: EventPublisherProtocol | None = None,
-        llm: ChatAnthropic | None = None,
     ) -> None:
-        self._phase_generator = phase_generator or PhaseGenerator(llm=llm)
-        self._milestone_generator = milestone_generator or MilestoneGenerator(llm=llm)
+        self._phase_generator = phase_generator or PhaseGenerator()
+        self._milestone_generator = milestone_generator or MilestoneGenerator()
         self._weekly_planner = weekly_planner or WeeklyPlanner()
         self._resource_linker = resource_linker or ResourceLinker()
         self._event_publisher = event_publisher
@@ -148,16 +150,36 @@ class RoadmapAgent(BaseAgent):
             trending_skills: list[dict] = market_intel.get("trending_skills", [])
             salary_benchmark: dict | None = market_intel.get("salary_benchmark")
             job_postings: list[dict] = market_intel.get("job_postings", [])
+            country: str = market_intel.get("country", "")
+
+            # Detect sparse market data: fewer job postings than threshold,
+            # no salary, and no RAG context → activate research mode.
+            data_sparse = (
+                len(job_postings) < agent_settings.market_data_sparse_threshold
+                and salary_benchmark is None
+                and len(context.rag_chunks) == 0
+            )
 
             span.set_attribute("target_role", target_role)
             span.set_attribute("timeline_months", timeline_months)
             span.set_attribute("gap_count", len(prioritised_gaps))
+            span.set_attribute("data_sparse", data_sparse)
+
+            if data_sparse:
+                logger.info(
+                    "roadmap.research_mode_activated",
+                    target_role=target_role,
+                    job_posting_count=len(job_postings),
+                    rag_chunk_count=len(context.rag_chunks),
+                    correlation_id=context.correlation_id,
+                )
 
             # ── Step 1: Phase generation ────────────────────────────────────
             self._emit_progress(
                 context,
                 "phase_generation",
-                f"Generating learning phases for '{target_role}' over {timeline_months} months…",
+                f"Generating learning phases for '{target_role}' over {timeline_months} months…"
+                + (" [research mode: synthesising from training knowledge]" if data_sparse else ""),
             )
             STEP_PROGRESS_TOTAL.labels(step_name="roadmap.phase_generation").inc()
 
@@ -169,6 +191,7 @@ class RoadmapAgent(BaseAgent):
                 trending_skills,
                 salary_benchmark,
                 len(job_postings),
+                data_sparse=data_sparse,
                 correlation_id=context.correlation_id,
             )
 
@@ -202,7 +225,7 @@ class RoadmapAgent(BaseAgent):
                 target_role=target_role,
             )
 
-            # ── Step 4: Resource linking (RAG + catalog) ───────────────────
+            # ── Step 4: Resource linking (RAG + catalog + LLM fallback) ───────
             self._emit_progress(
                 context,
                 "resource_linking",
@@ -210,10 +233,11 @@ class RoadmapAgent(BaseAgent):
             )
             STEP_PROGRESS_TOTAL.labels(step_name="roadmap.resource_linking").inc()
 
-            resources = self._resource_linker.link(
+            resources = await self._resource_linker.link(
                 phases,
                 context.rag_chunks,
                 trending_skills,
+                target_role=target_role,
             )
 
             # ── Observability ──────────────────────────────────────────────
@@ -361,6 +385,18 @@ def _serialise_phase(p: Phase) -> dict:
         "gaps_addressed": p.gaps_addressed,
         "market_relevance": p.market_relevance,
         "difficulty": p.difficulty.value,
+        "sample_weekly_schedule": [_serialise_daily_activity(a) for a in p.sample_weekly_schedule],
+        "monthly_goals": p.monthly_goals,
+        "book_recommendations": p.book_recommendations,
+    }
+
+
+def _serialise_daily_activity(a: DailyActivity) -> dict:
+    return {
+        "day": a.day,
+        "activity": a.activity,
+        "duration_minutes": a.duration_minutes,
+        "category": a.category,
     }
 
 

@@ -74,6 +74,20 @@ class AgentSettings(BaseSettings):
     # ── Event streaming ───────────────────────────────────────
     event_channel_ttl_seconds: int = Field(default=3600)
 
+    # ── Fallback LLM providers (chat) ─────────────────────────
+    # When Claude fails or market data is sparse, the system cascades:
+    #   Claude (primary) → OpenAI (secondary) → DeepSeek (tertiary)
+    # If all three fail the agent raises — no synthetic data is ever returned.
+    fallback_llm_enabled: bool = True
+    # OpenAI: reuses openai_api_key (see RAG section below)
+    openai_chat_model: str = "gpt-4o-mini"
+    # DeepSeek — OpenAI-compatible API (uses the openai SDK, no extra package needed)
+    deepseek_api_key: SecretStr | None = None
+    deepseek_model: str = "deepseek-chat"
+    deepseek_base_url: str = "https://api.deepseek.com"
+    # Minimum job_posting_count below which research mode is activated
+    market_data_sparse_threshold: int = Field(default=3, ge=0)
+
     # ── RAG — Pinecone + OpenAI Embeddings ────────────────────
     # Set rag_enabled=true and supply both keys to activate retrieval.
     rag_enabled: bool = False
@@ -82,7 +96,7 @@ class AgentSettings(BaseSettings):
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
     pinecone_dimension: int = 3072  # text-embedding-3-large output dimensionality
-    openai_api_key: SecretStr | None = None  # used for embeddings (and LLM fallback)
+    openai_api_key: SecretStr | None = None  # used for embeddings AND chat fallback
     embedding_model: str = "text-embedding-3-large"
     embedding_batch_size: int = Field(default=100, ge=1, le=2048)
     rag_top_k: int = Field(default=10, ge=1, le=50)

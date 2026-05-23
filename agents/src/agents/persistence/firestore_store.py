@@ -270,6 +270,18 @@ class FirestoreRoadmapStore:
                 if isinstance(a, dict)
             ]
 
+            raw_schedule = phase.get("sample_weekly_schedule", [])
+            serialised_schedule = [
+                {
+                    "day": str(a.get("day", "")),
+                    "activity": str(a.get("activity", "")),
+                    "duration_minutes": int(a.get("duration_minutes", 0)),
+                    "category": str(a.get("category", "technical")),
+                }
+                for a in raw_schedule
+                if isinstance(a, dict)
+            ]
+
             batch.set(phase_ref, {
                 "order": phase_idx,
                 "title": phase.get("title", ""),
@@ -291,6 +303,10 @@ class FirestoreRoadmapStore:
                 "confidence": float(phase.get("confidence", 1.0)) if "confidence" in phase else 1.0,
                 "resources": phase_resources,
                 "weekly_tasks": phase_weekly_tasks,
+                # Enriched fields — populated by LLM in all modes
+                "sample_weekly_schedule": serialised_schedule,
+                "monthly_goals": list(phase.get("monthly_goals", [])),
+                "book_recommendations": list(phase.get("book_recommendations", [])),
             })
 
         # Write habits

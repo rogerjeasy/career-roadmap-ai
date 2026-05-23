@@ -3,15 +3,17 @@
 Matching strategy (in priority order):
   1. RAG chunks whose metadata contains resource fields → converted to Resource
   2. Catalog lookup per skill in phase.skills_to_acquire
-  3. Deduplication by (title, provider) pair
+  3. LLM-generated resources for skills with no catalog/RAG coverage
+     (Claude → OpenAI → DeepSeek; skipped gracefully if all fail)
+  4. Deduplication by (title, provider) pair
 
 Returns at most ``max_per_phase`` resources per phase.
 """
 from __future__ import annotations
 
-from typing import Any
-
 import dataclasses
+import json
+from typing import Any
 
 from agents.core.context import RagChunk
 from agents.core.logging import get_logger
@@ -21,8 +23,6 @@ from agents.roadmap_generation.models import DifficultyLevel, Phase, Resource, R
 logger = get_logger(__name__)
 
 # ── Curated catalog ──────────────────────────────────────────────────────────
-# Keyed by lowercase skill name. Each entry is a list so multiple resources
-# can be linked per skill.
 
 _CATALOG: dict[str, list[Resource]] = {
     "python": [
@@ -297,9 +297,109 @@ _CATALOG: dict[str, list[Resource]] = {
             is_free=True,
         ),
     ],
+    "communication": [
+        Resource(
+            title="Crucial Conversations",
+            resource_type=ResourceType.BOOK,
+            provider="Kerry Patterson et al. (McGraw-Hill)",
+            difficulty=DifficultyLevel.BEGINNER,
+            tags=["communication", "soft skills"],
+            url=None,
+            estimated_hours=6.0,
+            is_free=False,
+            description="Techniques for high-stakes conversations — universally applicable.",
+        ),
+    ],
+    "leadership": [
+        Resource(
+            title="The Manager's Path",
+            resource_type=ResourceType.BOOK,
+            provider="Camille Fournier (O'Reilly)",
+            difficulty=DifficultyLevel.INTERMEDIATE,
+            tags=["leadership", "management", "career"],
+            url=None,
+            estimated_hours=8.0,
+            is_free=False,
+            description="A guide from IC to engineering manager and beyond.",
+        ),
+    ],
+    "sql": [
+        Resource(
+            title="SQLZoo — Interactive SQL Tutorial",
+            resource_type=ResourceType.TUTORIAL,
+            provider="SQLZoo",
+            difficulty=DifficultyLevel.BEGINNER,
+            tags=["sql", "database"],
+            url="https://sqlzoo.net",
+            estimated_hours=10.0,
+            is_free=True,
+        ),
+    ],
+    "data analysis": [
+        Resource(
+            title="Python for Data Analysis",
+            resource_type=ResourceType.BOOK,
+            provider="Wes McKinney (O'Reilly)",
+            difficulty=DifficultyLevel.INTERMEDIATE,
+            tags=["data analysis", "pandas", "python"],
+            url=None,
+            estimated_hours=20.0,
+            is_free=False,
+            description="Definitive guide to pandas and data wrangling.",
+        ),
+    ],
+    "finance": [
+        Resource(
+            title="CFA Institute — Free Learning Resources",
+            resource_type=ResourceType.COURSE,
+            provider="CFA Institute",
+            difficulty=DifficultyLevel.INTERMEDIATE,
+            tags=["finance", "fintech", "investment"],
+            url="https://www.cfainstitute.org/membership/professional-development/refresher-readings",
+            estimated_hours=30.0,
+            is_free=True,
+            description="Professional-grade financial analysis curriculum.",
+        ),
+    ],
+    "product management": [
+        Resource(
+            title="Inspired: How to Create Tech Products Customers Love",
+            resource_type=ResourceType.BOOK,
+            provider="Marty Cagan (Wiley)",
+            difficulty=DifficultyLevel.INTERMEDIATE,
+            tags=["product management", "product", "tech"],
+            url=None,
+            estimated_hours=8.0,
+            is_free=False,
+        ),
+    ],
+    "cybersecurity": [
+        Resource(
+            title="TryHackMe — Free Learning Paths",
+            resource_type=ResourceType.TUTORIAL,
+            provider="TryHackMe",
+            difficulty=DifficultyLevel.BEGINNER,
+            tags=["cybersecurity", "hacking", "security"],
+            url="https://tryhackme.com",
+            estimated_hours=40.0,
+            is_free=True,
+        ),
+    ],
+    "networking": [
+        Resource(
+            title="Computer Networking: A Top-Down Approach",
+            resource_type=ResourceType.BOOK,
+            provider="Kurose & Ross (Pearson)",
+            difficulty=DifficultyLevel.INTERMEDIATE,
+            tags=["networking", "tcp/ip", "protocols"],
+            url=None,
+            estimated_hours=30.0,
+            is_free=False,
+            description="Standard university textbook — used worldwide.",
+        ),
+    ],
 }
 
-# Normalise common aliases to catalog keys
 _ALIASES: dict[str, str] = {
     "golang": "go",
     "nextjs": "next.js",
@@ -309,35 +409,78 @@ _ALIASES: dict[str, str] = {
     "deep learning": "machine learning",
     "k8s": "kubernetes",
     "prompt engineering": "llm",
+    "data science": "machine learning",
+    "cloud computing": "aws",
+    "azure": "aws",
+    "soft skills": "communication",
+    "people skills": "communication",
+    "project management": "product management",
+    "infosec": "cybersecurity",
+    "network": "networking",
 }
+
+# LLM system prompt for resource generation
+_RESOURCE_GEN_SYSTEM = """\
+You are a career learning resource expert with comprehensive knowledge of training materials
+across every professional domain and country worldwide. Recommend high-quality, specific,
+real learning resources for a career transition.
+
+OUTPUT — valid JSON only (no code fences, no markdown):
+{
+  "resources": [
+    {
+      "title": "Exact book/course/tutorial title",
+      "resource_type": "course|book|tutorial|documentation|certification|community|video",
+      "provider": "Publisher, platform, or author",
+      "difficulty": "beginner|intermediate|advanced",
+      "tags": ["skill1", "skill2"],
+      "url": "https://exact-url.com or null if uncertain",
+      "estimated_hours": 20.0,
+      "is_free": false,
+      "description": "One sentence: what this teaches and why it matters for the role"
+    }
+  ]
+}
+
+RULES:
+1. Only recommend real, verifiable resources — do NOT invent titles or authors
+2. Include at least one book per skill (title + author + publisher/year)
+3. Include at least one online course per skill (Coursera, edX, Udemy, Pluralsight, LinkedIn Learning, etc.)
+4. Include at least one free resource per skill (official docs, open-source tutorial, free course)
+5. Mix beginner → advanced to support learners at different stages
+6. Set url=null if you are not confident of the exact URL — never invent a URL
+7. Prefer globally accessible resources (not region-locked where possible)
+8. For non-technical skills (communication, leadership, finance), include industry-standard books
+9. description must be one sentence explaining the value for someone transitioning to the target role
+"""
 
 
 class ResourceLinker:
     """Links curated learning resources to roadmap phases.
 
     Stateless — create once and call as many times as needed.
+    The ``link`` method is async to support LLM-generated resources for uncovered skills.
     """
 
-    def link(
+    async def link(
         self,
         phases: list[Phase],
         rag_chunks: list[RagChunk],
         trending_skills: list[dict],
         *,
-        max_per_phase: int = 3,
+        target_role: str = "",
+        max_per_phase: int = 5,
     ) -> list[Resource]:
-        """Return deduplicated resources covering all phases, RAG-first."""
+        """Return deduplicated resources covering all phases, RAG → catalog → LLM."""
         seen: set[tuple[str, str]] = set()
         resources: list[Resource] = []
-
-        # Trending skill names boost catalog coverage
         trending_names = [s.get("name", "") for s in trending_skills[:5]]
 
         for phase in phases:
             count = 0
             phase_skills = phase.skills_to_acquire + trending_names
 
-            # RAG chunks (personalised context, highest priority)
+            # 1. RAG chunks (personalised context, highest priority)
             for chunk in rag_chunks:
                 if count >= max_per_phase:
                     break
@@ -351,7 +494,7 @@ class ResourceLinker:
                     ROADMAP_RESOURCE_LINK_TOTAL.labels(source="rag").inc()
                     count += 1
 
-            # Catalog resources
+            # 2. Catalog resources
             for skill in phase.skills_to_acquire:
                 if count >= max_per_phase:
                     break
@@ -366,6 +509,26 @@ class ResourceLinker:
                         ROADMAP_RESOURCE_LINK_TOTAL.labels(source="catalog").inc()
                         count += 1
 
+            # 3. LLM-generated resources for skills without catalog/RAG coverage
+            if count < max_per_phase:
+                uncovered = _find_uncovered_skills(phase.skills_to_acquire, seen)
+                if uncovered:
+                    llm_resources = await _generate_llm_resources(
+                        uncovered,
+                        phase.difficulty.value,
+                        target_role,
+                        phase.index,
+                    )
+                    for r in llm_resources:
+                        if count >= max_per_phase:
+                            break
+                        key = _dedup_key(r)
+                        if key not in seen:
+                            seen.add(key)
+                            resources.append(r)
+                            ROADMAP_RESOURCE_LINK_TOTAL.labels(source="llm").inc()
+                            count += 1
+
         logger.info("roadmap.resources_linked", resource_count=len(resources))
         return resources
 
@@ -375,6 +538,110 @@ class ResourceLinker:
 
 def _dedup_key(r: Resource) -> tuple[str, str]:
     return (r.title.lower(), r.provider.lower())
+
+
+def _find_uncovered_skills(skills: list[str], seen_keys: set[tuple[str, str]]) -> list[str]:
+    """Return skills that have no catalog match and no RAG resource already added."""
+    uncovered: list[str] = []
+    for skill in skills:
+        catalog_key = _ALIASES.get(skill.lower(), skill.lower())
+        has_catalog = catalog_key in _CATALOG
+        if not has_catalog:
+            uncovered.append(skill)
+    return uncovered[:6]  # cap to avoid over-sized LLM requests
+
+
+async def _generate_llm_resources(
+    skills: list[str],
+    difficulty: str,
+    target_role: str,
+    phase_index: int,
+) -> list[Resource]:
+    """Generate resources for skills not covered by the static catalog."""
+    from agents.config import agent_settings  # local import to avoid circular
+
+    if not agent_settings.fallback_llm_enabled:
+        return []
+
+    # Only call the LLM if at least one provider is configured
+    has_openai = agent_settings.openai_api_key is not None
+    has_deepseek = agent_settings.deepseek_api_key is not None
+    # Claude is always the primary — even without OpenAI/DeepSeek we try
+    try:
+        from agents.core.llm_provider import llm_generate  # local import
+
+        user_prompt = (
+            f"Target role: {target_role or 'professional transition'}\n"
+            f"Phase difficulty: {difficulty}\n"
+            f"Skills needing resources: {', '.join(skills)}\n\n"
+            f"For each skill listed above, recommend 2-3 high-quality, real learning resources. "
+            f"Include at least one book and one online course per skill. "
+            f"Mix free and paid options. Focus on resources relevant to someone "
+            f"transitioning to the '{target_role}' role."
+        )
+
+        raw_content, provider = await llm_generate(
+            _RESOURCE_GEN_SYSTEM,
+            user_prompt,
+            max_tokens=3000,
+            temperature=0.1,
+            primary_model=agent_settings.roadmap_generation_model,
+            label="resource_linker.llm_gen",
+        )
+        parsed = json.loads(raw_content)
+        raw_resources: list[dict] = parsed.get("resources", [])
+        result: list[Resource] = []
+        for r in raw_resources:
+            res = _parse_llm_resource(r, phase_index)
+            if res:
+                result.append(res)
+        logger.info(
+            "resource_linker.llm_resources_generated",
+            skill_count=len(skills),
+            resource_count=len(result),
+            provider=provider,
+        )
+        return result
+    except Exception as exc:
+        logger.warning("resource_linker.llm_gen_failed", error=str(exc))
+        return []
+
+
+def _parse_llm_resource(raw: dict[str, Any], phase_index: int) -> Resource | None:
+    title = str(raw.get("title") or "").strip()
+    provider = str(raw.get("provider") or "").strip()
+    if not title or not provider:
+        return None
+
+    raw_type = str(raw.get("resource_type", "course")).lower()
+    try:
+        r_type = ResourceType(raw_type)
+    except ValueError:
+        r_type = ResourceType.COURSE
+
+    raw_diff = str(raw.get("difficulty", "intermediate")).lower()
+    try:
+        difficulty = DifficultyLevel(raw_diff)
+    except ValueError:
+        difficulty = DifficultyLevel.INTERMEDIATE
+
+    hours_raw = raw.get("estimated_hours")
+    estimated_hours: float | None = float(hours_raw) if hours_raw else None
+
+    url = str(raw.get("url") or "") or None
+
+    return Resource(
+        title=title,
+        resource_type=r_type,
+        provider=provider,
+        difficulty=difficulty,
+        tags=[str(t) for t in raw.get("tags", []) if t][:5],
+        url=url,
+        estimated_hours=estimated_hours,
+        is_free=bool(raw.get("is_free", False)),
+        description=str(raw.get("description") or ""),
+        phase_index=phase_index,
+    )
 
 
 def _chunk_to_resource(chunk: RagChunk, skills: list[str]) -> Resource | None:

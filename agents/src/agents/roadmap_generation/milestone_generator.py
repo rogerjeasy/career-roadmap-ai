@@ -1,6 +1,8 @@
 """MilestoneGenerator — LLM: create one measurable milestone per learning phase.
 
-Falls back to a heuristic milestone per phase when the LLM call fails.
+Provider cascade: Claude (primary) → OpenAI (secondary) → DeepSeek (tertiary).
+If every provider fails, a RuntimeError is raised — no generic milestones are substituted,
+because hardcoded milestone descriptions would be meaningless outside the user's actual domain.
 """
 from __future__ import annotations
 
@@ -8,12 +10,10 @@ import json
 import time
 from typing import Any
 
-from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage, SystemMessage
 from opentelemetry.trace import Status, StatusCode
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from agents.config import agent_settings
+from agents.core.llm_provider import llm_generate
 from agents.core.logging import get_logger
 from agents.core.observability import (
     ROADMAP_MILESTONE_GEN_DURATION,
@@ -66,16 +66,9 @@ RULES:
 class MilestoneGenerator:
     """Generates measurable milestones for each roadmap phase.
 
-    Inject a custom ``llm`` in tests to avoid real API calls.
+    Uses multi-LLM cascade (Claude → OpenAI → DeepSeek); raises RuntimeError
+    if all providers fail — no synthetic milestones substituted.
     """
-
-    def __init__(self, llm: ChatAnthropic | None = None) -> None:
-        self._llm = llm or ChatAnthropic(
-            model=agent_settings.roadmap_milestone_model,
-            api_key=agent_settings.anthropic_api_key.get_secret_value(),
-            max_tokens=3072,
-            temperature=0.1,
-        )
 
     async def generate(
         self,
@@ -84,7 +77,7 @@ class MilestoneGenerator:
         *,
         correlation_id: str = "",
     ) -> list[Milestone]:
-        """Return LLM-generated milestones. Falls back to one heuristic per phase."""
+        """Return LLM-generated milestones. Raises RuntimeError if all providers fail — no synthetic fallback."""
         with _tracer.start_as_current_span("roadmap.milestone_generation") as span:
             span.set_attribute("phase_count", len(phases))
             span.set_attribute("target_role", target_role)
@@ -92,19 +85,27 @@ class MilestoneGenerator:
             t0 = time.monotonic()
 
             try:
-                milestones = await self._generate_with_llm(phases, target_role, correlation_id)
-                ROADMAP_MILESTONE_GEN_TOTAL.labels(status="llm").inc()
+                milestones, provider = await self._generate_with_cascade(
+                    phases, target_role, correlation_id
+                )
+                ROADMAP_MILESTONE_GEN_TOTAL.labels(status=f"llm_{provider}").inc()
+                span.set_attribute("llm_provider", provider)
                 span.set_status(Status(StatusCode.OK))
             except Exception as exc:
                 span.record_exception(exc)
-                logger.warning(
-                    "roadmap.milestone_gen_llm_failed",
+                span.set_status(Status(StatusCode.ERROR, str(exc)))
+                ROADMAP_MILESTONE_GEN_TOTAL.labels(status="failed").inc()
+                logger.error(
+                    "roadmap.milestone_gen_all_providers_failed",
+                    target_role=target_role,
                     error=str(exc),
-                    fallback="heuristic",
                     correlation_id=correlation_id,
                 )
-                milestones = _fallback_milestones(phases)
-                ROADMAP_MILESTONE_GEN_TOTAL.labels(status="fallback").inc()
+                raise RuntimeError(
+                    f"Milestone generation failed for role '{target_role}': "
+                    "all AI providers (Claude, OpenAI, DeepSeek) are currently unavailable. "
+                    "Please try again in a few minutes."
+                ) from exc
 
             ROADMAP_MILESTONE_GEN_DURATION.observe(time.monotonic() - t0)
             logger.info(
@@ -115,29 +116,25 @@ class MilestoneGenerator:
             )
             return milestones
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=0.5, min=1, max=8),
-        retry=retry_if_exception_type(Exception),
-        reraise=True,
-    )
-    async def _generate_with_llm(
+    async def _generate_with_cascade(
         self,
         phases: list[Phase],
         target_role: str,
         correlation_id: str,
-    ) -> list[Milestone]:
+    ) -> tuple[list[Milestone], str]:
         user_content = _build_user_prompt(phases, target_role)
-        response = await self._llm.ainvoke(
-            [
-                SystemMessage(content=_SYSTEM_PROMPT),
-                HumanMessage(content=user_content),
-            ]
+        raw_content, provider = await llm_generate(
+            _SYSTEM_PROMPT,
+            user_content,
+            max_tokens=3072,
+            temperature=0.1,
+            primary_model=agent_settings.roadmap_milestone_model,
+            label="roadmap.milestone_gen",
         )
-        raw = json.loads(str(response.content))
-        if not isinstance(raw, dict) or "milestones" not in raw:
-            raise ValueError("LLM response missing 'milestones' key")
-        return [_parse_milestone(m) for m in raw["milestones"]]
+        parsed = json.loads(raw_content)
+        if not isinstance(parsed, dict) or "milestones" not in parsed:
+            raise ValueError(f"LLM response missing 'milestones' key (provider={provider})")
+        return [_parse_milestone(m) for m in parsed["milestones"]], provider
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -175,33 +172,3 @@ def _to_str_list(val: Any) -> list[str]:
     if isinstance(val, list):
         return [str(v) for v in val if v]
     return []
-
-
-_PHASE_ICONS = ["🏗️", "🚀", "🏆", "🌟", "🎓"]
-
-
-def _fallback_milestones(phases: list[Phase]) -> list[Milestone]:
-    """One heuristic milestone per phase."""
-    milestones: list[Milestone] = []
-    cumulative = 0
-    for phase in phases:
-        cumulative += phase.duration_weeks
-        skills = phase.skills_to_acquire[:3]
-        icon = _PHASE_ICONS[(phase.index - 1) % len(_PHASE_ICONS)]
-        milestones.append(
-            Milestone(
-                name=f"{phase.title} Checkpoint",
-                description=f"Demonstrate core competencies acquired during {phase.title}.",
-                phase_index=phase.index,
-                week_number=cumulative,
-                icon=icon,
-                success_criteria=[
-                    f"Complete a project demonstrating {skills[0] if skills else 'core skills'}",
-                    "Push working, documented code to a public repository",
-                    "Write a README that explains the project purpose and how to run it",
-                ],
-                skills_demonstrated=skills,
-                deliverable="Public repository with documented portfolio project",
-            )
-        )
-    return milestones

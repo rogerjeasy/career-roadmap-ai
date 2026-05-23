@@ -223,7 +223,11 @@
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\(p.dependencies?.next || p.devDependencies?.next\\)\")",
       "Bash(xargs grep -l \"typing\\\\|isTyping\\\\|coach\\\\|Career Twin\")",
       "Bash(xargs grep -l \"subscribe_to_session\\\\|replay\")",
-      "Bash(xargs grep -l \"intake\\\\|clarification\")"
+      "Bash(xargs grep -l \"intake\\\\|clarification\")",
+      "Bash(claude mcp *)",
+      "Bash(git grep *)",
+      "Bash(grep -i -E \"\\\\.env$|firebase-service|\\\\.pem$|\\\\.key$|secret|credential|password\")",
+      "Bash(Test-Path *)"
     ]
   }
 }

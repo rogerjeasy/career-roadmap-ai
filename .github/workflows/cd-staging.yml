@@ -1,0 +1,25 @@
+# Staging deployment — NOT YET CONFIGURED
+# This workflow is intentionally disabled until deployment infrastructure is ready.
+# To re-enable: replace `workflow_dispatch` with your desired push/merge triggers
+# and implement the deploy steps below.
+
+name: CD — Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual deploy"
+        required: false
+        default: "Manual trigger"
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Not yet configured
+        run: |
+          echo "Staging deployment is not yet configured."
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Implement deployment steps here before enabling auto-triggers."

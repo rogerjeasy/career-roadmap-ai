@@ -1,0 +1,25 @@
+# Production deployment — NOT YET CONFIGURED
+# This workflow is intentionally disabled until deployment infrastructure is ready.
+# To re-enable: replace `workflow_dispatch` with your desired push/merge triggers
+# (typically: on push to main after staging passes) and implement the deploy steps below.
+
+name: CD — Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual deploy"
+        required: false
+        default: "Manual trigger"
+
+jobs:
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Not yet configured
+        run: |
+          echo "Production deployment is not yet configured."
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Implement deployment steps here before enabling auto-triggers."

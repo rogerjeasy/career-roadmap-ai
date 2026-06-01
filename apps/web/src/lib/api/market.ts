@@ -1,7 +1,17 @@
 import { apiClient } from "./client";
+import type { MarketSignal, SalaryBenchmark, TrendingSkill } from "@/types/market.types";
 
-// Backend routes: GET /api/v1/market/signals  GET /api/v1/market/salary
+export interface MarketOverview {
+  summary: string;
+  signals: MarketSignal[];
+  salaryBenchmark: SalaryBenchmark | null;
+  trendingSkills: TrendingSkill[];
+  hasData: boolean;
+}
 
 export const marketApi = {
-  // placeholder — implement when market domain is ready
+  async getOverview(): Promise<MarketOverview> {
+    const { data } = await apiClient.get<MarketOverview>("/api/v1/market/overview");
+    return data;
+  },
 };

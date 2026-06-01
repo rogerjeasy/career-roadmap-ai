@@ -1,10 +1,35 @@
 import { apiClient } from "./client";
 
+export interface TargetCompanyAlert {
+  name: string;
+  reason?: string;
+  jobCount?: number;
+  topRoles?: string[];
+  avgMatchScore?: number;
+}
+
 export interface AlertsResponse {
   alerts: string[];
-  targetCompanies: { name: string; [key: string]: unknown }[];
+  targetCompanies: TargetCompanyAlert[];
   highMatchCount: number;
   searchQuery: string | null;
+}
+
+/** Normalised job match for the UI (assembled from snake_case SSE payloads). */
+export interface JobMatch {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  remote: boolean;
+  seniorityLevel: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  matchScore: number;
+  skillOverlap: string[];
+  missingSkills: string[];
+  matchReasons: string[];
 }
 
 export interface OpportunitySearchResponse {

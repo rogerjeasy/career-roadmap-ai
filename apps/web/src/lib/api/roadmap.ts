@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import type { RoadmapDetail } from "@/types/roadmap.types";
 
 export interface RoadmapSummary {
   id: string;
@@ -29,5 +30,14 @@ export const roadmapApi = {
       params,
     });
     return data;
+  },
+
+  async get(id: string): Promise<RoadmapDetail> {
+    const { data } = await apiClient.get<RoadmapDetail>(`/api/v1/roadmaps/${id}`);
+    return data;
+  },
+
+  async remove(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/roadmaps/${id}`);
   },
 };

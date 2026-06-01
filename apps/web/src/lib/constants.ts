@@ -17,6 +17,7 @@ export const ROUTES = {
   schedule: "/schedule",
   networking: "/networking",
   opportunities: "/opportunities",
+  monthlyPlan: "/monthly-plan",
   books: "/books",
   settings: "/settings",
   settingsProfile: "/settings/profile",

@@ -227,7 +227,9 @@
       "Bash(claude mcp *)",
       "Bash(git grep *)",
       "Bash(grep -i -E \"\\\\.env$|firebase-service|\\\\.pem$|\\\\.key$|secret|credential|password\")",
-      "Bash(Test-Path *)"
+      "Bash(Test-Path *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(git check-ignore *)"
     ]
   }
 }

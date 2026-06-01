@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getSession } from "@/lib/api/session";
+import { marketApi } from "@/lib/api/market";
 import { fixMojibake } from "@/lib/utils";
 import { QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
@@ -67,9 +68,21 @@ export default function MarketPage() {
     staleTime: 60 * 1000,
   });
 
+  const { data: overview } = useQuery({
+    queryKey: QUERY_KEYS.marketOverview,
+    queryFn: marketApi.getOverview,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const targetRole = session?.userProfileContext?.targetRole
     ? fixMojibake(session.userProfileContext.targetRole)
     : null;
+
+  // Use live agent data when available; otherwise show illustrative samples.
+  const hasLive = Boolean(overview?.hasData);
+  const signals = hasLive && overview!.signals.length > 0 ? overview!.signals : SIGNALS;
+  const benchmark = hasLive && overview!.salaryBenchmark ? overview!.salaryBenchmark : BENCHMARK;
+  const skills = hasLive && overview!.trendingSkills.length > 0 ? overview!.trendingSkills : SKILLS;
 
   return (
     <div className="mx-auto max-w-[1100px] px-7 pb-24 pt-7">
@@ -83,9 +96,11 @@ export default function MarketPage() {
         }
       />
 
-      <div className="mb-5 rounded-[8px] border border-gold-soft bg-gold-soft/40 px-4 py-2.5 text-[12px] text-gold">
-        Showing illustrative market intelligence — connect a roadmap to ground these in your live target market.
-      </div>
+      {!hasLive && (
+        <div className="mb-5 rounded-[8px] border border-gold-soft bg-gold-soft/40 px-4 py-2.5 text-[12px] text-gold">
+          Showing illustrative market intelligence — generate a roadmap to ground these in your live target market.
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         {/* Signals */}
@@ -94,7 +109,7 @@ export default function MarketPage() {
             Market signals
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {SIGNALS.map((s) => (
+            {signals.map((s) => (
               <MarketSignalCard key={s.id} signal={s} />
             ))}
           </div>
@@ -102,8 +117,8 @@ export default function MarketPage() {
 
         {/* Side rail */}
         <div className="flex flex-col gap-5">
-          <SalaryBenchmarkCard benchmark={BENCHMARK} />
-          <TrendingSkillsChart skills={SKILLS} />
+          <SalaryBenchmarkCard benchmark={benchmark} />
+          <TrendingSkillsChart skills={skills} />
         </div>
       </div>
     </div>

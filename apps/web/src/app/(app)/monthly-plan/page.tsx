@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ROUTES } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
+import { monthlyPlanApi } from "@/lib/api/monthly-plan";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoadmapProgressBar } from "@/components/roadmap/roadmap-progress-bar";
 
@@ -14,7 +16,7 @@ interface MonthPlan {
   goalsTotal: number;
 }
 
-const MONTHS: MonthPlan[] = [
+const SAMPLE_MONTHS: MonthPlan[] = [
   { id: "2026-04", month: "April 2026", theme: "Foundations in applied ML", status: "done", goalsDone: 4, goalsTotal: 4 },
   { id: "2026-05", month: "May 2026", theme: "Build an agentic project", status: "done", goalsDone: 3, goalsTotal: 3 },
   { id: "2026-06", month: "June 2026", theme: "Evaluation & observability", status: "current", goalsDone: 2, goalsTotal: 4 },
@@ -29,6 +31,24 @@ const STATUS_CHIP: Record<MonthPlan["status"], string> = {
 };
 
 export default function MonthlyPlanPage() {
+  const { data: livePlans } = useQuery({
+    queryKey: QUERY_KEYS.monthlyPlans,
+    queryFn: monthlyPlanApi.list,
+    staleTime: 60 * 1000,
+  });
+
+  const MONTHS: MonthPlan[] =
+    livePlans && livePlans.length > 0
+      ? livePlans.map((p) => ({
+          id: p.monthId,
+          month: p.month,
+          theme: p.theme,
+          status: p.status,
+          goalsDone: p.goalsDone,
+          goalsTotal: p.goalsTotal,
+        }))
+      : SAMPLE_MONTHS;
+
   return (
     <div className="mx-auto max-w-[900px] px-7 pb-24 pt-7">
       <PageHeader

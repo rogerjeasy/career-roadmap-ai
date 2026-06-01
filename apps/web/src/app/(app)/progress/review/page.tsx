@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ROUTES } from "@/lib/constants";
+import { progressApi } from "@/lib/api/progress";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   WeeklyScorecardForm,
@@ -11,11 +13,31 @@ import {
 } from "@/components/progress/weekly-scorecard-form";
 
 export default function WeeklyReviewPage() {
+  const queryClient = useQueryClient();
   const [saved, setSaved] = useState<WeeklyScorecardValues | null>(null);
 
+  const mutation = useMutation({
+    mutationFn: progressApi.createReview,
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.weeklyReviews });
+      setSaved({
+        energy: variables.energy,
+        focus: variables.focus,
+        wins: variables.wins ?? "",
+        blockers: variables.blockers ?? "",
+      });
+      toast.success("Weekly review saved");
+    },
+    onError: () => toast.error("Couldn't save your review. Please try again."),
+  });
+
   const onSubmit = (values: WeeklyScorecardValues) => {
-    setSaved(values);
-    toast.success("Weekly review saved");
+    mutation.mutate({
+      energy: values.energy,
+      focus: values.focus,
+      wins: values.wins,
+      blockers: values.blockers,
+    });
   };
 
   return (

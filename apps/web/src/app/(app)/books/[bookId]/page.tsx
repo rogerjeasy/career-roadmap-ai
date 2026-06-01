@@ -2,53 +2,64 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ROUTES } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
+import { booksApi } from "@/lib/api/books";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
-
-interface BookDetail {
-  id: string;
-  title: string;
-  author: string;
-  why: string;
-  phase: string;
-  takeaways: string[];
-}
-
-const DETAILS: Record<string, BookDetail> = {
-  "designing-ml-systems": {
-    id: "designing-ml-systems",
-    title: "Designing Machine Learning Systems",
-    author: "Chip Huyen",
-    why: "This book sits at the exact intersection of your current full-stack skills and your target AI systems role. It teaches you to think about ML as a system — data, deployment, monitoring — not just models.",
-    phase: "Phase 02 · Specialisation in applied ML",
-    takeaways: [
-      "Frame ML problems as end-to-end systems with feedback loops",
-      "Design data pipelines that are reliable and observable",
-      "Reason about deployment, drift, and monitoring trade-offs",
-    ],
-  },
-};
+import { LoadingSpinner } from "@/components/shared/loading-spinner";
+import { EmptyState } from "@/components/shared/empty-state";
 
 export default function BookDetailPage() {
   const params = useParams<{ bookId: string }>();
-  const book =
-    DETAILS[params.bookId] ?? {
-      id: params.bookId,
-      title: "Book",
-      author: "",
-      why: "A full rationale for this recommendation will appear here once your roadmap links it to a phase.",
-      phase: "",
-      takeaways: [],
-    };
+  const bookId = params.bookId;
+
+  const { data: book, isLoading, isError } = useQuery({
+    queryKey: QUERY_KEYS.book(bookId),
+    queryFn: () => booksApi.get(bookId),
+    enabled: Boolean(bookId),
+  });
+
+  const backLink = (
+    <Link
+      href={ROUTES.books}
+      className="mb-4 inline-flex items-center gap-1 text-[12.5px] font-medium text-ink-3 transition-colors duration-150 hover:text-ink"
+    >
+      ← Books
+    </Link>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[720px] px-7 pb-24 pt-7">
+        {backLink}
+        <LoadingSpinner fullPage label="Loading…" />
+      </div>
+    );
+  }
+
+  if (isError || !book) {
+    return (
+      <div className="mx-auto max-w-[720px] px-7 pb-24 pt-7">
+        {backLink}
+        <EmptyState
+          title="Book not found"
+          description="This book isn't in your reading list."
+          action={
+            <Link
+              href={ROUTES.books}
+              className="inline-flex items-center rounded-[7px] bg-ink px-4 py-2 text-[13px] font-medium text-bg transition-colors duration-150 hover:bg-green-2"
+            >
+              Back to books
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-[720px] px-7 pb-24 pt-7">
-      <Link
-        href={ROUTES.books}
-        className="mb-4 inline-flex items-center gap-1 text-[12.5px] font-medium text-ink-3 transition-colors duration-150 hover:text-ink"
-      >
-        ← Books
-      </Link>
+      {backLink}
       <PageHeader eyebrow={book.author || "Reading"} title={book.title} />
 
       {book.phase && (
@@ -59,7 +70,9 @@ export default function BookDetailPage() {
 
       <div className="rounded-[12px] border border-rule bg-paper p-6">
         <h2 className="mb-2 font-serif text-[15px] font-medium tracking-[-0.01em] text-ink">Why this book</h2>
-        <p className="text-[13.5px] leading-relaxed text-ink-2">{book.why}</p>
+        <p className="text-[13.5px] leading-relaxed text-ink-2">
+          {book.why || "A rationale for this book will appear here once your roadmap links it to a phase."}
+        </p>
 
         {book.takeaways.length > 0 && (
           <>

@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ROUTES } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
+import { progressApi } from "@/lib/api/progress";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { CareerHealthScore } from "@/components/progress/career-health-score";
 import { HabitCompletionChart } from "@/components/progress/habit-completion-chart";
 import { MetricChart } from "@/components/progress/metric-chart";
 
-const SIGNALS = [
+const SAMPLE_SIGNALS = [
   { label: "Roadmap progress", score: 84 },
   { label: "Skill readiness", score: 71 },
   { label: "Portfolio strength", score: 62 },
@@ -40,6 +42,17 @@ const MILESTONES = [
 ];
 
 export default function ProgressPage() {
+  const { data: health } = useQuery({
+    queryKey: QUERY_KEYS.health,
+    queryFn: progressApi.getHealth,
+    staleTime: 60 * 1000,
+  });
+
+  const hasHealth = Boolean(health && (health.score > 0 || health.signals.length > 0));
+  const score = hasHealth ? health!.score : 76;
+  const delta = hasHealth ? health!.delta ?? undefined : 8;
+  const signals = hasHealth && health!.signals.length > 0 ? health!.signals : SAMPLE_SIGNALS;
+
   return (
     <div className="mx-auto max-w-[1100px] px-7 pb-24 pt-7">
       <PageHeader
@@ -57,7 +70,7 @@ export default function ProgressPage() {
       />
 
       <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-        <CareerHealthScore score={76} delta={8} signals={SIGNALS} />
+        <CareerHealthScore score={score} delta={delta} signals={signals} />
 
         <div className="flex flex-col gap-5">
           <HabitCompletionChart weeks={HABITS} />

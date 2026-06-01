@@ -1,30 +1,84 @@
 "use client";
 
 import Link from "next/link";
-import { ROUTES } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
+import { networkingApi } from "@/lib/api/networking";
+import { formatRelative } from "@/lib/date";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { ContactCard } from "@/components/networking/contact-card";
 import { EventCalendar } from "@/components/networking/event-calendar";
 import { OutreachLog } from "@/components/networking/outreach-log";
 import type { Contact, NetworkingEvent, OutreachEntry } from "@/types/networking.types";
 
-const CONTACTS: Contact[] = [
+const SAMPLE_CONTACTS: Contact[] = [
   { id: "c1", name: "Maya Chen", role: "Staff ML Engineer", company: "Anthropic", status: "responded", reason: "Works on agent evaluation — could advise on your eval milestone.", lastTouchLabel: "2d ago" },
   { id: "c2", name: "Tomás Rivera", role: "Eng Manager", company: "Hugging Face", status: "to_reach", reason: "Hiring for applied ML roles in your target band." },
   { id: "c3", name: "Priya Nair", role: "AI Researcher", company: "DeepMind", status: "connected", reason: "Met at the LangGraph meetup.", lastTouchLabel: "1w ago" },
 ];
 
-const EVENTS: NetworkingEvent[] = [
+const SAMPLE_EVENTS: NetworkingEvent[] = [
   { id: "e1", title: "Agentic Systems Meetup", kind: "meetup", dateLabel: "Jun 12", location: "Zürich", isOnline: false },
   { id: "e2", title: "LLM Eval Deep-Dive (webinar)", kind: "webinar", dateLabel: "Jun 18", location: "Online", isOnline: true },
 ];
 
-const OUTREACH: OutreachEntry[] = [
+const SAMPLE_OUTREACH: OutreachEntry[] = [
   { id: "o1", contactName: "Maya Chen", channel: "linkedin", note: "Asked about her eval framework talk — she shared slides.", timeLabel: "2d ago" },
   { id: "o2", contactName: "Priya Nair", channel: "in_person", note: "Chatted at the meetup about agent orchestration patterns.", timeLabel: "1w ago" },
 ];
 
 export default function NetworkingPage() {
+  const { data: liveContacts } = useQuery({
+    queryKey: QUERY_KEYS.contacts,
+    queryFn: networkingApi.listContacts,
+    staleTime: 60 * 1000,
+  });
+  const { data: liveEvents } = useQuery({
+    queryKey: QUERY_KEYS.networkingEvents,
+    queryFn: networkingApi.listEvents,
+    staleTime: 60 * 1000,
+  });
+  const { data: liveOutreach } = useQuery({
+    queryKey: QUERY_KEYS.outreach,
+    queryFn: () => networkingApi.listOutreach(10),
+    staleTime: 60 * 1000,
+  });
+
+  const CONTACTS: Contact[] =
+    liveContacts && liveContacts.length > 0
+      ? liveContacts.slice(0, 4).map((c) => ({
+          id: c.id,
+          name: c.name,
+          role: c.role,
+          company: c.company,
+          status: c.status,
+          reason: c.reason ?? undefined,
+        }))
+      : SAMPLE_CONTACTS;
+
+  const EVENTS: NetworkingEvent[] =
+    liveEvents && liveEvents.length > 0
+      ? liveEvents.slice(0, 4).map((e) => ({
+          id: e.id,
+          title: e.title,
+          kind: e.kind,
+          dateLabel: e.dateLabel,
+          location: e.location,
+          isOnline: e.isOnline,
+        }))
+      : SAMPLE_EVENTS;
+
+  const OUTREACH: OutreachEntry[] =
+    liveOutreach && liveOutreach.length > 0
+      ? liveOutreach.map((o) => ({
+          id: o.id,
+          contactName: o.contactName,
+          channel: o.channel,
+          note: o.note,
+          timeLabel: formatRelative(o.createdAt),
+        }))
+      : SAMPLE_OUTREACH;
+
   return (
     <div className="mx-auto max-w-[1100px] px-7 pb-24 pt-7">
       <PageHeader

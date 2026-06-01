@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ROUTES } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
+import { monthlyPlanApi } from "@/lib/api/monthly-plan";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 
 interface WeekGoal {
@@ -37,9 +39,25 @@ const DETAILS: Record<string, MonthDetail> = {
 
 export default function MonthDetailPage() {
   const params = useParams<{ monthId: string }>();
-  const detail =
-    DETAILS[params.monthId] ?? {
-      id: params.monthId,
+  const monthId = params.monthId;
+
+  const { data: live } = useQuery({
+    queryKey: QUERY_KEYS.monthlyPlan(monthId),
+    queryFn: () => monthlyPlanApi.get(monthId),
+    enabled: Boolean(monthId),
+    retry: false,
+  });
+
+  const detail: MonthDetail =
+    (live && {
+      id: live.monthId,
+      month: live.month,
+      theme: live.theme,
+      summary: live.summary,
+      weeks: live.weeks,
+    }) ||
+    DETAILS[monthId] || {
+      id: monthId,
       month: "This month",
       theme: "Planned focus",
       summary: "A detailed plan for this month will appear here once your roadmap generates monthly goals.",

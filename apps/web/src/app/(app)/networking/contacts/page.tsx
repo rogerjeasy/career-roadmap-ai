@@ -2,30 +2,44 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ROUTES } from "@/lib/constants";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { networkingApi } from "@/lib/api/networking";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
+import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ContactCard } from "@/components/networking/contact-card";
 import { ContactForm } from "@/components/networking/contact-form";
 import type { Contact } from "@/types/networking.types";
 
-const INITIAL: Contact[] = [
-  { id: "c1", name: "Maya Chen", role: "Staff ML Engineer", company: "Anthropic", status: "responded", reason: "Works on agent evaluation.", lastTouchLabel: "2d ago" },
-  { id: "c2", name: "Tomás Rivera", role: "Eng Manager", company: "Hugging Face", status: "to_reach", reason: "Hiring for applied ML roles." },
-  { id: "c3", name: "Priya Nair", role: "AI Researcher", company: "DeepMind", status: "connected", reason: "Met at the LangGraph meetup.", lastTouchLabel: "1w ago" },
-  { id: "c4", name: "Jonas Berg", role: "Recruiter", company: "Scale AI", status: "contacted", lastTouchLabel: "4d ago" },
-];
-
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>(INITIAL);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 
+  const { data: contacts, isLoading } = useQuery({
+    queryKey: QUERY_KEYS.contacts,
+    queryFn: networkingApi.listContacts,
+    staleTime: 60 * 1000,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: networkingApi.createContact,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contacts });
+      toast.success("Contact added");
+      setShowForm(false);
+    },
+    onError: () => toast.error("Couldn't add the contact."),
+  });
+
   const addContact = (data: Omit<Contact, "id" | "status">) => {
-    setContacts((prev) => [
-      { ...data, id: `c-${Date.now()}`, status: "to_reach" },
-      ...prev,
-    ]);
-    setShowForm(false);
+    createMutation.mutate({
+      name: data.name,
+      role: data.role,
+      company: data.company,
+      reason: data.reason ?? null,
+    });
   };
 
   return (
@@ -57,12 +71,14 @@ export default function ContactsPage() {
         </div>
       )}
 
-      {contacts.length === 0 ? (
+      {isLoading ? (
+        <LoadingSpinner fullPage label="Loading contacts…" />
+      ) : !contacts || contacts.length === 0 ? (
         <EmptyState title="No contacts yet" description="Add the people who can help you reach your goal." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {contacts.map((c) => (
-            <ContactCard key={c.id} contact={c} />
+            <ContactCard key={c.id} contact={{ ...c, reason: c.reason ?? undefined }} />
           ))}
         </div>
       )}

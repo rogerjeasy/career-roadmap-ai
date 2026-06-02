@@ -15,6 +15,8 @@ class WeeklyReviewCreate(BaseModel):
     wins: str = Field(default="", max_length=4000)
     blockers: str = Field(default="", max_length=4000)
     week_of: str | None = Field(default=None, max_length=40)
+    hours_invested: float = Field(default=0, ge=0, le=168)
+    milestones_closed: int = Field(default=0, ge=0, le=100)
 
 
 class WeeklyReviewOut(BaseModel):
@@ -24,6 +26,8 @@ class WeeklyReviewOut(BaseModel):
     wins: str
     blockers: str
     week_of: str | None
+    hours_invested: float
+    milestones_closed: int
     created_at: datetime
 
     @classmethod
@@ -35,6 +39,8 @@ class WeeklyReviewOut(BaseModel):
             wins=doc.get("wins", ""),
             blockers=doc.get("blockers", ""),
             week_of=doc.get("week_of"),
+            hours_invested=float(doc.get("hours_invested", 0) or 0),
+            milestones_closed=int(doc.get("milestones_closed", 0) or 0),
             created_at=doc["created_at"],
         )
 

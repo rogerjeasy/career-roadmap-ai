@@ -17,37 +17,20 @@ const LEVEL_CLASSES = [
 
 // ── Heatmap grid ──────────────────────────────────────────────────────────────
 
-const WEEK_PATTERN = [
-  [0,1,1,1,0,1,0],
-  [0,2,2,1,1,2,0],
-  [0,2,3,2,2,1,0],
-  [1,3,3,3,2,2,0],
-  [0,2,3,2,3,2,1],
-  [0,1,2,2,2,1,0],
-  [0,3,4,3,2,3,1],
-  [0,2,3,3,4,2,0],
-  [1,3,3,4,3,3,1],
-  [0,3,4,3,3,2,0],
-  [0,2,3,3,4,3,1],
-  [1,3,4,4,3,2,1],
-  [0,2,3,3,3,3,0],
-  [1,4,4,3,4,3,1],
-  [0,3,4,4,3,4,1],
-  [0,3,4,4,3,2,0],
-] as const;
-
-const MILESTONE_INDICES = new Set([4 * 7 + 5, 11 * 7 + 3, 14 * 7 + 2]);
-
 const WEEKS = 16;
 const DAY_LABELS = ["", "M", "", "W", "", "F", ""];
 
 interface HeatmapCell {
   level: number;
-  isMilestone: boolean;
+  date: Date;
   label: string;
 }
 
-function buildCells(): HeatmapCell[] {
+/**
+ * Build cells from a real activity array (one 0–4 level per day, index
+ * `week * 7 + dayOfWeek`, last cell = today). The grid spans the last 16 weeks.
+ */
+function buildCells(activity: number[]): HeatmapCell[] {
   const cells: HeatmapCell[] = [];
   const now = new Date();
 
@@ -56,13 +39,11 @@ function buildCells(): HeatmapCell[] {
       const idx = w * 7 + d;
       const date = new Date(now);
       date.setDate(date.getDate() - (WEEKS - 1 - w) * 7 - (6 - d));
-      const level   = WEEK_PATTERN[w]?.[d] ?? 0;
-      const isMilestone = MILESTONE_INDICES.has(idx);
-      const sessions = level;
+      const level = Math.max(0, Math.min(4, activity[idx] ?? 0));
       cells.push({
         level,
-        isMilestone,
-        label: `${date.toDateString()}${sessions ? ` · ${sessions} session${sessions > 1 ? "s" : ""}` : " · rest"}`,
+        date,
+        label: `${date.toDateString()}${level ? ` · ${level} session${level > 1 ? "s" : ""}` : " · no activity"}`,
       });
     }
   }
@@ -70,9 +51,16 @@ function buildCells(): HeatmapCell[] {
   return cells;
 }
 
-function HeatmapGrid() {
-  const cells = useMemo(buildCells, []);
-  const months = ["Jan", "Feb", "Mar", "Apr"];
+function HeatmapGrid({ activity }: { activity: number[] }) {
+  const cells = useMemo(() => buildCells(activity), [activity]);
+  // Month labels derived from the real date range (one per ~4-week column group).
+  const months = useMemo(
+    () =>
+      [0, 4, 8, 12].map((w) =>
+        cells[w * 7]?.date.toLocaleString("en-US", { month: "short" }) ?? "",
+      ),
+    [cells],
+  );
 
   return (
     <div className="grid grid-cols-[22px_1fr] gap-1.5">
@@ -106,9 +94,7 @@ function HeatmapGrid() {
               aria-label={cell.label}
               className={cn(
                 "h-3 w-3 rounded-sm transition-transform duration-[120ms] hover:scale-[1.4] hover:rounded-[3px]",
-                cell.isMilestone
-                  ? "bg-terra ring-1 ring-terra ring-offset-1 ring-offset-paper"
-                  : LEVEL_CLASSES[cell.level] ?? LEVEL_CLASSES[0],
+                LEVEL_CLASSES[cell.level] ?? LEVEL_CLASSES[0],
               )}
             />
           ))}
@@ -155,20 +141,22 @@ function ActivityStat({ label, sub, value }: ActivityStatProps) {
 
 export interface ActivityHeatmapCardProps {
   stats: ActivityStats | null;
+  /** One 0–4 activity level per day for the last 16 weeks (index = week * 7 + day). */
+  activity: number[];
   isLoading: boolean;
 }
 
-const DEFAULT_STATS: ActivityStats = {
-  longestStreakDays:    34,
-  totalDeepWorkHours:  142,
-  milestonesCompleted: 12,
-  milestonesTotal:     26,
-  weeklyReviewsFiled:  16,
-  totalWeeks:          16,
+const EMPTY_STATS: ActivityStats = {
+  longestStreakDays:   0,
+  totalDeepWorkHours:  0,
+  milestonesCompleted: 0,
+  milestonesTotal:     0,
+  weeklyReviewsFiled:  0,
+  totalWeeks:          0,
 };
 
-export function ActivityHeatmapCard({ stats, isLoading }: ActivityHeatmapCardProps) {
-  const s = stats ?? DEFAULT_STATS;
+export function ActivityHeatmapCard({ stats, activity, isLoading }: ActivityHeatmapCardProps) {
+  const s = stats ?? EMPTY_STATS;
 
   return (
     <section className="rounded-[12px] border border-rule bg-paper p-6">
@@ -180,7 +168,7 @@ export function ActivityHeatmapCard({ stats, isLoading }: ActivityHeatmapCardPro
           </h2>
           <p className="mt-[3px] text-[11.5px] text-ink-3">
             Last 16 weeks ·{" "}
-            <em className="font-serif italic text-terra">terracotta marks completed milestones</em>
+            <em className="font-serif italic text-terra">deeper green means more activity that day</em>
           </p>
         </div>
         <Link
@@ -197,28 +185,30 @@ export function ActivityHeatmapCard({ stats, isLoading }: ActivityHeatmapCardPro
         </div>
       ) : (
         <div className="grid gap-7 xl:grid-cols-[1.7fr_1fr]">
-          <HeatmapGrid />
+          <HeatmapGrid activity={activity} />
 
           <div className="flex flex-col gap-[18px]">
             <ActivityStat
               label="Longest streak"
-              sub="Best run since starting your roadmap"
+              sub="Best habit run going right now"
               value={<><em className="italic text-terra">{s.longestStreakDays}</em><span className="ml-0.5 text-[13px] not-italic text-ink-3">d</span></>}
             />
             <ActivityStat
               label="Total deep-work"
               sub="Hours logged across all categories"
-              value={<>{s.totalDeepWorkHours}<span className="ml-0.5 text-[13px] text-ink-3">h</span></>}
+              value={s.totalDeepWorkHours > 0
+                ? <>{s.totalDeepWorkHours}<span className="ml-0.5 text-[13px] text-ink-3">h</span></>
+                : <span className="text-ink-3">—</span>}
             />
             <ActivityStat
               label="Milestones"
-              sub="Completed across two phases"
+              sub="Completed across your roadmap"
               value={<>{s.milestonesCompleted} <span className="text-[18px] text-ink-3">/ {s.milestonesTotal}</span></>}
             />
             <ActivityStat
               label="Weekly reviews filed"
-              sub={`Friday retros · all ${s.totalWeeks} weeks`}
-              value={<><em className="italic text-terra">{s.weeklyReviewsFiled}</em><span className="ml-0.5 text-[13px] not-italic text-ink-3">/ {s.totalWeeks}</span></>}
+              sub="Reflections logged so far"
+              value={<><em className="italic text-terra">{s.weeklyReviewsFiled}</em></>}
             />
           </div>
         </div>

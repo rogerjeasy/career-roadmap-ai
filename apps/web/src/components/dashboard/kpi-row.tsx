@@ -15,27 +15,6 @@ function KpiSkeleton() {
   );
 }
 
-// ── Spark line ────────────────────────────────────────────────────────────────
-
-function SparkLine({ points }: { points: string }) {
-  return (
-    <svg
-      viewBox="0 0 100 36"
-      fill="none"
-      className="absolute bottom-0 right-0 h-9 w-[100px] opacity-30"
-      aria-hidden="true"
-    >
-      <polyline
-        points={points}
-        stroke="#7ED2A4"
-        strokeWidth="1.5"
-        fill="none"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 // ── Single KPI card ───────────────────────────────────────────────────────────
 
 export interface KpiCardProps {
@@ -152,7 +131,7 @@ export function KpiRow({ kpis, isLoading }: KpiRowProps) {
   const delta         = kpis?.healthScoreDelta ?? 0;
   const streak        = kpis?.activeStreakDays ?? 0;
   const hours         = kpis?.hoursThisWeek ?? 0;
-  const budget        = kpis?.weeklyBudgetHours ?? 12;
+  const budget        = kpis?.weeklyBudgetHours ?? 0;
   const milestone     = kpis?.nextMilestoneDays ?? null;
   const milestoneName = kpis?.nextMilestoneName ?? "";
 
@@ -167,21 +146,17 @@ export function KpiRow({ kpis, isLoading }: KpiRowProps) {
         value={health > 0 ? String(health) : "—"}
         unit={health > 0 ? "/100" : undefined}
         deltaValue={delta > 0 ? `+${delta}` : delta < 0 ? String(delta) : undefined}
-        deltaLabel={delta !== 0 ? "since last month" : "Generate roadmap to start"}
+        deltaLabel={delta !== 0 ? "since last snapshot" : "Generate roadmap to start"}
         deltaDirection={delta > 0 ? "up" : delta < 0 ? "down" : "neutral"}
         featured
-      >
-        <SparkLine points="0,28 14,26 28,24 42,22 56,20 70,15 84,12 100,8" />
-      </KpiCard>
+      />
 
       {/* Active streak */}
       <KpiCard
         label="Active Streak"
         value={streak > 0 ? String(streak) : "—"}
         unit={streak > 0 ? "days" : undefined}
-        deltaLabel={streak > 0 ? "longer than your avg" : "Start your streak today"}
-        deltaValue={streak > 0 ? "+7%" : undefined}
-        deltaDirection="up"
+        deltaLabel={streak > 0 ? "your best habit run" : "Start your streak today"}
       />
 
       {/* Hours this week */}

@@ -73,16 +73,21 @@ export interface WeeklyBudgetCardProps {
   isLoading: boolean;
 }
 
-const DEFAULT_CATEGORIES: WeeklyBudgetCategory[] = [
-  { id: "build",   hoursLogged: 0, hoursTarget: 5 },
-  { id: "read",    hoursLogged: 0, hoursTarget: 3 },
-  { id: "network", hoursLogged: 0, hoursTarget: 2 },
-  { id: "review",  hoursLogged: 0, hoursTarget: 2 },
-];
+function EmptyBudget({ totalBudgetHours }: { totalBudgetHours: number }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-[8px] border border-dashed border-rule py-8 text-center">
+      <p className="mb-1 text-[13px] font-medium text-ink-2">No time logged yet</p>
+      <p className="max-w-[280px] text-[12px] text-ink-3">
+        {totalBudgetHours > 0
+          ? `Your weekly target is ${totalBudgetHours} h. Log time against your schedule to see how the week breaks down.`
+          : "Set your weekly hours in your profile and log time against your schedule to track your budget."}
+      </p>
+    </div>
+  );
+}
 
 export function WeeklyBudgetCard({ categories, totalBudgetHours, isLoading }: WeeklyBudgetCardProps) {
-  const cats = categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-  const totalLogged = cats.reduce((s, c) => s + c.hoursLogged, 0);
+  const totalLogged = categories.reduce((s, c) => s + c.hoursLogged, 0);
   const pct = totalBudgetHours > 0 ? Math.round((totalLogged / totalBudgetHours) * 100) : 0;
   const isOnPace = pct >= 60;
 
@@ -120,6 +125,8 @@ export function WeeklyBudgetCard({ categories, totalBudgetHours, isLoading }: We
             {[0,1,2,3].map((i) => <div key={i} className="h-4 rounded bg-bg-2" />)}
           </div>
         </div>
+      ) : categories.length === 0 ? (
+        <EmptyBudget totalBudgetHours={totalBudgetHours} />
       ) : (
         <>
           {/* Total */}
@@ -140,10 +147,10 @@ export function WeeklyBudgetCard({ categories, totalBudgetHours, isLoading }: We
             </div>
           </div>
 
-          <StackedBar categories={cats} totalBudget={totalBudgetHours} />
+          <StackedBar categories={categories} totalBudget={totalBudgetHours} />
 
           <div className="grid grid-cols-2 gap-x-[22px] gap-y-2.5">
-            {cats.map((cat) => (
+            {categories.map((cat) => (
               <CategoryRow key={cat.id} cat={cat} />
             ))}
           </div>

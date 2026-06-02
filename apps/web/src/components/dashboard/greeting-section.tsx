@@ -4,7 +4,7 @@ import Link from "next/link";
 import { cn, fixMojibake } from "@/lib/utils";
 import type { UserProfile } from "@/types/api.types";
 import type { SessionState } from "@/types/session.types";
-import type { NextBestAction } from "@/types/dashboard.types";
+import type { NextBestAction, PhaseTag as PhaseTagData } from "@/types/dashboard.types";
 import { ROUTES } from "@/lib/constants";
 
 // ── Phase progress bar ────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ function NbaCard({ action }: NbaCardProps) {
         <svg viewBox="0 0 14 14" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
           <path d="M7 1l1.5 4 4 1.5-4 1.5L7 12l-1.5-4L1.5 6.5l4-1.5z"/>
         </svg>
-        Suggested next · {action.estimateMinutes} min
+        Suggested next{action.estimateMinutes > 0 ? ` · ${action.estimateMinutes} min` : ""}
       </div>
 
       <h4 className="mb-1 font-serif text-[17px] font-[450] leading-[1.25] tracking-[-0.005em] text-ink">
@@ -67,7 +67,7 @@ function NbaCard({ action }: NbaCardProps) {
 
       <div className="flex items-center gap-2.5">
         <Link
-          href={ROUTES.coach}
+          href={action.href ?? ROUTES.coach}
           className="inline-flex items-center gap-[5px] rounded-[6px] bg-ink px-[13px] py-[6px] text-[12px] font-medium text-bg transition-colors duration-150 hover:bg-green-2"
         >
           Start now
@@ -91,6 +91,8 @@ function NbaCard({ action }: NbaCardProps) {
 export interface GreetingSectionProps {
   user: UserProfile | null;
   session: SessionState | null;
+  phaseTag: PhaseTagData | null;
+  nextAction: NextBestAction;
   isLoading: boolean;
 }
 
@@ -101,13 +103,13 @@ function getFirstName(displayName: string | null, email: string): string {
   return email.split("@")[0];
 }
 
-const FALLBACK_ACTION: NextBestAction = {
-  title: "Generate your personalised career roadmap",
-  description: "Chat with the Career Twin to map your goal, current skills, and timeline. Your week-by-week plan will be ready in minutes.",
-  estimateMinutes: 10,
-};
-
-export function GreetingSection({ user, session, isLoading }: GreetingSectionProps) {
+export function GreetingSection({
+  user,
+  session,
+  phaseTag,
+  nextAction,
+  isLoading,
+}: GreetingSectionProps) {
   const firstName = user
     ? getFirstName(user.displayName, user.email)
     : "there";
@@ -115,20 +117,8 @@ export function GreetingSection({ user, session, isLoading }: GreetingSectionPro
   const targetRole = session?.userProfileContext?.targetRole
     ? fixMojibake(session.userProfileContext.targetRole)
     : undefined;
-  const currentPhase = 2;
-  const totalPhases  = 4;
-  const phaseName    = "Specialisation";
 
-  const hasRoadmap = !!session?.planContext?.roadmapId;
-
-  const nbaAction: NextBestAction = hasRoadmap
-    ? {
-        title:           "Push your RAG retriever to GitHub & tag the milestone.",
-        description:     "You're one commit away from closing",
-        estimateMinutes: 25,
-        milestoneLabel:  "M-07: Production retrieval pipeline",
-      }
-    : FALLBACK_ACTION;
+  const hasRoadmap = phaseTag !== null || !!session?.planContext?.roadmapId;
 
   if (isLoading) {
     return (
@@ -154,11 +144,11 @@ export function GreetingSection({ user, session, isLoading }: GreetingSectionPro
     >
       {/* Greeting text */}
       <div>
-        {hasRoadmap && (
+        {phaseTag && (
           <PhaseTag
-            currentPhase={currentPhase}
-            totalPhases={totalPhases}
-            phaseName={phaseName}
+            currentPhase={phaseTag.currentPhase}
+            totalPhases={phaseTag.totalPhases}
+            phaseName={phaseTag.phaseName}
           />
         )}
         <h1 className="mb-2 font-serif text-[40px] font-[350] leading-[1.1] tracking-[-0.025em] text-ink">
@@ -180,7 +170,7 @@ export function GreetingSection({ user, session, isLoading }: GreetingSectionPro
       </div>
 
       {/* Next best action */}
-      <NbaCard action={nbaAction} />
+      <NbaCard action={nextAction} />
     </section>
   );
 }

@@ -67,15 +67,17 @@ function OppItem({ opp }: { opp: OpportunityItem }) {
         </p>
       </div>
 
-      <div className="shrink-0 text-right">
-        <p className="font-serif text-[17px] font-medium leading-none text-green [font-variant-numeric:tabular-nums]">
-          {opp.matchScore}
-          <span className="text-[11px] text-ink-3">%</span>
-        </p>
-        <p className="mt-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-ink-3">
-          {opp.matchLabel}
-        </p>
-      </div>
+      {opp.matchScore > 0 && (
+        <div className="shrink-0 text-right">
+          <p className="font-serif text-[17px] font-medium leading-none text-green [font-variant-numeric:tabular-nums]">
+            {opp.matchScore}
+            <span className="text-[11px] text-ink-3">%</span>
+          </p>
+          <p className="mt-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+            {opp.matchLabel}
+          </p>
+        </div>
+      )}
     </Link>
   );
 }
@@ -85,72 +87,61 @@ function OppItem({ opp }: { opp: OpportunityItem }) {
 function parseAlerts(alerts: AlertsResponse): OpportunityItem[] {
   const items: OpportunityItem[] = [];
 
-  // Try to build structured items from target companies
-  alerts.targetCompanies.slice(0, 2).forEach((company, i) => {
+  // Structured items from target companies — use the real average match score.
+  alerts.targetCompanies.slice(0, 3).forEach((company, i) => {
+    const roles = company.topRoles && company.topRoles.length > 0
+      ? company.topRoles.slice(0, 2).join(" · ")
+      : company.jobCount
+        ? `${company.jobCount} open role${company.jobCount === 1 ? "" : "s"}`
+        : (company.reason ?? "Matched to your profile");
     items.push({
       id:          `company-${i}`,
       type:        "job",
-      tag:         "Job · Top match",
+      tag:         "Top company",
       title:       String(company.name ?? "Position"),
-      meta:        alerts.searchQuery ?? "Matched to your profile",
-      matchScore:  85 + i * 3,
+      meta:        roles,
+      matchScore:  typeof company.avgMatchScore === "number"
+        ? Math.round(company.avgMatchScore * 100)
+        : 0,
       matchLabel:  "Match",
     });
   });
 
-  // Fill remaining slots with alert strings (max 4 total)
+  // Fill remaining slots with alert strings (no fabricated score).
   alerts.alerts.slice(0, 4 - items.length).forEach((alert, i) => {
     const truncated = alert.length > 60 ? `${alert.slice(0, 57)}…` : alert;
     items.push({
       id:          `alert-${i}`,
       type:        "job",
-      tag:         "Opportunity",
+      tag:         "Alert",
       title:       truncated,
       meta:        alerts.searchQuery ?? "",
-      matchScore:  alerts.highMatchCount > 0 ? 80 + i : 0,
-      matchLabel:  "Match",
+      matchScore:  0,
+      matchLabel:  "",
     });
   });
 
   return items.slice(0, 4);
 }
 
-// ── Fallback items ────────────────────────────────────────────────────────────
+// ── Empty state ───────────────────────────────────────────────────────────────
 
-const FALLBACK_OPPS: OpportunityItem[] = [
-  {
-    id: "1", type: "job",
-    tag: "Job · Top match",
-    title: "AI Systems Engineer · Anthropic",
-    meta: "London · Hybrid",
-    matchScore: 92,
-    matchLabel: "Match",
-  },
-  {
-    id: "2", type: "mentor",
-    tag: "Mentor match",
-    title: "Staff ML Engineer mentorship",
-    meta: "Available now · 2 slots open",
-    matchScore: 88,
-    matchLabel: "Fit",
-  },
-  {
-    id: "3", type: "event",
-    tag: "Event · This week",
-    title: "AI Systems meetup",
-    meta: "In-person · community event",
-    matchScore: 81,
-    matchLabel: "Match",
-  },
-  {
-    id: "4", type: "opensource",
-    tag: "Open-source · Good first issue",
-    title: "llamaindex · improve RAG eval suite",
-    meta: "Python · ~3 h work",
-    matchScore: 86,
-    matchLabel: "Match",
-  },
-];
+function OppEmpty() {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-[9px] border border-dashed border-rule py-8 text-center">
+      <p className="mb-1 text-[13px] font-medium text-ink-2">No matches yet</p>
+      <p className="mb-3 max-w-[240px] text-[12px] text-ink-3">
+        Run a job search and we&apos;ll surface roles scored against your profile here.
+      </p>
+      <Link
+        href={ROUTES.opportunities}
+        className="inline-flex items-center gap-1.5 rounded-[7px] bg-ink px-4 py-2 text-[12px] font-medium text-bg transition-colors duration-150 hover:bg-green-2"
+      >
+        Find opportunities
+      </Link>
+    </div>
+  );
+}
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
@@ -179,9 +170,11 @@ export interface OpportunityRadarCardProps {
 }
 
 export function OpportunityRadarCard({ alerts, isLoading }: OpportunityRadarCardProps) {
-  const hasAlerts = alerts && (alerts.alerts.length > 0 || alerts.targetCompanies.length > 0);
-  const items = hasAlerts ? parseAlerts(alerts) : FALLBACK_OPPS;
-  const newCount = alerts?.highMatchCount ?? 5;
+  const hasAlerts = Boolean(
+    alerts && (alerts.alerts.length > 0 || alerts.targetCompanies.length > 0),
+  );
+  const items = hasAlerts && alerts ? parseAlerts(alerts) : [];
+  const newCount = alerts?.highMatchCount ?? 0;
 
   return (
     <div className="rounded-[12px] border border-rule bg-paper p-6">
@@ -192,7 +185,7 @@ export function OpportunityRadarCard({ alerts, isLoading }: OpportunityRadarCard
             Opportunity radar
           </h2>
           <p className="mt-[3px] text-[11.5px] text-ink-3">
-            {newCount} new this week ·{" "}
+            {newCount > 0 ? `${newCount} high match${newCount === 1 ? "" : "es"} · ` : ""}
             <em className="font-serif italic text-terra">matched to your plan</em>
           </p>
         </div>
@@ -205,10 +198,13 @@ export function OpportunityRadarCard({ alerts, isLoading }: OpportunityRadarCard
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {isLoading
-          ? [0,1,2,3].map((i) => <OppSkeleton key={i} />)
-          : items.map((opp) => <OppItem key={opp.id} opp={opp} />)
-        }
+        {isLoading ? (
+          [0, 1, 2, 3].map((i) => <OppSkeleton key={i} />)
+        ) : items.length > 0 ? (
+          items.map((opp) => <OppItem key={opp.id} opp={opp} />)
+        ) : (
+          <OppEmpty />
+        )}
       </div>
     </div>
   );

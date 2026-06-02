@@ -93,14 +93,6 @@ export interface MarketPulseCardProps {
   isLoading: boolean;
 }
 
-const DEFAULT_TRENDS: SkillTrend[] = [
-  { name: "RAG systems",  changePercent: 38,  isInPlan: true,  isSteady: false, sparkPoints: [12,11,9,8,5,2] },
-  { name: "LLM evals",   changePercent: 71,  isInPlan: true,  isSteady: false, sparkPoints: [13,11,12,8,6,3] },
-  { name: "MCP servers", changePercent: 118, isInPlan: false, isSteady: false, sparkPoints: [14,13,12,9,4,1] },
-  { name: "PyTorch · prod", changePercent: 18, isInPlan: false, isSteady: false, sparkPoints: [11,10,11,9,7,5] },
-  { name: "Kubernetes",  changePercent: 4,   isInPlan: false, isSteady: true,  sparkPoints: [9,10,9,9,8,7] },
-];
-
 export function MarketPulseCard({
   targetRole,
   salaryLabel,
@@ -108,8 +100,6 @@ export function MarketPulseCard({
   coachInsight,
   isLoading,
 }: MarketPulseCardProps) {
-  const displayTrends = trends.length > 0 ? trends : DEFAULT_TRENDS;
-
   return (
     <div className="rounded-[12px] border border-rule bg-paper p-6">
       {/* Header */}
@@ -151,11 +141,18 @@ export function MarketPulseCard({
           </div>
 
           {/* Skill trends */}
-          <div>
-            {displayTrends.map((trend) => (
-              <SkillTrendRow key={trend.name} trend={trend} />
-            ))}
-          </div>
+          {trends.length > 0 ? (
+            <div>
+              {trends.map((trend) => (
+                <SkillTrendRow key={trend.name} trend={trend} />
+              ))}
+            </div>
+          ) : (
+            <p className="py-4 text-center text-[12px] text-ink-3">
+              No live market signals yet — generate a roadmap to ground trending
+              skills in your target market.
+            </p>
+          )}
 
           {/* Coach insight */}
           {coachInsight && (

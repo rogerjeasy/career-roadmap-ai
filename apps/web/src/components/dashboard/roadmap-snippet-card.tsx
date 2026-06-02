@@ -7,7 +7,22 @@ import { ROUTES } from "@/lib/constants";
 
 // ── Roadmap path visualisation ────────────────────────────────────────────────
 
-function RoadmapPath({ currentPhaseIdx }: { currentPhaseIdx: number }) {
+// Hand-tuned label anchor positions along the decorative curve (max 4 shown).
+const LABEL_SLOTS = [
+  "left-[18px] top-[154px]",
+  "left-[296px] top-[156px]",
+  "right-[92px] top-[122px]",
+  "right-2 top-1",
+] as const;
+
+function slotClass(status: RoadmapPhase["status"]): string {
+  if (status === "done") return "border-green bg-green text-white";
+  if (status === "current")
+    return "border-terra bg-terra text-white shadow-[0_4px_12px_-2px_rgba(201,90,61,0.4)]";
+  return "border-rule bg-paper text-ink-3";
+}
+
+function RoadmapPath({ phases, currentPhaseIdx }: { phases: RoadmapPhase[]; currentPhaseIdx: number }) {
   // Current progress dot position based on phase (0-indexed)
   const dotPositions = [
     { cx: 30,  cy: 170 },
@@ -52,19 +67,20 @@ function RoadmapPath({ currentPhaseIdx }: { currentPhaseIdx: number }) {
         <circle cx="580" cy="30"  r="6" fill="#fff" stroke="#15140F" strokeWidth="2"/>
       </svg>
 
-      {/* Stage labels */}
-      <span className="stage-label absolute left-[18px] top-[154px] rounded-[4px] border border-green bg-green px-2 py-[3px] text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
-        Phase 1 · Foundation
-      </span>
-      <span className="stage-label absolute left-[296px] top-[156px] rounded-[4px] border border-terra bg-terra px-2 py-[3px] text-[10px] font-semibold uppercase tracking-[0.1em] text-white shadow-[0_4px_12px_-2px_rgba(201,90,61,0.4)]">
-        Phase 2 · You are here
-      </span>
-      <span className="stage-label absolute right-[92px] top-[122px] rounded-[4px] border border-rule bg-paper px-2 py-[3px] text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-3">
-        Phase 3
-      </span>
-      <span className="stage-label absolute right-2 top-1 rounded-[4px] border border-rule bg-paper px-2 py-[3px] text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-3">
-        Phase 4 · Target
-      </span>
+      {/* Stage labels — derived from the real roadmap (first 4 phases) */}
+      {phases.slice(0, 4).map((phase, i) => (
+        <span
+          key={phase.number}
+          className={cn(
+            "stage-label absolute max-w-[120px] truncate rounded-[4px] border px-2 py-[3px] text-[10px] font-semibold uppercase tracking-[0.1em]",
+            LABEL_SLOTS[i],
+            slotClass(phase.status),
+          )}
+        >
+          P{phase.number} · {phase.title}
+          {phase.status === "current" && " · now"}
+        </span>
+      ))}
     </div>
   );
 }
@@ -151,17 +167,9 @@ export interface RoadmapSnippetCardProps {
   isLoading: boolean;
 }
 
-const DEFAULT_PHASES: RoadmapPhase[] = [
-  { number: 1, label: "01", title: "Foundation in ML",              progressPercent: 100, status: "done",    milestonesCompleted: 8, milestonesTotal: 8, dateLabel: "Complete" },
-  { number: 2, label: "02", title: "Specialisation in applied ML",  progressPercent: 57,  status: "current", milestonesCompleted: 4, milestonesTotal: 7, dateLabel: "4 of 7 milestones" },
-  { number: 3, label: "03", title: "Portfolio & visibility",        progressPercent: 0,   status: "future",  milestonesCompleted: 0, milestonesTotal: 6, dateLabel: "Starts late June" },
-  { number: 4, label: "04", title: "Interviews & offers",           progressPercent: 0,   status: "future",  milestonesCompleted: 0, milestonesTotal: 5, dateLabel: "Q4 2026" },
-];
-
 export function RoadmapSnippetCard({ phases, trackLabel, isLoading }: RoadmapSnippetCardProps) {
   const hasPhases = phases.length > 0;
-  const displayPhases = hasPhases ? phases : DEFAULT_PHASES;
-  const currentPhaseIdx = displayPhases.findIndex((p) => p.status === "current");
+  const currentPhaseIdx = phases.findIndex((p) => p.status === "current");
 
   return (
     <div className="rounded-[12px] border border-rule bg-paper p-6">
@@ -172,8 +180,15 @@ export function RoadmapSnippetCard({ phases, trackLabel, isLoading }: RoadmapSni
             Your roadmap
           </h2>
           <p className="mt-[3px] text-[11.5px] text-ink-3">
-            {trackLabel || "Generate a roadmap to see your track"} ·{" "}
-            <em className="font-serif italic text-terra">18-month track</em>
+            {trackLabel || "Generate a roadmap to see your track"}
+            {hasPhases && (
+              <>
+                {" · "}
+                <em className="font-serif italic text-terra">
+                  {phases.length}-phase plan
+                </em>
+              </>
+            )}
           </p>
         </div>
         <Link
@@ -195,9 +210,9 @@ export function RoadmapSnippetCard({ phases, trackLabel, isLoading }: RoadmapSni
         <RoadmapEmpty />
       ) : (
         <>
-          <RoadmapPath currentPhaseIdx={Math.max(currentPhaseIdx, 0)} />
+          <RoadmapPath phases={phases} currentPhaseIdx={Math.max(currentPhaseIdx, 0)} />
           <div className="mt-[18px] grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            {displayPhases.map((phase) => (
+            {phases.map((phase) => (
               <PhaseItem key={phase.number} phase={phase} />
             ))}
           </div>

@@ -84,15 +84,21 @@ function TaskItem({ task, onToggle }: TaskItemProps) {
           >
             {CATEGORY_LABELS[task.category]}
           </span>
-          <span className="text-rule-strong" aria-hidden="true">·</span>
-          <span dangerouslySetInnerHTML={{ __html: task.meta }} />
+          {task.meta && (
+            <>
+              <span className="text-rule-strong" aria-hidden="true">·</span>
+              <span dangerouslySetInnerHTML={{ __html: task.meta }} />
+            </>
+          )}
         </div>
       </div>
 
       {/* Estimate */}
-      <span className="shrink-0 rounded-[5px] bg-bg-2 px-2 py-1 font-mono text-[11px] text-ink-3">
-        {task.estimateMinutes} min
-      </span>
+      {task.estimateMinutes > 0 && (
+        <span className="shrink-0 rounded-[5px] bg-bg-2 px-2 py-1 font-mono text-[11px] text-ink-3">
+          {task.estimateMinutes} min
+        </span>
+      )}
     </li>
   );
 }
@@ -145,10 +151,15 @@ export function TodaysFocusCard({ tasks, isLoading }: TodaysFocusCardProps) {
           </h2>
           {!isLoading && (
             <p className="mt-[3px] text-[11.5px] text-ink-3">
-              {items.length} thing{items.length !== 1 ? "s" : ""} planned ·{" "}
-              <em className="font-serif italic text-terra">
-                {(items.reduce((s, t) => s + t.estimateMinutes, 0) / 60).toFixed(1).replace(/\.0$/, "")} h estimated
-              </em>
+              {items.length} thing{items.length !== 1 ? "s" : ""} planned
+              {items.reduce((s, t) => s + t.estimateMinutes, 0) > 0 && (
+                <>
+                  {" · "}
+                  <em className="font-serif italic text-terra">
+                    {(items.reduce((s, t) => s + t.estimateMinutes, 0) / 60).toFixed(1).replace(/\.0$/, "")} h estimated
+                  </em>
+                </>
+              )}
             </p>
           )}
         </div>
@@ -188,8 +199,13 @@ export function TodaysFocusCard({ tasks, isLoading }: TodaysFocusCardProps) {
       {!isLoading && items.length > 0 && (
         <div className="mt-3.5 flex items-center justify-between border-t border-rule pt-3.5 text-[12px]">
           <p className="text-ink-2">
-            <strong className="font-semibold text-ink">{doneCount} of {items.length}</strong> done ·{" "}
-            <strong className="font-semibold text-ink">{remainingHours} h</strong> remaining today
+            <strong className="font-semibold text-ink">{doneCount} of {items.length}</strong> done
+            {totalMinutes > 0 && (
+              <>
+                {" · "}
+                <strong className="font-semibold text-ink">{remainingHours} h</strong> remaining today
+              </>
+            )}
           </p>
           <button
             type="button"

@@ -80,7 +80,8 @@ export interface DashboardKpis {
   activeStreakDays: number;
   hoursThisWeek: number;
   weeklyBudgetHours: number;
-  nextMilestoneDays: number;
+  /** null when no roadmap exists or no schedule data ties a milestone to a date. */
+  nextMilestoneDays: number | null;
   nextMilestoneName: string;
 }
 
@@ -89,4 +90,12 @@ export interface NextBestAction {
   description: string;
   estimateMinutes: number;
   milestoneLabel?: string;
+  /** Where "Start now" links. Defaults to the coach when omitted. */
+  href?: string;
+}
+
+export interface PhaseTag {
+  currentPhase: number;
+  totalPhases: number;
+  phaseName: string;
 }

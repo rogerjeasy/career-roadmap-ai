@@ -8,6 +8,8 @@ export interface WeeklyScorecardValues {
   focus: number;
   wins: string;
   blockers: string;
+  hoursInvested: number;
+  milestonesClosed: number;
 }
 
 export interface WeeklyScorecardFormProps {
@@ -51,15 +53,27 @@ function Rating({
 const TEXTAREA_CLASS =
   "w-full resize-y rounded-[8px] border border-rule bg-bg px-3.5 py-2.5 text-[13.5px] leading-relaxed text-ink placeholder:text-ink-3 focus:border-green focus:bg-paper focus:outline-none";
 
+const NUMBER_CLASS =
+  "w-full rounded-[8px] border border-rule bg-bg px-3.5 py-2.5 text-[13.5px] text-ink placeholder:text-ink-3 focus:border-green focus:bg-paper focus:outline-none";
+
 export function WeeklyScorecardForm({ onSubmit, className }: WeeklyScorecardFormProps) {
   const [energy, setEnergy] = useState(3);
   const [focus, setFocus] = useState(3);
   const [wins, setWins] = useState("");
   const [blockers, setBlockers] = useState("");
+  const [hours, setHours] = useState("");
+  const [milestones, setMilestones] = useState("");
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    onSubmit({ energy, focus, wins: wins.trim(), blockers: blockers.trim() });
+    onSubmit({
+      energy,
+      focus,
+      wins: wins.trim(),
+      blockers: blockers.trim(),
+      hoursInvested: Math.max(0, Number(hours) || 0),
+      milestonesClosed: Math.max(0, Math.round(Number(milestones) || 0)),
+    });
   };
 
   return (
@@ -67,6 +81,36 @@ export function WeeklyScorecardForm({ onSubmit, className }: WeeklyScorecardForm
       <div className="grid gap-5 sm:grid-cols-2">
         <Rating label="Energy this week" value={energy} onChange={setEnergy} />
         <Rating label="Focus this week" value={focus} onChange={setFocus} />
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-1.5 block text-[12.5px] font-medium text-ink-2">Hours invested</span>
+          <input
+            type="number"
+            min={0}
+            max={168}
+            step="0.5"
+            inputMode="decimal"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+            placeholder="e.g. 10"
+            className={NUMBER_CLASS}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-[12.5px] font-medium text-ink-2">Milestones closed</span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="1"
+            inputMode="numeric"
+            value={milestones}
+            onChange={(e) => setMilestones(e.target.value)}
+            placeholder="e.g. 2"
+            className={NUMBER_CLASS}
+          />
+        </label>
       </div>
       <label className="block">
         <span className="mb-1.5 block text-[12.5px] font-medium text-ink-2">Wins</span>

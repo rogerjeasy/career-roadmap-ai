@@ -1,7 +1,7 @@
 """Schedule domain — service layer for habits and weekly time blocks."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends
 from google.cloud.firestore_v1.async_client import AsyncClient
@@ -23,6 +23,9 @@ from src.domains.schedule.schemas import (
 
 logger = get_logger(__name__)
 
+# Keep at most this many days of per-habit completion history.
+_HISTORY_DAYS = 120
+
 
 def _is_today(value: datetime | None) -> bool:
     if value is None:
@@ -30,14 +33,55 @@ def _is_today(value: datetime | None) -> bool:
     return value.astimezone(timezone.utc).date() == datetime.now(timezone.utc).date()
 
 
+def _completed_dates(doc: dict) -> set[str]:
+    """Set of completed ISO dates for a habit, migrating legacy docs that only
+    stored ``last_completed_at``."""
+    raw = doc.get("completed_dates")
+    if isinstance(raw, list) and raw:
+        return {str(d) for d in raw}
+    # Legacy fallback: seed from last_completed_at if it was today.
+    if _is_today(doc.get("last_completed_at")):
+        return {datetime.now(timezone.utc).date().isoformat()}
+    return set()
+
+
+def _streak(dates: set[str]) -> int:
+    """Consecutive completed days ending today (or yesterday if today is blank)."""
+    if not dates:
+        return 0
+    today = datetime.now(timezone.utc).date()
+    if today.isoformat() in dates:
+        cursor = today
+    elif (today - timedelta(days=1)).isoformat() in dates:
+        cursor = today - timedelta(days=1)
+    else:
+        return 0
+    count = 0
+    while cursor.isoformat() in dates:
+        count += 1
+        cursor -= timedelta(days=1)
+    return count
+
+
+def _week_completions(dates: set[str]) -> list[bool]:
+    """Completion flags for the current week, Monday … Sunday."""
+    today = datetime.now(timezone.utc).date()
+    monday = today - timedelta(days=today.weekday())
+    return [(monday + timedelta(days=i)).isoformat() in dates for i in range(7)]
+
+
 def _habit_out(doc: dict) -> HabitOut:
+    dates = _completed_dates(doc)
+    ordered = sorted(dates)
     return HabitOut(
         id=doc["id"],
         label=doc.get("label", ""),
         cadence=doc.get("cadence", "Daily"),
-        streak=int(doc.get("streak", 0)),
-        done_today=_is_today(doc.get("last_completed_at")),
+        streak=_streak(dates),
+        done_today=datetime.now(timezone.utc).date().isoformat() in dates,
         created_at=doc["created_at"],
+        completed_dates=ordered[-_HISTORY_DAYS:],
+        week_completions=_week_completions(dates),
     )
 
 
@@ -59,7 +103,12 @@ class ScheduleService:
     async def create_habit(self, user_id: str, payload: HabitCreate) -> HabitOut:
         doc = await self._habits.create(
             user_id,
-            {"label": payload.label, "cadence": payload.cadence, "streak": 0, "last_completed_at": None},
+            {
+                "label": payload.label,
+                "cadence": payload.cadence,
+                "completed_dates": [],
+                "last_completed_at": None,
+            },
         )
         return _habit_out(doc)
 
@@ -70,17 +119,25 @@ class ScheduleService:
         return _habit_out(doc)
 
     async def toggle_habit(self, user_id: str, habit_id: str) -> HabitOut:
-        """Mark today's completion on/off and adjust the streak accordingly."""
+        """Toggle today's completion in the habit's completion history."""
         current = await self._habits.get(habit_id, user_id)
         if current is None:
             raise NotFoundError(f"Habit '{habit_id}' not found")
 
-        streak = int(current.get("streak", 0))
-        if _is_today(current.get("last_completed_at")):
-            patch = {"streak": max(0, streak - 1), "last_completed_at": None}
+        now = datetime.now(timezone.utc)
+        today = now.date().isoformat()
+        dates = _completed_dates(current)
+        if today in dates:
+            dates.discard(today)
+            last_completed_at = None
         else:
-            patch = {"streak": streak + 1, "last_completed_at": datetime.now(timezone.utc)}
+            dates.add(today)
+            last_completed_at = now
 
+        patch = {
+            "completed_dates": sorted(dates)[-_HISTORY_DAYS:],
+            "last_completed_at": last_completed_at,
+        }
         doc = await self._habits.update(habit_id, user_id, patch)
         assert doc is not None  # existence verified above
         return _habit_out(doc)

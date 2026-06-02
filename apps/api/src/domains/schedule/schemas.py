@@ -31,6 +31,10 @@ class HabitOut(BaseModel):
     streak: int
     done_today: bool
     created_at: datetime
+    # Recent completion history (ISO ``YYYY-MM-DD``), newest last, bounded.
+    completed_dates: list[str] = Field(default_factory=list)
+    # Completion flags for the current week, Monday … Sunday.
+    week_completions: list[bool] = Field(default_factory=list)
 
 
 # ── Weekly time blocks ────────────────────────────────────────────────────────

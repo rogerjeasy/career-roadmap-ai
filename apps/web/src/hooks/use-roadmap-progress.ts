@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 /**
  * Tracks which milestones a user has checked off, persisted to localStorage
@@ -19,18 +19,38 @@ function storageKey(roadmapId: string): string {
   return `crai-roadmap-progress:${roadmapId}`;
 }
 
-export function useRoadmapProgress(roadmapId: string | null): UseRoadmapProgressResult {
-  const [keys, setKeys] = useState<Set<string>>(new Set());
+function loadKeys(roadmapId: string | null): Set<string> {
+  if (!roadmapId || typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(storageKey(roadmapId));
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
 
-  useEffect(() => {
-    if (!roadmapId || typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(storageKey(roadmapId));
-      setKeys(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
-    } catch {
-      setKeys(new Set());
-    }
-  }, [roadmapId]);
+export function useRoadmapProgress(roadmapId: string | null): UseRoadmapProgressResult {
+  const [keys, setKeys] = useState<Set<string>>(() => loadKeys(roadmapId));
+  const [loadedId, setLoadedId] = useState<string | null>(roadmapId);
+
+  // Reload from storage when the roadmap changes — the sanctioned effect-free
+  // "adjust state during render" pattern (no flash, no cascading effect).
+  if (roadmapId !== loadedId) {
+    setLoadedId(roadmapId);
+    setKeys(loadKeys(roadmapId));
+  }
+
+  const persist = useCallback(
+    (next: Set<string>) => {
+      if (!roadmapId || typeof window === "undefined") return;
+      try {
+        window.localStorage.setItem(storageKey(roadmapId), JSON.stringify([...next]));
+      } catch {
+        /* storage unavailable — keep in-memory state only */
+      }
+    },
+    [roadmapId],
+  );
 
   const toggle = useCallback(
     (key: string) => {
@@ -38,17 +58,11 @@ export function useRoadmapProgress(roadmapId: string | null): UseRoadmapProgress
         const next = new Set(prev);
         if (next.has(key)) next.delete(key);
         else next.add(key);
-        if (roadmapId && typeof window !== "undefined") {
-          try {
-            window.localStorage.setItem(storageKey(roadmapId), JSON.stringify([...next]));
-          } catch {
-            /* ignore */
-          }
-        }
+        persist(next);
         return next;
       });
     },
-    [roadmapId],
+    [persist],
   );
 
   const isDone = useCallback((key: string) => keys.has(key), [keys]);

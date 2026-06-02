@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { ROUTES } from "@/lib/constants";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
+import { notificationsApi } from "@/lib/api/notifications";
+import { formatRelative } from "@/lib/date";
+import { NotificationBell, type NotificationItem } from "@/components/shared/notification-bell";
 
 // ── Page label map ─────────────────────────────────────────────────────────────
 
@@ -29,14 +33,6 @@ function IconSearch() {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4" aria-hidden="true">
       <circle cx="7" cy="7" r="5"/>
       <path d="M11 11l3 3" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
-function IconBell() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4" aria-hidden="true">
-      <path d="M8 2v1M3 12h10l-1-2V7a4 4 0 0 0-8 0v3l-1 2zM6 13a2 2 0 0 0 4 0"/>
     </svg>
   );
 }
@@ -83,6 +79,35 @@ function IconBtn({ title, children, hasNotification = false, onClick }: IconBtnP
   );
 }
 
+// ── Live notification bell ────────────────────────────────────────────────────
+
+function LiveBell() {
+  const queryClient = useQueryClient();
+
+  const { data } = useQuery({
+    queryKey: QUERY_KEYS.notifications,
+    queryFn: () => notificationsApi.list(20),
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+  });
+
+  const markAll = useMutation({
+    mutationFn: notificationsApi.markAllRead,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications }),
+  });
+
+  const items: NotificationItem[] = (data?.items ?? []).map((n) => ({
+    id: n.id,
+    title: n.title,
+    body: n.body || undefined,
+    timeLabel: formatRelative(n.createdAt),
+    read: n.read,
+    tone: n.tone,
+  }));
+
+  return <NotificationBell notifications={items} onMarkAllRead={() => markAll.mutate()} />;
+}
+
 // ── Topbar ────────────────────────────────────────────────────────────────────
 
 export interface AppTopbarProps {
@@ -125,9 +150,7 @@ export function AppTopbar({ className }: AppTopbarProps) {
         <IconBtn title="Search">
           <IconSearch />
         </IconBtn>
-        <IconBtn title="Notifications" hasNotification>
-          <IconBell />
-        </IconBtn>
+        <LiveBell />
         <IconBtn title="Calendar">
           <IconCalendar />
         </IconBtn>

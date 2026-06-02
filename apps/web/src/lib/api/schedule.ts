@@ -7,6 +7,10 @@ export interface Habit {
   streak: number;
   doneToday: boolean;
   createdAt: string;
+  /** Recent completion history (ISO `YYYY-MM-DD`), newest last. */
+  completedDates: string[];
+  /** Completion flags for the current week, Monday … Sunday. */
+  weekCompletions: boolean[];
 }
 
 export type BlockCategory = "build" | "read" | "network" | "review";

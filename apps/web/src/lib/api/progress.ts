@@ -7,6 +7,8 @@ export interface WeeklyReview {
   wins: string;
   blockers: string;
   weekOf: string | null;
+  hoursInvested: number;
+  milestonesClosed: number;
   createdAt: string;
 }
 
@@ -16,6 +18,8 @@ export interface WeeklyReviewInput {
   wins?: string;
   blockers?: string;
   weekOf?: string | null;
+  hoursInvested?: number;
+  milestonesClosed?: number;
 }
 
 export interface HealthSignalData {

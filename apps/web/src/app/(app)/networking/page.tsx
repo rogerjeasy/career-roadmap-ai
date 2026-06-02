@@ -11,73 +11,56 @@ import { EventCalendar } from "@/components/networking/event-calendar";
 import { OutreachLog } from "@/components/networking/outreach-log";
 import type { Contact, NetworkingEvent, OutreachEntry } from "@/types/networking.types";
 
-const SAMPLE_CONTACTS: Contact[] = [
-  { id: "c1", name: "Maya Chen", role: "Staff ML Engineer", company: "Anthropic", status: "responded", reason: "Works on agent evaluation — could advise on your eval milestone.", lastTouchLabel: "2d ago" },
-  { id: "c2", name: "Tomás Rivera", role: "Eng Manager", company: "Hugging Face", status: "to_reach", reason: "Hiring for applied ML roles in your target band." },
-  { id: "c3", name: "Priya Nair", role: "AI Researcher", company: "DeepMind", status: "connected", reason: "Met at the LangGraph meetup.", lastTouchLabel: "1w ago" },
-];
-
-const SAMPLE_EVENTS: NetworkingEvent[] = [
-  { id: "e1", title: "Agentic Systems Meetup", kind: "meetup", dateLabel: "Jun 12", location: "Zürich", isOnline: false },
-  { id: "e2", title: "LLM Eval Deep-Dive (webinar)", kind: "webinar", dateLabel: "Jun 18", location: "Online", isOnline: true },
-];
-
-const SAMPLE_OUTREACH: OutreachEntry[] = [
-  { id: "o1", contactName: "Maya Chen", channel: "linkedin", note: "Asked about her eval framework talk — she shared slides.", timeLabel: "2d ago" },
-  { id: "o2", contactName: "Priya Nair", channel: "in_person", note: "Chatted at the meetup about agent orchestration patterns.", timeLabel: "1w ago" },
-];
+function SectionHint({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-[12px] border border-dashed border-rule bg-paper px-5 py-8 text-center text-[12.5px] text-ink-3">
+      {children}
+    </div>
+  );
+}
 
 export default function NetworkingPage() {
-  const { data: liveContacts } = useQuery({
+  const { data: liveContacts, isLoading: contactsLoading } = useQuery({
     queryKey: QUERY_KEYS.contacts,
     queryFn: networkingApi.listContacts,
     staleTime: 60 * 1000,
   });
-  const { data: liveEvents } = useQuery({
+  const { data: liveEvents, isLoading: eventsLoading } = useQuery({
     queryKey: QUERY_KEYS.networkingEvents,
     queryFn: networkingApi.listEvents,
     staleTime: 60 * 1000,
   });
-  const { data: liveOutreach } = useQuery({
+  const { data: liveOutreach, isLoading: outreachLoading } = useQuery({
     queryKey: QUERY_KEYS.outreach,
     queryFn: () => networkingApi.listOutreach(10),
     staleTime: 60 * 1000,
   });
 
-  const CONTACTS: Contact[] =
-    liveContacts && liveContacts.length > 0
-      ? liveContacts.slice(0, 4).map((c) => ({
-          id: c.id,
-          name: c.name,
-          role: c.role,
-          company: c.company,
-          status: c.status,
-          reason: c.reason ?? undefined,
-        }))
-      : SAMPLE_CONTACTS;
+  const contacts: Contact[] = (liveContacts ?? []).slice(0, 4).map((c) => ({
+    id: c.id,
+    name: c.name,
+    role: c.role,
+    company: c.company,
+    status: c.status,
+    reason: c.reason ?? undefined,
+  }));
 
-  const EVENTS: NetworkingEvent[] =
-    liveEvents && liveEvents.length > 0
-      ? liveEvents.slice(0, 4).map((e) => ({
-          id: e.id,
-          title: e.title,
-          kind: e.kind,
-          dateLabel: e.dateLabel,
-          location: e.location,
-          isOnline: e.isOnline,
-        }))
-      : SAMPLE_EVENTS;
+  const events: NetworkingEvent[] = (liveEvents ?? []).slice(0, 4).map((e) => ({
+    id: e.id,
+    title: e.title,
+    kind: e.kind,
+    dateLabel: e.dateLabel,
+    location: e.location,
+    isOnline: e.isOnline,
+  }));
 
-  const OUTREACH: OutreachEntry[] =
-    liveOutreach && liveOutreach.length > 0
-      ? liveOutreach.map((o) => ({
-          id: o.id,
-          contactName: o.contactName,
-          channel: o.channel,
-          note: o.note,
-          timeLabel: formatRelative(o.createdAt),
-        }))
-      : SAMPLE_OUTREACH;
+  const outreach: OutreachEntry[] = (liveOutreach ?? []).map((o) => ({
+    id: o.id,
+    contactName: o.contactName,
+    channel: o.channel,
+    note: o.note,
+    timeLabel: formatRelative(o.createdAt),
+  }));
 
   return (
     <div className="mx-auto max-w-[1100px] px-7 pb-24 pt-7">
@@ -103,16 +86,33 @@ export default function NetworkingPage() {
               View all →
             </Link>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {CONTACTS.map((c) => (
-              <ContactCard key={c.id} contact={c} />
-            ))}
-          </div>
+          {contactsLoading ? (
+            <SectionHint>Loading contacts…</SectionHint>
+          ) : contacts.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {contacts.map((c) => (
+                <ContactCard key={c.id} contact={c} />
+              ))}
+            </div>
+          ) : (
+            <SectionHint>
+              No contacts yet.{" "}
+              <Link href={ROUTES.networking + "/contacts"} className="font-medium text-ink-2 hover:text-ink">
+                Add the people who can help you reach your goal →
+              </Link>
+            </SectionHint>
+          )}
 
           <h2 className="mb-3 mt-8 font-serif text-[18px] font-medium tracking-[-0.01em] text-ink">Recent outreach</h2>
-          <div className="rounded-[12px] border border-rule bg-paper px-5 py-2">
-            <OutreachLog entries={OUTREACH} />
-          </div>
+          {outreachLoading ? (
+            <SectionHint>Loading outreach…</SectionHint>
+          ) : outreach.length > 0 ? (
+            <div className="rounded-[12px] border border-rule bg-paper px-5 py-2">
+              <OutreachLog entries={outreach} />
+            </div>
+          ) : (
+            <SectionHint>Log a message or conversation to start building your outreach history.</SectionHint>
+          )}
         </section>
 
         <aside>
@@ -122,7 +122,13 @@ export default function NetworkingPage() {
               All →
             </Link>
           </div>
-          <EventCalendar events={EVENTS} />
+          {eventsLoading ? (
+            <SectionHint>Loading events…</SectionHint>
+          ) : events.length > 0 ? (
+            <EventCalendar events={events} />
+          ) : (
+            <SectionHint>No events tracked yet. Add meetups and conferences relevant to your target role.</SectionHint>
+          )}
         </aside>
       </div>
     </div>

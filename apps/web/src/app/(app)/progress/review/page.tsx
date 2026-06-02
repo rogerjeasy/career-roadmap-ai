@@ -20,11 +20,14 @@ export default function WeeklyReviewPage() {
     mutationFn: progressApi.createReview,
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.weeklyReviews });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.health });
       setSaved({
         energy: variables.energy,
         focus: variables.focus,
         wins: variables.wins ?? "",
         blockers: variables.blockers ?? "",
+        hoursInvested: variables.hoursInvested ?? 0,
+        milestonesClosed: variables.milestonesClosed ?? 0,
       });
       toast.success("Weekly review saved");
     },
@@ -37,6 +40,8 @@ export default function WeeklyReviewPage() {
       focus: values.focus,
       wins: values.wins,
       blockers: values.blockers,
+      hoursInvested: values.hoursInvested,
+      milestonesClosed: values.milestonesClosed,
     });
   };
 

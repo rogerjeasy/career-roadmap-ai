@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { monthlyPlanApi } from "@/lib/api/monthly-plan";
 import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
+import { LoadingSpinner } from "@/components/shared/loading-spinner";
+import { EmptyState } from "@/components/shared/empty-state";
 import { RoadmapProgressBar } from "@/components/roadmap/roadmap-progress-bar";
 
 interface MonthPlan {
@@ -16,14 +18,6 @@ interface MonthPlan {
   goalsTotal: number;
 }
 
-const SAMPLE_MONTHS: MonthPlan[] = [
-  { id: "2026-04", month: "April 2026", theme: "Foundations in applied ML", status: "done", goalsDone: 4, goalsTotal: 4 },
-  { id: "2026-05", month: "May 2026", theme: "Build an agentic project", status: "done", goalsDone: 3, goalsTotal: 3 },
-  { id: "2026-06", month: "June 2026", theme: "Evaluation & observability", status: "current", goalsDone: 2, goalsTotal: 4 },
-  { id: "2026-07", month: "July 2026", theme: "Portfolio & visibility", status: "future", goalsDone: 0, goalsTotal: 3 },
-  { id: "2026-08", month: "August 2026", theme: "Interview preparation", status: "future", goalsDone: 0, goalsTotal: 4 },
-];
-
 const STATUS_CHIP: Record<MonthPlan["status"], string> = {
   done: "bg-green-soft text-green-2",
   current: "bg-terra-soft text-terra-2",
@@ -31,23 +25,20 @@ const STATUS_CHIP: Record<MonthPlan["status"], string> = {
 };
 
 export default function MonthlyPlanPage() {
-  const { data: livePlans } = useQuery({
+  const { data: livePlans, isLoading } = useQuery({
     queryKey: QUERY_KEYS.monthlyPlans,
     queryFn: monthlyPlanApi.list,
     staleTime: 60 * 1000,
   });
 
-  const MONTHS: MonthPlan[] =
-    livePlans && livePlans.length > 0
-      ? livePlans.map((p) => ({
-          id: p.monthId,
-          month: p.month,
-          theme: p.theme,
-          status: p.status,
-          goalsDone: p.goalsDone,
-          goalsTotal: p.goalsTotal,
-        }))
-      : SAMPLE_MONTHS;
+  const months: MonthPlan[] = (livePlans ?? []).map((p) => ({
+    id: p.monthId,
+    month: p.month,
+    theme: p.theme,
+    status: p.status,
+    goalsDone: p.goalsDone,
+    goalsTotal: p.goalsTotal,
+  }));
 
   return (
     <div className="mx-auto max-w-[900px] px-7 pb-24 pt-7">
@@ -57,8 +48,16 @@ export default function MonthlyPlanPage() {
         description="Your roadmap rolled up into monthly themes and goals, so you can see the bigger arc."
       />
 
+      {isLoading ? (
+        <LoadingSpinner fullPage label="Loading your monthly plan…" />
+      ) : months.length === 0 ? (
+        <EmptyState
+          title="No monthly plan yet"
+          description="Generate your roadmap and it will roll up into monthly themes and goals here."
+        />
+      ) : (
       <ul className="space-y-3">
-        {MONTHS.map((m) => {
+        {months.map((m) => {
           const pct = m.goalsTotal > 0 ? (m.goalsDone / m.goalsTotal) * 100 : 0;
           return (
             <li key={m.id}>
@@ -95,6 +94,7 @@ export default function MonthlyPlanPage() {
           );
         })}
       </ul>
+      )}
     </div>
   );
 }

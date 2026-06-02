@@ -3,55 +3,61 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { progressApi } from "@/lib/api/progress";
+import { scheduleApi } from "@/lib/api/schedule";
+import { formatDate } from "@/lib/date";
 import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { CareerHealthScore } from "@/components/progress/career-health-score";
-import { HabitCompletionChart } from "@/components/progress/habit-completion-chart";
-import { MetricChart } from "@/components/progress/metric-chart";
+import { HabitCompletionChart, type HabitWeek } from "@/components/progress/habit-completion-chart";
+import { MetricChart, type MetricPoint } from "@/components/progress/metric-chart";
 
-const SAMPLE_SIGNALS = [
-  { label: "Roadmap progress", score: 84 },
-  { label: "Skill readiness", score: 71 },
-  { label: "Portfolio strength", score: 62 },
-  { label: "Market alignment", score: 88 },
-  { label: "Network activity", score: 42 },
-];
-
-const HABITS = [
-  { habit: "Morning study block", days: [true, true, true, false, true, false, false] },
-  { habit: "Ship something small", days: [true, false, true, true, true, false, false] },
-  { habit: "One outreach message", days: [false, true, false, true, false, false, false] },
-];
-
-const HOURS = [
-  { label: "W1", value: 8 },
-  { label: "W2", value: 11 },
-  { label: "W3", value: 9 },
-  { label: "W4", value: 12 },
-  { label: "W5", value: 10 },
-  { label: "W6", value: 13 },
-];
-
-const MILESTONES = [
-  { label: "W1", value: 1 },
-  { label: "W2", value: 2 },
-  { label: "W3", value: 2 },
-  { label: "W4", value: 4 },
-  { label: "W5", value: 5 },
-  { label: "W6", value: 7 },
-];
+function EmptyCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-[12px] border border-dashed border-rule bg-paper px-6 py-10 text-center">
+      <p className="mb-1 text-[13px] font-medium text-ink-2">{title}</p>
+      <p className="max-w-[280px] text-[12px] text-ink-3">{body}</p>
+    </div>
+  );
+}
 
 export default function ProgressPage() {
-  const { data: health } = useQuery({
+  const { data: health, isLoading: healthLoading } = useQuery({
     queryKey: QUERY_KEYS.health,
     queryFn: progressApi.getHealth,
     staleTime: 60 * 1000,
   });
 
-  const hasHealth = Boolean(health && (health.score > 0 || health.signals.length > 0));
-  const score = hasHealth ? health!.score : 76;
-  const delta = hasHealth ? health!.delta ?? undefined : 8;
-  const signals = hasHealth && health!.signals.length > 0 ? health!.signals : SAMPLE_SIGNALS;
+  const { data: habits, isLoading: habitsLoading } = useQuery({
+    queryKey: QUERY_KEYS.habits,
+    queryFn: scheduleApi.listHabits,
+    staleTime: 60 * 1000,
+  });
+
+  const { data: reviews, isLoading: reviewsLoading } = useQuery({
+    queryKey: QUERY_KEYS.weeklyReviews,
+    queryFn: () => progressApi.listReviews(12),
+    staleTime: 60 * 1000,
+  });
+
+  const hasHealth = Boolean(health && health.updatedAt);
+
+  const habitWeeks: HabitWeek[] = (habits ?? [])
+    .filter((h) => h.weekCompletions.length === 7)
+    .map((h) => ({ habit: h.label, days: h.weekCompletions }));
+
+  // Reviews arrive newest-first; charts read oldest → newest.
+  const orderedReviews = [...(reviews ?? [])].reverse();
+  const reviewLabel = (weekOf: string | null, createdAt: string) =>
+    weekOf?.trim() ? weekOf : formatDate(createdAt, "MMM d");
+
+  const hoursPoints: MetricPoint[] = orderedReviews.map((r) => ({
+    label: reviewLabel(r.weekOf, r.createdAt),
+    value: r.hoursInvested,
+  }));
+  const milestonePoints: MetricPoint[] = orderedReviews.map((r) => ({
+    label: reviewLabel(r.weekOf, r.createdAt),
+    value: r.milestonesClosed,
+  }));
 
   return (
     <div className="mx-auto max-w-[1100px] px-7 pb-24 pt-7">
@@ -70,13 +76,47 @@ export default function ProgressPage() {
       />
 
       <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-        <CareerHealthScore score={score} delta={delta} signals={signals} />
+        {healthLoading ? (
+          <EmptyCard title="Loading…" body="Fetching your latest career-health snapshot." />
+        ) : hasHealth ? (
+          <CareerHealthScore
+            score={health!.score}
+            delta={health!.delta ?? undefined}
+            signals={health!.signals}
+          />
+        ) : (
+          <EmptyCard
+            title="No health snapshot yet"
+            body="Your career-health score and signals appear here once your roadmap and reviews give the coach enough to assess."
+          />
+        )}
 
         <div className="flex flex-col gap-5">
-          <HabitCompletionChart weeks={HABITS} />
+          {habitsLoading ? (
+            <EmptyCard title="Loading…" body="Fetching this week's habit completions." />
+          ) : habitWeeks.length > 0 ? (
+            <HabitCompletionChart weeks={habitWeeks} />
+          ) : (
+            <EmptyCard
+              title="No habits to track yet"
+              body="Add habits on your schedule and check them off — this week's completion shows up here."
+            />
+          )}
+
           <div className="grid gap-5 sm:grid-cols-2">
-            <MetricChart title="Hours invested" unit="h" points={HOURS} tone="green" />
-            <MetricChart title="Milestones closed" points={MILESTONES} tone="terra" />
+            {reviewsLoading ? (
+              <EmptyCard title="Loading…" body="Fetching your weekly reviews." />
+            ) : orderedReviews.length > 0 ? (
+              <>
+                <MetricChart title="Hours invested" unit="h" points={hoursPoints} tone="green" />
+                <MetricChart title="Milestones closed" points={milestonePoints} tone="terra" />
+              </>
+            ) : (
+              <EmptyCard
+                title="No weekly reviews yet"
+                body="File a weekly review to start tracking hours invested and milestones closed over time."
+              />
+            )}
           </div>
         </div>
       </div>

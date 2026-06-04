@@ -1,7 +1,7 @@
 """Schedule domain — service layer for habits and weekly time blocks."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import Depends
 from google.cloud.firestore_v1.async_client import AsyncClient
@@ -10,21 +10,38 @@ from src.core.exceptions import NotFoundError
 from src.core.logging import get_logger
 from src.db.firestore import get_firestore_client
 from src.domains.schedule.firestore_repository import (
+    FirestoreBudgetTargetRepository,
     FirestoreHabitRepository,
     FirestoreScheduleBlockRepository,
+    FirestoreTimeLogRepository,
 )
 from src.domains.schedule.schemas import (
+    CATEGORY_META,
+    BlockCategory,
+    BudgetCategoryOut,
+    BudgetOut,
+    BudgetTargets,
     HabitCreate,
     HabitOut,
     HabitUpdate,
     ScheduleBlockCreate,
     ScheduleBlockOut,
+    TimeLogCreate,
+    TimeLogOut,
 )
 
 logger = get_logger(__name__)
 
 # Keep at most this many days of per-habit completion history.
 _HISTORY_DAYS = 120
+
+_CATEGORIES: list[BlockCategory] = ["build", "read", "network", "review"]
+
+
+def _current_week_start() -> date:
+    """Monday of the current UTC week."""
+    today = datetime.now(timezone.utc).date()
+    return today - timedelta(days=today.weekday())
 
 
 def _is_today(value: datetime | None) -> bool:
@@ -90,9 +107,13 @@ class ScheduleService:
         self,
         habits: FirestoreHabitRepository,
         blocks: FirestoreScheduleBlockRepository,
+        time_logs: FirestoreTimeLogRepository,
+        budget_targets: FirestoreBudgetTargetRepository,
     ) -> None:
         self._habits = habits
         self._blocks = blocks
+        self._time_logs = time_logs
+        self._targets = budget_targets
 
     # ── Habits ────────────────────────────────────────────────────────────────
 
@@ -162,6 +183,74 @@ class ScheduleService:
         if not deleted:
             raise NotFoundError(f"Schedule block '{block_id}' not found")
 
+    # ── Weekly time budget ──────────────────────────────────────────────────--
+
+    async def get_budget(self, user_id: str) -> BudgetOut:
+        """Weekly budget: target hours per category vs. hours logged this week."""
+        targets_doc = await self._targets.get(user_id, user_id) or {}
+        targets = {c: float(targets_doc.get(c, 0) or 0) for c in _CATEGORIES}
+
+        week_start = _current_week_start()
+        start_iso = week_start.isoformat()
+        end_iso = (week_start + timedelta(days=6)).isoformat()
+
+        logged = {c: 0.0 for c in _CATEGORIES}
+        for log in await self._time_logs.list_for_user(user_id, limit=1000):
+            category = log.get("category")
+            if category not in logged:
+                continue
+            logged_on = str(log.get("logged_on", ""))
+            if start_iso <= logged_on <= end_iso:
+                logged[category] += float(log.get("hours", 0) or 0)
+
+        categories: list[BudgetCategoryOut] = []
+        for category in _CATEGORIES:
+            label, tone = CATEGORY_META[category]
+            categories.append(
+                BudgetCategoryOut(
+                    id=category,
+                    label=label,
+                    hours_logged=round(logged[category], 2),
+                    hours_target=targets[category],
+                    tone=tone,
+                )
+            )
+        return BudgetOut(week_start=week_start, categories=categories)
+
+    async def set_budget_targets(self, user_id: str, payload: BudgetTargets) -> BudgetOut:
+        data = payload.model_dump()
+        existing = await self._targets.get(user_id, user_id)
+        if existing is None:
+            await self._targets.create(user_id, data, doc_id=user_id)
+        else:
+            await self._targets.update(user_id, user_id, data)
+        return await self.get_budget(user_id)
+
+    async def log_time(self, user_id: str, payload: TimeLogCreate) -> TimeLogOut:
+        logged_on = (payload.logged_on or datetime.now(timezone.utc).date()).isoformat()
+        doc = await self._time_logs.create(
+            user_id,
+            {"category": payload.category, "hours": payload.hours, "logged_on": logged_on},
+        )
+        return TimeLogOut.from_doc(doc)
+
+    async def list_time_logs(self, user_id: str) -> list[TimeLogOut]:
+        """Time-log entries for the current week, newest-first."""
+        week_start = _current_week_start()
+        start_iso = week_start.isoformat()
+        end_iso = (week_start + timedelta(days=6)).isoformat()
+        out: list[TimeLogOut] = []
+        for log in await self._time_logs.list_for_user(user_id, limit=1000):
+            logged_on = str(log.get("logged_on", ""))
+            if start_iso <= logged_on <= end_iso:
+                out.append(TimeLogOut.from_doc(log))
+        return out
+
+    async def delete_time_log(self, user_id: str, log_id: str) -> None:
+        deleted = await self._time_logs.hard_delete(log_id, user_id)
+        if not deleted:
+            raise NotFoundError(f"Time log '{log_id}' not found")
+
 
 async def get_schedule_service(
     db: AsyncClient = Depends(get_firestore_client),
@@ -169,4 +258,6 @@ async def get_schedule_service(
     return ScheduleService(
         FirestoreHabitRepository(db),
         FirestoreScheduleBlockRepository(db),
+        FirestoreTimeLogRepository(db),
+        FirestoreBudgetTargetRepository(db),
     )

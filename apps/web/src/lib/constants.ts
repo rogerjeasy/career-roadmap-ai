@@ -38,6 +38,8 @@ export const QUERY_KEYS = {
   book: (id: string) => ["books", id] as const,
   habits: ["schedule", "habits"] as const,
   scheduleBlocks: ["schedule", "blocks"] as const,
+  scheduleBudget: ["schedule", "budget"] as const,
+  scheduleTimeLogs: ["schedule", "time-logs"] as const,
   contacts: ["networking", "contacts"] as const,
   networkingEvents: ["networking", "events"] as const,
   outreach: ["networking", "outreach"] as const,
@@ -45,4 +47,5 @@ export const QUERY_KEYS = {
   health: ["progress", "health"] as const,
   monthlyPlans: ["monthly-plans"] as const,
   monthlyPlan: (id: string) => ["monthly-plans", id] as const,
+  integrations: ["integrations"] as const,
 } as const;

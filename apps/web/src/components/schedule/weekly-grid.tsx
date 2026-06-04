@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 
 export interface ScheduleBlock {
+  id: string;
   day: number; // 0 = Mon … 6 = Sun
   label: string;
   category: "build" | "read" | "network" | "review";
@@ -8,6 +9,8 @@ export interface ScheduleBlock {
 
 export interface WeeklyGridProps {
   blocks: ScheduleBlock[];
+  /** When provided, each block shows a delete affordance. */
+  onDelete?: (id: string) => void;
   className?: string;
 }
 
@@ -20,7 +23,7 @@ const CATEGORY_STYLE: Record<ScheduleBlock["category"], string> = {
   review: "bg-gold-soft text-gold",
 };
 
-export function WeeklyGrid({ blocks, className }: WeeklyGridProps) {
+export function WeeklyGrid({ blocks, onDelete, className }: WeeklyGridProps) {
   return (
     <div className={cn("rounded-[12px] border border-rule bg-paper p-4 sm:p-6", className)}>
       <h3 className="mb-4 font-serif text-[15px] font-medium tracking-[-0.01em] text-ink">This week</h3>
@@ -36,12 +39,27 @@ export function WeeklyGrid({ blocks, className }: WeeklyGridProps) {
                     —
                   </div>
                 ) : (
-                  dayBlocks.map((b, bi) => (
+                  dayBlocks.map((b) => (
                     <div
-                      key={bi}
-                      className={cn("rounded-[6px] px-2 py-1.5 text-[11.5px] font-medium leading-snug", CATEGORY_STYLE[b.category])}
+                      key={b.id}
+                      className={cn(
+                        "group flex items-start gap-1 rounded-[6px] px-2 py-1.5 text-[11.5px] font-medium leading-snug",
+                        CATEGORY_STYLE[b.category],
+                      )}
                     >
-                      {b.label}
+                      <span className="min-w-0 flex-1 break-words">{b.label}</span>
+                      {onDelete && (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(b.id)}
+                          aria-label={`Delete ${b.label}`}
+                          className="shrink-0 opacity-0 transition-opacity duration-150 hover:opacity-100 focus:opacity-100 group-hover:opacity-100"
+                        >
+                          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3 w-3" aria-hidden="true">
+                            <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   ))
                 )}

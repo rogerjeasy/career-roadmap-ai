@@ -113,6 +113,26 @@ class Settings(BaseSettings):
     cloudinary_api_secret: SecretStr | None = None
     cloudinary_upload_folder: str = "career-roadmap"
 
+    # ── OAuth integrations (LinkedIn / GitHub / Google Calendar) ──────────────
+    # Where the browser is sent back to after an OAuth callback completes.
+    frontend_base_url: str = "http://localhost:3000"
+    # Public base URL of THIS API — used to build provider redirect_uri values.
+    # Must match the redirect URI registered in each provider's OAuth app.
+    oauth_callback_base_url: str = "http://localhost:8000"
+    # Fernet key for encrypting stored OAuth tokens at rest. Generate with:
+    #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Without it, connecting an integration is refused (tokens cannot be stored securely).
+    integration_token_key: SecretStr | None = None
+
+    # Per-provider OAuth client credentials. A provider is only "available" to
+    # connect when BOTH its client id and secret are configured.
+    github_client_id: str | None = None
+    github_client_secret: SecretStr | None = None
+    linkedin_client_id: str | None = None
+    linkedin_client_secret: SecretStr | None = None
+    google_client_id: str | None = None
+    google_client_secret: SecretStr | None = None
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_cors(cls, v: str | list[str]) -> list[str]:

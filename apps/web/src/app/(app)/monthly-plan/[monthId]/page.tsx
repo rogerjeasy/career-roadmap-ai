@@ -6,63 +6,55 @@ import { useQuery } from "@tanstack/react-query";
 import { monthlyPlanApi } from "@/lib/api/monthly-plan";
 import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
-
-interface WeekGoal {
-  week: number;
-  focus: string;
-  goals: string[];
-}
-
-interface MonthDetail {
-  id: string;
-  month: string;
-  theme: string;
-  summary: string;
-  weeks: WeekGoal[];
-}
-
-const DETAILS: Record<string, MonthDetail> = {
-  "2026-06": {
-    id: "2026-06",
-    month: "June 2026",
-    theme: "Evaluation & observability",
-    summary:
-      "Make your agentic project measurable. Add an evaluation harness, wire up tracing, and learn to read the signals that senior teams expect.",
-    weeks: [
-      { week: 1, focus: "Eval foundations", goals: ["Define 5 eval cases for your agent", "Add an offline eval script", "Read 2 papers on LLM evaluation"] },
-      { week: 2, focus: "Observability", goals: ["Instrument traces with OpenTelemetry", "Add a metrics dashboard", "Close milestone M-07"] },
-      { week: 3, focus: "Iterate on quality", goals: ["Run evals against 3 prompt variants", "Document findings", "Reach out to 2 ML engineers"] },
-      { week: 4, focus: "Consolidate", goals: ["Write a project retro", "Publish a short write-up", "Plan July portfolio work"] },
-    ],
-  },
-};
+import { LoadingSpinner } from "@/components/shared/loading-spinner";
+import { EmptyState } from "@/components/shared/empty-state";
 
 export default function MonthDetailPage() {
   const params = useParams<{ monthId: string }>();
   const monthId = params.monthId;
 
-  const { data: live } = useQuery({
+  const {
+    data: live,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: QUERY_KEYS.monthlyPlan(monthId),
     queryFn: () => monthlyPlanApi.get(monthId),
     enabled: Boolean(monthId),
     retry: false,
   });
 
-  const detail: MonthDetail =
-    (live && {
-      id: live.monthId,
-      month: live.month,
-      theme: live.theme,
-      summary: live.summary,
-      weeks: live.weeks,
-    }) ||
-    DETAILS[monthId] || {
-      id: monthId,
-      month: "This month",
-      theme: "Planned focus",
-      summary: "A detailed plan for this month will appear here once your roadmap generates monthly goals.",
-      weeks: [],
-    };
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[820px] px-7 pb-24 pt-7">
+        <LoadingSpinner fullPage label="Loading this month's plan…" />
+      </div>
+    );
+  }
+
+  if (isError || !live) {
+    return (
+      <div className="mx-auto max-w-[820px] px-7 pb-24 pt-7">
+        <Link
+          href={ROUTES.monthlyPlan}
+          className="mb-4 inline-flex items-center gap-1 text-[12.5px] font-medium text-ink-3 transition-colors duration-150 hover:text-ink"
+        >
+          ← Monthly plan
+        </Link>
+        <EmptyState
+          title="No plan for this month yet"
+          description="A detailed monthly breakdown will appear here once your roadmap generates goals for this month."
+        />
+      </div>
+    );
+  }
+
+  const detail = {
+    month: live.month,
+    theme: live.theme,
+    summary: live.summary,
+    weeks: live.weeks,
+  };
 
   return (
     <div className="mx-auto max-w-[820px] px-7 pb-24 pt-7">

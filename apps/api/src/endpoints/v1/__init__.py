@@ -7,6 +7,7 @@ from src.endpoints.v1.books_controller import router as books_router
 from src.endpoints.v1.coach_controller import router as coach_router
 from src.endpoints.v1.cv_controller import router as cv_router
 from src.endpoints.v1.intake_controller import router as intake_router
+from src.endpoints.v1.integrations_controller import router as integrations_router
 from src.endpoints.v1.market_controller import router as market_router
 from src.endpoints.v1.monthly_plan_controller import router as monthly_plan_router
 from src.endpoints.v1.networking_controller import router as networking_router
@@ -39,3 +40,4 @@ router.include_router(schedule_router)
 router.include_router(monthly_plan_router)
 router.include_router(books_router)
 router.include_router(notification_router)
+router.include_router(integrations_router)

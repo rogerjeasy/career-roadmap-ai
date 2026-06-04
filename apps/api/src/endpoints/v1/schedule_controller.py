@@ -9,16 +9,25 @@ Routes:
   GET    /api/v1/schedule/blocks             — list weekly time blocks
   POST   /api/v1/schedule/blocks             — create a time block
   DELETE /api/v1/schedule/blocks/{id}        — delete a time block
+  GET    /api/v1/schedule/budget             — weekly budget (logged vs target hours)
+  PUT    /api/v1/schedule/budget/targets     — set weekly target hours per category
+  GET    /api/v1/schedule/time-logs          — list this week's logged-hours entries
+  POST   /api/v1/schedule/time-logs          — log hours against a category
+  DELETE /api/v1/schedule/time-logs/{id}     — delete a logged-hours entry
 """
 from fastapi import APIRouter, Depends, status
 
 from src.core.auth import AuthenticatedUser, get_current_user
 from src.domains.schedule.schemas import (
+    BudgetOut,
+    BudgetTargets,
     HabitCreate,
     HabitOut,
     HabitUpdate,
     ScheduleBlockCreate,
     ScheduleBlockOut,
+    TimeLogCreate,
+    TimeLogOut,
 )
 from src.domains.schedule.service import ScheduleService, get_schedule_service
 
@@ -120,3 +129,65 @@ async def delete_block(
     service: ScheduleService = Depends(get_schedule_service),
 ) -> None:
     await service.delete_block(user.uid, block_id)
+
+
+# ── Weekly time budget ────────────────────────────────────────────────────────
+
+@router.get("/budget", response_model=BudgetOut, summary="Get the weekly time budget")
+async def get_budget(
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ScheduleService = Depends(get_schedule_service),
+) -> BudgetOut:
+    return await service.get_budget(user.uid)
+
+
+@router.put(
+    "/budget/targets",
+    response_model=BudgetOut,
+    summary="Set weekly target hours per category",
+)
+async def set_budget_targets(
+    body: BudgetTargets,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ScheduleService = Depends(get_schedule_service),
+) -> BudgetOut:
+    return await service.set_budget_targets(user.uid, body)
+
+
+@router.get(
+    "/time-logs",
+    response_model=list[TimeLogOut],
+    summary="List this week's logged-hours entries",
+)
+async def list_time_logs(
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ScheduleService = Depends(get_schedule_service),
+) -> list[TimeLogOut]:
+    return await service.list_time_logs(user.uid)
+
+
+@router.post(
+    "/time-logs",
+    response_model=TimeLogOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log hours against a category",
+)
+async def create_time_log(
+    body: TimeLogCreate,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ScheduleService = Depends(get_schedule_service),
+) -> TimeLogOut:
+    return await service.log_time(user.uid, body)
+
+
+@router.delete(
+    "/time-logs/{log_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a logged-hours entry",
+)
+async def delete_time_log(
+    log_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ScheduleService = Depends(get_schedule_service),
+) -> None:
+    await service.delete_time_log(user.uid, log_id)

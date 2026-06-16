@@ -27,6 +27,7 @@ export const ROUTES = {
 export const QUERY_KEYS = {
   me: ["user", "me"] as const,
   roadmap: (id?: string) => ["roadmap", id] as const,
+  roadmapProgress: (id: string) => ["roadmap", id, "progress"] as const,
   roadmapList: ["roadmap", "list"] as const,
   roadmapListInfinite: ["roadmap", "list", "infinite"] as const,
   notifications: ["notifications"] as const,

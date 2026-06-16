@@ -1,6 +1,15 @@
 """User domain — Firestore document model."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+
+
+def default_notification_preferences() -> dict[str, bool]:
+    """Default notification opt-ins for a freshly provisioned user."""
+    return {
+        "weekly_digest": True,
+        "milestone_alerts": True,
+        "market_alerts": False,
+    }
 
 
 @dataclass
@@ -17,3 +26,6 @@ class User:
     updated_at: datetime
     display_name: str | None = None
     photo_url: str | None = None
+    notification_preferences: dict[str, bool] = field(
+        default_factory=default_notification_preferences
+    )

@@ -33,10 +33,10 @@ const FEATURES: Feature[] = [
   },
   {
     marker:      "№ 14.3",
-    tag:         "What-If Simulator",
-    heading:     { em: "Test major decisions", after: " before you commit." },
-    description: "Switch from data engineer to ML researcher? Move to Berlin? Take a sabbatical? Compare side-by-side: roadmap, salary, lifestyle, probability.",
-    link:        { label: "Run a scenario →", href: "#" },
+    tag:         "CV Gap Analysis",
+    heading:     { before: "See the ", em: "gap", after: " between you and the role." },
+    description: "Upload your CV and a target role. Get a side-by-side readiness report — strong matches, partial matches and clear gaps — each turned into concrete next steps.",
+    link:        { label: "Analyse your CV →", href: "/cv-analysis" },
     delay:       "0.3s",
   },
   {
@@ -49,10 +49,10 @@ const FEATURES: Feature[] = [
   },
   {
     marker:      "№ 14.6",
-    tag:         "Mock Interview Studio",
-    heading:     { em: "Rehearse", after: " with role-specific drills." },
-    description: "Behavioural, system-design, technical-coding and case-study formats. Annotated transcripts, structured feedback, and an interview-readiness score over time.",
-    link:        { label: "Start a session →", href: "#" },
+    tag:         "Opportunity Radar",
+    heading:     { before: "Roles that ", em: "fit your plan", after: ", scored." },
+    description: "A live feed of jobs matched to your roadmap and skills — each with a match score and the gaps to close — powered by real job-board data through MCP servers.",
+    link:        { label: "Open the radar →", href: "/opportunities" },
     delay:       "0.2s",
   },
   {

@@ -99,7 +99,7 @@ const STYLES = `
 const WEEK_TASKS = [
   { done: true,  label: "Finish RAG project pipeline",   time: "3.5h" },
   { done: true,  label: "Review system-design notes",    time: "2h"   },
-  { done: false, label: "Mock interview · Anthropic",    time: "1h"   },
+  { done: false, label: "Apply: ML Engineer · Anthropic", time: "1h"   },
   { done: false, label: "Reach out to 3 ML engineers",   time: "45m"  },
 ] as const;
 

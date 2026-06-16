@@ -22,6 +22,12 @@ export class ApiError extends Error {
 // All fields are camelCase — the conversion layer in client.ts translates
 // snake_case from the backend automatically.
 
+export interface NotificationPreferences {
+  weeklyDigest: boolean;
+  milestoneAlerts: boolean;
+  marketAlerts: boolean;
+}
+
 export interface UserProfile {
   id: string;             // = firebaseUid (Firestore document ID)
   firebaseUid: string;
@@ -32,8 +38,15 @@ export interface UserProfile {
   provider: string;
   emailVerified: boolean;
   isActive: boolean;
+  notificationPreferences: NotificationPreferences;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Partial profile update — omitted fields are left unchanged. */
+export interface UserUpdateInput {
+  displayName?: string;
+  notificationPreferences?: NotificationPreferences;
 }
 
 // ── Auth responses ────────────────────────────────────────────────────────────

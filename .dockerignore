@@ -1,0 +1,25 @@
+# Keep the Docker build context small (Render uploads it on every deploy).
+**/node_modules
+**/.next
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+.git
+.github
+apps/web
+packages
+mcp-servers
+infrastructure/terraform
+infrastructure/monitoring
+documentation
+docs
+logs
+**/.venv
+**/tests
+*.md
+!apps/api/README.md
+.env
+**/.env
+**/.env.*

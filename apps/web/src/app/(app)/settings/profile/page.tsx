@@ -2,10 +2,12 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { getSession } from "@/lib/api/session";
+import { getSession, updateUserProfileContext } from "@/lib/api/session";
+import { userApi } from "@/lib/api/user";
+import { useAuthStore } from "@/store/auth.store";
 import { fixMojibake } from "@/lib/utils";
 import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
@@ -15,6 +17,8 @@ const FIELD_CLASS =
 
 export default function ProfileSettingsPage() {
   const { user } = useAuth();
+  const setUser = useAuthStore((s) => s.setUser);
+  const queryClient = useQueryClient();
   const { data: session } = useQuery({
     queryKey: QUERY_KEYS.session,
     queryFn: getSession,
@@ -26,10 +30,34 @@ export default function ProfileSettingsPage() {
   const [targetRole, setTargetRole] = useState(ctx?.targetRole ? fixMojibake(ctx.targetRole) : "");
   const [currentRole, setCurrentRole] = useState(ctx?.currentRole ? fixMojibake(ctx.currentRole) : "");
 
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const trimmedName = displayName.trim();
+      // Display name lives on the user record + Firebase Auth; target/current
+      // role live in the session's profile context — persist both in parallel.
+      const [profile] = await Promise.all([
+        trimmedName && trimmedName !== (user?.displayName ?? "")
+          ? userApi.updateMe({ displayName: trimmedName })
+          : Promise.resolve(null),
+        updateUserProfileContext({
+          targetRole: targetRole.trim() || null,
+          currentRole: currentRole.trim() || null,
+        }),
+      ]);
+      return profile;
+    },
+    onSuccess: (profile) => {
+      if (profile) setUser(profile);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.session });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.me });
+      toast.success("Profile saved");
+    },
+    onError: () => toast.error("Couldn't save your profile. Please try again."),
+  });
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    // Profile persistence lands when PATCH /users/me is wired; saved locally for now.
-    toast.success("Profile saved");
+    saveMutation.mutate();
   };
 
   return (
@@ -64,9 +92,10 @@ export default function ProfileSettingsPage() {
         <div className="flex justify-end pt-1">
           <button
             type="submit"
-            className="rounded-[7px] bg-ink px-5 py-2.5 text-[13.5px] font-medium text-bg transition-colors duration-150 hover:bg-green-2"
+            disabled={saveMutation.isPending}
+            className="rounded-[7px] bg-ink px-5 py-2.5 text-[13.5px] font-medium text-bg transition-colors duration-150 hover:bg-green-2 disabled:opacity-50"
           >
-            Save changes
+            {saveMutation.isPending ? "Saving…" : "Save changes"}
           </button>
         </div>
       </form>

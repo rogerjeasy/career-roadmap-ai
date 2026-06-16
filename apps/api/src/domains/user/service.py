@@ -5,7 +5,12 @@ from fastapi import Depends
 
 from src.config import settings
 from src.core.auth import AuthenticatedUser
-from src.core.exceptions import AuthenticationError, ConflictError, ExternalServiceError
+from src.core.exceptions import (
+    AuthenticationError,
+    ConflictError,
+    ExternalServiceError,
+    NotFoundError,
+)
 from src.core.logging import get_logger
 from src.db.firestore import get_firestore_client
 from src.db.http import get_http_client
@@ -170,6 +175,64 @@ class UserService:
                 email_verified=auth_user.email_verified,
             )
         return user
+
+    async def update_profile(
+        self,
+        auth_user: AuthenticatedUser,
+        updates: dict,
+    ) -> User:
+        """Apply a partial profile update.
+
+        ``updates`` carries only the fields the client explicitly sent
+        (``model_dump(exclude_unset=True)``). ``display_name`` is mirrored into
+        Firebase Auth so it stays consistent with the ID token, while
+        ``notification_preferences`` is persisted to the Firestore document.
+        """
+        # Ensure a document exists before patching (auto-provision on first edit).
+        await self.get_profile(auth_user)
+
+        repo_kwargs: dict = {}
+        if "display_name" in updates:
+            display_name = updates["display_name"]
+            try:
+                firebase_auth.update_user(auth_user.uid, display_name=display_name)
+            except Exception as exc:  # noqa: BLE001 — surfaced as a 502
+                logger.error(
+                    "user.firebase_update_failed",
+                    uid=auth_user.uid,
+                    error=str(exc),
+                )
+                raise ExternalServiceError("Could not update account display name")
+            repo_kwargs["display_name"] = display_name
+        if "notification_preferences" in updates:
+            repo_kwargs["notification_preferences"] = updates["notification_preferences"]
+
+        if not repo_kwargs:
+            return await self.get_profile(auth_user)
+
+        user = await self.repo.update(auth_user.uid, **repo_kwargs)
+        if user is None:
+            raise NotFoundError("User profile not found")
+        logger.info("user.profile_updated", uid=auth_user.uid, fields=sorted(repo_kwargs))
+        return user
+
+    async def delete_account(self, uid: str) -> None:
+        """Permanently delete the user's account.
+
+        Removes the Firestore profile document and the Firebase Auth user, and
+        revokes any outstanding refresh tokens. This is irreversible.
+        """
+        await self.repo.delete(uid)
+        try:
+            firebase_auth.revoke_refresh_tokens(uid)
+            firebase_auth.delete_user(uid)
+        except firebase_auth.UserNotFoundError:
+            # Already gone in Firebase — the Firestore doc removal above is enough.
+            logger.warning("user.delete_firebase_missing", uid=uid)
+        except Exception as exc:  # noqa: BLE001 — surfaced as a 502
+            logger.error("user.delete_failed", uid=uid, error=str(exc))
+            raise ExternalServiceError("Could not delete account — please try again")
+        logger.info("user.account_deleted", uid=uid)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

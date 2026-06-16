@@ -161,6 +161,18 @@ export function useDashboard(): DashboardView {
     staleTime: 60 * 1000,
   });
 
+  const budgetQuery = useQuery({
+    queryKey: QUERY_KEYS.scheduleBudget,
+    queryFn: scheduleApi.getBudget,
+    staleTime: 60 * 1000,
+  });
+
+  const timeLogsQuery = useQuery({
+    queryKey: QUERY_KEYS.scheduleTimeLogs,
+    queryFn: scheduleApi.listTimeLogs,
+    staleTime: 60 * 1000,
+  });
+
   const reviewsQuery = useQuery({
     queryKey: QUERY_KEYS.weeklyReviews,
     queryFn: () => progressApi.listReviews(HEATMAP_WEEKS),
@@ -183,6 +195,30 @@ export function useDashboard(): DashboardView {
   const blocks = useMemo(() => blocksQuery.data ?? [], [blocksQuery.data]);
   const reviews = useMemo(() => reviewsQuery.data ?? [], [reviewsQuery.data]);
   const market = marketQuery.data ?? null;
+  const budget = budgetQuery.data ?? null;
+  const timeLogs = useMemo(() => timeLogsQuery.data ?? [], [timeLogsQuery.data]);
+
+  // ── Weekly time budget (real logged hours vs. targets) ─────────────────────
+  const budgetCats = useMemo(() => budget?.categories ?? [], [budget]);
+  // Only surface the budget breakdown once there's something real to show —
+  // either logged time or a configured target. Otherwise the card keeps its
+  // honest "no time logged yet" empty state instead of four 0h / 0h rows.
+  const hasBudgetData = budgetCats.some(
+    (c) => c.hoursLogged > 0 || c.hoursTarget > 0,
+  );
+  const budgetCategories: WeeklyBudgetCategory[] = hasBudgetData
+    ? budgetCats.map((c) => ({
+        id: c.id,
+        hoursLogged: c.hoursLogged,
+        hoursTarget: c.hoursTarget,
+      }))
+    : [];
+  const hoursThisWeek = budgetCats.reduce((s, c) => s + c.hoursLogged, 0);
+  const sumTargets = budgetCats.reduce((s, c) => s + c.hoursTarget, 0);
+  const budgetHours =
+    session?.userProfileContext?.weeklyHoursAvailable || sumTargets;
+  // All-time deep work across every logged session, for the activity card.
+  const totalDeepWorkHours = timeLogs.reduce((s, l) => s + l.hours, 0);
 
   // ── Roadmap phases with real per-phase milestone progress ──────────────────
   const phases = useMemo<RoadmapPhase[]>(() => {
@@ -285,9 +321,8 @@ export function useDashboard(): DashboardView {
     healthScore: health?.score ?? 0,
     healthScoreDelta: health?.delta ?? 0,
     activeStreakDays: maxStreak(habits),
-    // No time-logging feature yet — surfaced as "—" by KpiRow.
-    hoursThisWeek: 0,
-    weeklyBudgetHours: session?.userProfileContext?.weeklyHoursAvailable ?? 0,
+    hoursThisWeek,
+    weeklyBudgetHours: budgetHours,
     // Roadmap milestones aren't tied to calendar dates, so a day countdown
     // would be fabricated — show the milestone name without a fake number.
     nextMilestoneDays: null,
@@ -350,8 +385,7 @@ export function useDashboard(): DashboardView {
 
   const activityStats: ActivityStats = {
     longestStreakDays: maxStreak(habits),
-    // No deep-work time tracking yet — surfaced as "—" by the card.
-    totalDeepWorkHours: 0,
+    totalDeepWorkHours,
     milestonesCompleted,
     milestonesTotal,
     weeklyReviewsFiled: reviews.length,
@@ -383,8 +417,8 @@ export function useDashboard(): DashboardView {
     phases,
 
     todayTasks,
-    budgetCategories: [],
-    budgetHours: session?.userProfileContext?.weeklyHoursAvailable ?? 0,
+    budgetCategories,
+    budgetHours,
 
     healthScore: health?.score ?? 0,
     healthDelta: health?.delta ?? 0,

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
 import type { ActivityStats } from "@/types/dashboard.types";
 
 // ── Activity level → Tailwind class ──────────────────────────────────────────
@@ -172,7 +173,7 @@ export function ActivityHeatmapCard({ stats, activity, isLoading }: ActivityHeat
           </p>
         </div>
         <Link
-          href="#"
+          href={ROUTES.progress}
           className="text-[12px] font-medium text-ink-3 transition-colors duration-150 hover:text-ink"
         >
           Detailed log →

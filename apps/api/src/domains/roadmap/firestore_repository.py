@@ -20,6 +20,7 @@ Terraform ``google_firestore_index`` before deploying to production.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from google.cloud.firestore_v1 import Query as FSQuery
 from google.cloud.firestore_v1.async_client import AsyncClient
@@ -45,6 +46,9 @@ _COL_PHASES = "phases"
 _COL_WEEKLY_HABITS = "weekly_habits"
 _COL_NEXT_STEPS = "next_steps"
 _COL_MARKET_DATA = "market_data"
+# Per-user milestone completion, keyed `{user_id}_{roadmap_id}` so a user can
+# only ever read or write their own progress document.
+_COL_PROGRESS = "roadmap_progress"
 
 
 class FirestoreRoadmapRepository:
@@ -301,6 +305,150 @@ class FirestoreRoadmapRepository:
             )
         await ref.update({"deleted_at": datetime.now(timezone.utc)})
         logger.info("roadmap.soft_deleted", roadmap_id=roadmap_id, user_id=user_id)
+
+    # ── Milestone progress ────────────────────────────────────────────────────
+
+    def _progress_ref(self, roadmap_id: str, user_id: str) -> AsyncDocumentReference:
+        return self._db.collection(_COL_PROGRESS).document(f"{user_id}_{roadmap_id}")
+
+    async def get_progress(
+        self, roadmap_id: str, user_id: str
+    ) -> tuple[list[str], datetime | None]:
+        snap = await self._progress_ref(roadmap_id, user_id).get()
+        if not snap.exists:
+            return [], None
+        data: dict = snap.to_dict() or {}
+        completed = [str(k) for k in data.get("completed_milestones", [])]
+        return completed, data.get("updated_at")
+
+    async def set_progress(
+        self, roadmap_id: str, user_id: str, completed: list[str]
+    ) -> datetime:
+        now = datetime.now(timezone.utc)
+        await self._progress_ref(roadmap_id, user_id).set({
+            "user_id": user_id,
+            "roadmap_id": roadmap_id,
+            "completed_milestones": completed,
+            "updated_at": now,
+        })
+        logger.info(
+            "roadmap.progress_saved",
+            roadmap_id=roadmap_id,
+            user_id=user_id,
+            completed_count=len(completed),
+        )
+        return now
+
+    # ── Phase editing ─────────────────────────────────────────────────────────
+
+    async def _owned_root(
+        self, roadmap_id: str, user_id: str
+    ) -> AsyncDocumentReference | None:
+        """Return the root doc ref iff it exists, is owned by the user, and is live."""
+        ref = self._col.document(roadmap_id)
+        snap = await ref.get()
+        if not snap.exists:
+            return None
+        data: dict = snap.to_dict() or {}
+        if data.get("user_id") != user_id or data.get("deleted_at") is not None:
+            return None
+        return ref
+
+    async def update_phase(
+        self, roadmap_id: str, user_id: str, phase_id: str, updates: dict
+    ) -> bool:
+        """Patch allowed fields on a single phase. Returns False if not found."""
+        root = await self._owned_root(roadmap_id, user_id)
+        if root is None:
+            return False
+        phase_ref = root.collection(_COL_PHASES).document(phase_id)
+        snap = await phase_ref.get()
+        if not snap.exists:
+            return False
+        if updates:
+            await phase_ref.update(updates)
+        logger.info(
+            "roadmap.phase_updated",
+            roadmap_id=roadmap_id,
+            user_id=user_id,
+            phase_id=phase_id,
+            fields=sorted(updates),
+        )
+        return True
+
+    async def add_phase(
+        self, roadmap_id: str, user_id: str, phase_data: dict
+    ) -> str | None:
+        """Append a new phase ordered after the current last. Returns its id."""
+        root = await self._owned_root(roadmap_id, user_id)
+        if root is None:
+            return None
+
+        phases_col = root.collection(_COL_PHASES)
+        max_order = 0
+        count = 0
+        async for snap in phases_col.stream():
+            count += 1
+            order = (snap.to_dict() or {}).get("order", 0)
+            if order > max_order:
+                max_order = order
+
+        phase_id = uuid4().hex
+        doc = {
+            "order": max_order + 1,
+            "title": phase_data.get("title", ""),
+            "description": phase_data.get("description", ""),
+            "duration_weeks": phase_data.get("duration_weeks", 0),
+            "goals": [],
+            "milestones": phase_data.get("milestones", []),
+            "skills_to_gain": phase_data.get("skills_to_gain", []),
+            "skills": [],
+            "actions": [],
+            "gaps_addressed": [],
+            "market_relevance": "",
+            "difficulty": "intermediate",
+            "deliverables": [],
+            "confidence": 1.0,
+            "resources": [],
+            "curated_resources": [],
+            "weekly_tasks": [],
+        }
+        await phases_col.document(phase_id).set(doc)
+        await root.update({"phase_count": count + 1})
+        logger.info("roadmap.phase_added", roadmap_id=roadmap_id, user_id=user_id, phase_id=phase_id)
+        return phase_id
+
+    async def delete_phase(self, roadmap_id: str, user_id: str, phase_id: str) -> bool:
+        """Remove a phase. Returns False if the roadmap or phase is missing."""
+        root = await self._owned_root(roadmap_id, user_id)
+        if root is None:
+            return False
+        phase_ref = root.collection(_COL_PHASES).document(phase_id)
+        snap = await phase_ref.get()
+        if not snap.exists:
+            return False
+        await phase_ref.delete()
+
+        remaining = 0
+        async for _ in root.collection(_COL_PHASES).stream():
+            remaining += 1
+        await root.update({"phase_count": remaining})
+        logger.info("roadmap.phase_deleted", roadmap_id=roadmap_id, user_id=user_id, phase_id=phase_id)
+        return True
+
+    async def reorder_phases(
+        self, roadmap_id: str, user_id: str, ordered_ids: list[str]
+    ) -> bool:
+        """Reassign 1-based ``order`` to each phase in the given id sequence."""
+        root = await self._owned_root(roadmap_id, user_id)
+        if root is None:
+            return False
+        batch = self._db.batch()
+        for index, phase_id in enumerate(ordered_ids):
+            batch.update(root.collection(_COL_PHASES).document(phase_id), {"order": index + 1})
+        await batch.commit()
+        logger.info("roadmap.phases_reordered", roadmap_id=roadmap_id, user_id=user_id)
+        return True
 
     # ── Private subcollection loaders ─────────────────────────────────────────
 

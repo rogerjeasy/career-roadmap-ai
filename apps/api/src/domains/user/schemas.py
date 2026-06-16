@@ -27,6 +27,27 @@ class RefreshTokenRequest(BaseSchema):
     refresh_token: str
 
 
+# ── Notification preferences ──────────────────────────────────────────────────
+
+class NotificationPreferences(BaseSchema):
+    """Per-user notification opt-ins, surfaced on the Settings page."""
+
+    weekly_digest: bool = True
+    milestone_alerts: bool = True
+    market_alerts: bool = False
+
+
+class UserUpdate(BaseSchema):
+    """Partial update for the authenticated user's profile.
+
+    Only fields explicitly present in the request body are applied — omitted
+    fields are left unchanged.
+    """
+
+    display_name: str | None = Field(default=None, max_length=200)
+    notification_preferences: NotificationPreferences | None = None
+
+
 # ── Response schemas ──────────────────────────────────────────────────────────
 
 class UserProfile(BaseSchema):
@@ -43,6 +64,9 @@ class UserProfile(BaseSchema):
     provider: str
     email_verified: bool
     is_active: bool
+    notification_preferences: NotificationPreferences = Field(
+        default_factory=NotificationPreferences
+    )
     created_at: datetime
     updated_at: datetime
 

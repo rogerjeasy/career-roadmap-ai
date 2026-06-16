@@ -189,7 +189,7 @@ Implemented domains: `user`, `cv`, `market`, `roadmap`, `progress`, `networking`
 Controllers live in `src/endpoints/v1/`:
 ```
 auth_controller.py          — /auth/register, /login, /google, /refresh, /logout
-user_controller.py          — /users/me, /users/me (PATCH)
+user_controller.py          — /users/me (GET), /users/me (PATCH), /users/me (DELETE)
 session_controller.py       — /sessions (create, get, delete)
 orchestrator_controller.py  — /orchestrator/generate (202), /orchestrator/status/{id}
 stream_controller.py        — /stream/{session_id} (SSE)

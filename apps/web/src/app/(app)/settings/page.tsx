@@ -2,11 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { ROUTES } from "@/lib/constants";
+import { userApi } from "@/lib/api/user";
+import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
+import type { NotificationPreferences, UserProfile } from "@/types/api.types";
+
+const DEFAULT_PREFS: NotificationPreferences = {
+  weeklyDigest: true,
+  milestoneAlerts: true,
+  marketAlerts: false,
+};
 
 interface ToggleProps {
   label: string;
@@ -46,10 +56,50 @@ function Toggle({ label, description, checked, onChange }: ToggleProps) {
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const [prefs, setPrefs] = useState({ weeklyDigest: true, milestoneAlerts: true, marketAlerts: false });
+  const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const set = (key: keyof typeof prefs) => (v: boolean) => setPrefs((p) => ({ ...p, [key]: v }));
+  const { data: profile } = useQuery({
+    queryKey: QUERY_KEYS.me,
+    queryFn: userApi.getMe,
+    staleTime: 5 * 60 * 1000,
+  });
+  const prefs = profile?.notificationPreferences ?? DEFAULT_PREFS;
+
+  const prefsMutation = useMutation({
+    mutationFn: (next: NotificationPreferences) =>
+      userApi.updateMe({ notificationPreferences: next }),
+    // Optimistic toggle — the switch flips immediately, rolls back on failure.
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.me });
+      const previous = queryClient.getQueryData<UserProfile>(QUERY_KEYS.me);
+      if (previous) {
+        queryClient.setQueryData<UserProfile>(QUERY_KEYS.me, {
+          ...previous,
+          notificationPreferences: next,
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _next, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(QUERY_KEYS.me, ctx.previous);
+      toast.error("Couldn't update preferences. Please try again.");
+    },
+    onSuccess: (updated) => queryClient.setQueryData(QUERY_KEYS.me, updated),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: userApi.deleteAccount,
+    onSuccess: async () => {
+      setConfirmDelete(false);
+      toast.success("Your account has been deleted");
+      await logout();
+    },
+    onError: () => toast.error("Couldn't delete your account. Please try again."),
+  });
+
+  const set = (key: keyof NotificationPreferences) => (v: boolean) =>
+    prefsMutation.mutate({ ...prefs, [key]: v });
 
   return (
     <div className="mx-auto max-w-[760px] px-7 pb-24 pt-7">
@@ -113,9 +163,10 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}
-            className="rounded-[7px] bg-destructive/10 px-4 py-2 text-[13px] font-medium text-destructive transition-colors duration-150 hover:bg-destructive/20"
+            disabled={deleteMutation.isPending}
+            className="rounded-[7px] bg-destructive/10 px-4 py-2 text-[13px] font-medium text-destructive transition-colors duration-150 hover:bg-destructive/20 disabled:opacity-50"
           >
-            Delete account
+            {deleteMutation.isPending ? "Deleting…" : "Delete account"}
           </button>
         </div>
       </section>
@@ -127,7 +178,8 @@ export default function SettingsPage() {
         description="This permanently removes your profile, uploaded documents, roadmaps, and analyses. This action cannot be undone."
         confirmLabel="Delete everything"
         destructive
-        onConfirm={() => setConfirmDelete(false)}
+        pending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
       />
     </div>
   );

@@ -128,3 +128,119 @@ async def test_delete_checks_ownership_via_get(service: RoadmapService, repo: Ma
         await service.delete("r1", "wrong-user")
 
     repo.soft_delete.assert_not_awaited()
+
+
+# ── milestone progress ─────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_progress_passes_through_repo(service: RoadmapService, repo: MagicMock) -> None:
+    updated = datetime.now(timezone.utc)
+    repo.get_progress = AsyncMock(return_value=(["p1:0", "p2:3"], updated))
+
+    completed, ts = await service.get_progress("r1", "u1")
+
+    assert completed == ["p1:0", "p2:3"]
+    assert ts == updated
+    repo.get_progress.assert_awaited_once_with("r1", "u1")
+
+
+@pytest.mark.asyncio
+async def test_toggle_milestone_adds_when_absent(service: RoadmapService, repo: MagicMock) -> None:
+    repo.get_progress = AsyncMock(return_value=(["p1:0"], None))
+    repo.set_progress = AsyncMock(return_value=datetime.now(timezone.utc))
+
+    completed, _ = await service.toggle_milestone("r1", "u1", "p1:1")
+
+    assert completed == ["p1:0", "p1:1"]  # sorted, new key added
+    repo.set_progress.assert_awaited_once_with("r1", "u1", ["p1:0", "p1:1"])
+
+
+@pytest.mark.asyncio
+async def test_toggle_milestone_removes_when_present(service: RoadmapService, repo: MagicMock) -> None:
+    repo.get_progress = AsyncMock(return_value=(["p1:0", "p1:1"], None))
+    repo.set_progress = AsyncMock(return_value=datetime.now(timezone.utc))
+
+    completed, _ = await service.toggle_milestone("r1", "u1", "p1:0")
+
+    assert completed == ["p1:1"]  # toggled off
+    repo.set_progress.assert_awaited_once_with("r1", "u1", ["p1:1"])
+
+
+# ── phase editing ──────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_update_phase_raises_not_found_when_missing(
+    service: RoadmapService, repo: MagicMock
+) -> None:
+    repo.update_phase = AsyncMock(return_value=False)
+
+    with pytest.raises(NotFoundError):
+        await service.update_phase("r1", "u1", "missing", {"title": "X"})
+
+
+@pytest.mark.asyncio
+async def test_update_phase_cleans_milestones_and_returns_doc(
+    service: RoadmapService, repo: MagicMock
+) -> None:
+    repo.update_phase = AsyncMock(return_value=True)
+    repo.get_progress = AsyncMock(return_value=([], None))
+    repo.set_progress = AsyncMock()
+    repo.get = AsyncMock(return_value=_make_doc())
+
+    doc = await service.update_phase(
+        "r1", "u1", "p1", {"milestones": ["  ship it  ", "", "  "]}
+    )
+
+    # whitespace trimmed, empties dropped
+    repo.update_phase.assert_awaited_once_with("r1", "u1", "p1", {"milestones": ["ship it"]})
+    assert doc.id == "r1"
+
+
+@pytest.mark.asyncio
+async def test_update_phase_prunes_out_of_range_progress(
+    service: RoadmapService, repo: MagicMock
+) -> None:
+    repo.update_phase = AsyncMock(return_value=True)
+    repo.get = AsyncMock(return_value=_make_doc())
+    # phase shrinks to 2 milestones — p1:2 must be dropped, p2:0 untouched
+    repo.get_progress = AsyncMock(return_value=(["p1:0", "p1:2", "p2:0"], None))
+    repo.set_progress = AsyncMock()
+
+    await service.update_phase("r1", "u1", "p1", {"milestones": ["a", "b"]})
+
+    repo.set_progress.assert_awaited_once_with("r1", "u1", ["p1:0", "p2:0"])
+
+
+@pytest.mark.asyncio
+async def test_delete_phase_discards_its_progress(
+    service: RoadmapService, repo: MagicMock
+) -> None:
+    repo.delete_phase = AsyncMock(return_value=True)
+    repo.get = AsyncMock(return_value=_make_doc())
+    repo.get_progress = AsyncMock(return_value=(["p1:0", "p2:0", "p2:1"], None))
+    repo.set_progress = AsyncMock()
+
+    await service.delete_phase("r1", "u1", "p2")
+
+    repo.set_progress.assert_awaited_once_with("r1", "u1", ["p1:0"])
+
+
+@pytest.mark.asyncio
+async def test_add_phase_raises_when_roadmap_missing(
+    service: RoadmapService, repo: MagicMock
+) -> None:
+    repo.add_phase = AsyncMock(return_value=None)
+
+    with pytest.raises(NotFoundError):
+        await service.add_phase("r1", "u1", {"title": "New phase"})
+
+
+@pytest.mark.asyncio
+async def test_reorder_phases_returns_doc(service: RoadmapService, repo: MagicMock) -> None:
+    repo.reorder_phases = AsyncMock(return_value=True)
+    repo.get = AsyncMock(return_value=_make_doc())
+
+    doc = await service.reorder_phases("r1", "u1", ["p2", "p1"])
+
+    repo.reorder_phases.assert_awaited_once_with("r1", "u1", ["p2", "p1"])
+    assert doc.id == "r1"

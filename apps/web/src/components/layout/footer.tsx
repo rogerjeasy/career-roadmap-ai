@@ -11,11 +11,11 @@ const COLS: FooterCol[] = [
   {
     heading: "Product",
     links: [
-      { label: "How it works",    href: "#" },
-      { label: "Career Twin",     href: "#" },
-      { label: "Skill Graph",     href: "#" },
-      { label: "Mock Interview",  href: "#" },
-      { label: "Pricing",         href: "#pricing" },
+      { label: "How it works",  href: "#" },
+      { label: "Career Twin",   href: "/coach" },
+      { label: "Roadmap",       href: "/roadmap" },
+      { label: "Market Pulse",  href: "/market" },
+      { label: "Pricing",       href: "#pricing" },
     ],
   },
   {

@@ -1,10 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { roadmapApi, type RoadmapProgress } from "@/lib/api/roadmap";
+import { QUERY_KEYS } from "@/lib/constants";
 
 /**
- * Tracks which milestones a user has checked off, persisted to localStorage
- * keyed by roadmap id. Used until a server-side progress domain exists.
+ * Tracks which milestones a user has checked off, persisted server-side via
+ * `/roadmaps/{id}/progress`. State is shared across the app (dashboard + roadmap
+ * views) through the TanStack Query cache and survives reloads and devices.
  *
  * Milestone keys are stable strings of the form `${phaseId}:${milestoneIndex}`.
  */
@@ -15,68 +19,65 @@ export interface UseRoadmapProgressResult {
   completedKeys: ReadonlySet<string>;
 }
 
-function storageKey(roadmapId: string): string {
-  return `crai-roadmap-progress:${roadmapId}`;
-}
-
-function loadKeys(roadmapId: string | null): Set<string> {
-  if (!roadmapId || typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(storageKey(roadmapId));
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
 export function useRoadmapProgress(roadmapId: string | null): UseRoadmapProgressResult {
-  const [keys, setKeys] = useState<Set<string>>(() => loadKeys(roadmapId));
-  const [loadedId, setLoadedId] = useState<string | null>(roadmapId);
+  const queryClient = useQueryClient();
+  const queryKey = QUERY_KEYS.roadmapProgress(roadmapId ?? "none");
 
-  // Reload from storage when the roadmap changes — the sanctioned effect-free
-  // "adjust state during render" pattern (no flash, no cascading effect).
-  if (roadmapId !== loadedId) {
-    setLoadedId(roadmapId);
-    setKeys(loadKeys(roadmapId));
-  }
+  const { data } = useQuery({
+    queryKey,
+    queryFn: () => roadmapApi.getProgress(roadmapId as string),
+    enabled: Boolean(roadmapId),
+    staleTime: 60 * 1000,
+  });
 
-  const persist = useCallback(
-    (next: Set<string>) => {
-      if (!roadmapId || typeof window === "undefined") return;
-      try {
-        window.localStorage.setItem(storageKey(roadmapId), JSON.stringify([...next]));
-      } catch {
-        /* storage unavailable — keep in-memory state only */
-      }
-    },
-    [roadmapId],
+  const completedKeys = useMemo(
+    () => new Set(data?.completedMilestones ?? []),
+    [data],
   );
+
+  const { mutate } = useMutation({
+    mutationFn: (key: string) => roadmapApi.toggleMilestone(roadmapId as string, key),
+    // Optimistic: the checkbox flips instantly, reconciles with the server
+    // response, and rolls back if the request fails.
+    onMutate: async (key) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<RoadmapProgress>(queryKey);
+      const next = new Set(previous?.completedMilestones ?? []);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      queryClient.setQueryData<RoadmapProgress>(queryKey, {
+        roadmapId: roadmapId as string,
+        completedMilestones: [...next],
+        updatedAt: previous?.updatedAt ?? null,
+      });
+      return { previous };
+    },
+    onError: (_err, _key, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(queryKey, ctx.previous);
+    },
+    onSuccess: (updated) => queryClient.setQueryData(queryKey, updated),
+  });
 
   const toggle = useCallback(
     (key: string) => {
-      setKeys((prev) => {
-        const next = new Set(prev);
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
-        persist(next);
-        return next;
-      });
+      if (!roadmapId) return;
+      mutate(key);
     },
-    [persist],
+    [roadmapId, mutate],
   );
 
-  const isDone = useCallback((key: string) => keys.has(key), [keys]);
+  const isDone = useCallback((key: string) => completedKeys.has(key), [completedKeys]);
 
   const doneInPhase = useCallback(
     (phaseId: string, count: number) => {
       let done = 0;
       for (let i = 0; i < count; i += 1) {
-        if (keys.has(`${phaseId}:${i}`)) done += 1;
+        if (completedKeys.has(`${phaseId}:${i}`)) done += 1;
       }
       return done;
     },
-    [keys],
+    [completedKeys],
   );
 
-  return { isDone, toggle, doneInPhase, completedKeys: keys };
+  return { isDone, toggle, doneInPhase, completedKeys };
 }

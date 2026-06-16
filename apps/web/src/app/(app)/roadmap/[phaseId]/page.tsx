@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRoadmap } from "@/hooks/use-roadmap";
@@ -11,12 +12,14 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoadmapProgressBar } from "@/components/roadmap/roadmap-progress-bar";
 import { PhaseNav } from "@/components/roadmap/phase-nav";
 import { MilestoneToggle } from "@/components/roadmap/milestone-toggle";
+import { PhaseEditor } from "@/components/roadmap/phase-editor";
 
 export default function PhaseDetailPage() {
   const params = useParams<{ phaseId: string }>();
   const phaseId = params.phaseId;
   const { roadmap, isLoading } = useRoadmap();
   const { isDone, toggle, doneInPhase } = useRoadmapProgress(roadmap?.id ?? null);
+  const [editing, setEditing] = useState(false);
 
   if (isLoading) {
     return (
@@ -65,6 +68,17 @@ export default function PhaseDetailPage() {
         eyebrow={`Phase ${String(phase.order).padStart(2, "0")} · ${phase.durationWeeks} weeks`}
         title={phase.title}
         description={phase.description || undefined}
+        actions={
+          !editing ? (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="shrink-0 rounded-[7px] border border-rule-strong bg-paper px-3.5 py-2 text-[13px] font-medium text-ink-2 transition-colors duration-150 hover:bg-bg-2"
+            >
+              Edit phase
+            </button>
+          ) : undefined
+        }
       />
 
       <div className="grid gap-7 lg:grid-cols-[220px_1fr]">
@@ -79,8 +93,14 @@ export default function PhaseDetailPage() {
         </aside>
 
         <div className="min-w-0 space-y-7">
-          {/* Progress */}
-          {total > 0 && (
+          {/* Milestones — editable */}
+          {editing ? (
+            <PhaseEditor
+              roadmapId={roadmap.id}
+              phase={phase}
+              onClose={() => setEditing(false)}
+            />
+          ) : total > 0 ? (
             <section className="rounded-[12px] border border-rule bg-paper p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-serif text-[17px] font-medium tracking-[-0.01em] text-ink">
@@ -105,6 +125,19 @@ export default function PhaseDetailPage() {
                   );
                 })}
               </ul>
+            </section>
+          ) : (
+            <section className="rounded-[12px] border border-dashed border-rule-strong bg-paper p-6 text-center">
+              <p className="text-[13px] text-ink-3">
+                No milestones in this phase yet.{" "}
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="font-medium text-green-2 transition-colors duration-150 hover:text-green"
+                >
+                  Add some →
+                </button>
+              </p>
             </section>
           )}
 

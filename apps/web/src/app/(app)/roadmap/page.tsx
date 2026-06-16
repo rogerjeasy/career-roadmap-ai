@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRoadmap } from "@/hooks/use-roadmap";
 import { useRoadmapProgress } from "@/hooks/use-roadmap-progress";
@@ -10,6 +11,7 @@ import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoadmapProgressBar } from "@/components/roadmap/roadmap-progress-bar";
 import { PhaseCard, type PhaseStatus } from "@/components/roadmap/phase-card";
+import { PhaseManager } from "@/components/roadmap/phase-manager";
 import type { RoadmapPhaseDetail } from "@/types/roadmap.types";
 
 function deriveStatuses(
@@ -36,6 +38,7 @@ function deriveStatuses(
 export default function RoadmapPage() {
   const { roadmap, isLoading, isEmpty, isError } = useRoadmap();
   const { doneInPhase } = useRoadmapProgress(roadmap?.id ?? null);
+  const [manage, setManage] = useState(false);
 
   if (isLoading) {
     return (
@@ -99,12 +102,29 @@ export default function RoadmapPage() {
         title="Career Roadmap"
         description={roadmap.summary ? fixMojibake(roadmap.summary) : undefined}
         actions={
-          <span className="inline-flex items-center gap-2 rounded-[7px] border border-rule bg-paper px-3 py-1.5 text-[12px] text-ink-2">
-            <span className="h-2 w-2 rounded-full bg-green" aria-hidden="true" />
-            {Math.round(roadmap.confidence * 100)}% confidence
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-[7px] border border-rule bg-paper px-3 py-1.5 text-[12px] text-ink-2">
+              <span className="h-2 w-2 rounded-full bg-green" aria-hidden="true" />
+              {Math.round(roadmap.confidence * 100)}% confidence
+            </span>
+            <button
+              type="button"
+              onClick={() => setManage((m) => !m)}
+              aria-pressed={manage}
+              className="shrink-0 rounded-[7px] border border-rule-strong bg-paper px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors duration-150 hover:bg-bg-2"
+            >
+              {manage ? "Done" : "Edit plan"}
+            </button>
+          </div>
         }
       />
+
+      {/* Phase management */}
+      {manage && (
+        <div className="mb-7">
+          <PhaseManager roadmapId={roadmap.id} phases={phases} />
+        </div>
+      )}
 
       {/* Overall progress */}
       <div className="mb-7 grid gap-4 rounded-[12px] border border-rule bg-paper p-6 sm:grid-cols-[1fr_auto] sm:items-center">

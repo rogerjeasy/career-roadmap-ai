@@ -1,0 +1,77 @@
+# Render Blueprint — free-tier / portfolio deploy of the Career Roadmap AI backend.
+# One Docker web service runs FastAPI + a co-located Celery worker (see start.sh).
+#
+# Deploy: push to GitHub → Render dashboard → "New +" → "Blueprint" → pick this repo.
+# Then fill the env vars marked `sync: false` in the Render dashboard (they hold secrets).
+#
+# Managed free dependencies live OUTSIDE Render (cheaper / non-expiring):
+#   Redis     → Upstash         (REDIS_URL, CELERY_BROKER_URL, CELERY_RESULT_BACKEND)
+#   Postgres  → Neon            (DATABASE_URL)
+#   Firestore → Firebase Spark  (FIREBASE_* )
+#   Vectors   → Pinecone Starter
+#   Uploads   → Cloudinary
+
+services:
+  - type: web
+    name: career-roadmap-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./infrastructure/docker/api.Dockerfile
+    dockerContext: .
+    healthCheckPath: /livez
+    autoDeploy: true
+    envVars:
+      # ── App ──────────────────────────────────────────────
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      # CORS: set to your Vercel URL once you have it, e.g. https://your-app.vercel.app
+      - key: CORS_ORIGINS
+        sync: false
+
+      # ── Free RAM guards: keep heavy/opt-in features OFF ──
+      - key: RERANKER_ENABLED
+        value: "false"
+      - key: HYBRID_SEARCH_ENABLED
+        value: "false"
+      - key: OTEL_TRACING_ENABLED
+        value: "false"
+      - key: PROMETHEUS_METRICS_ENABLED
+        value: "true"
+
+      # ── Data stores (paste connection strings from Upstash / Neon) ─────
+      - key: DATABASE_URL          # Neon connection string, asyncpg driver
+        sync: false
+      - key: REDIS_URL             # Upstash Redis (TLS) connection string
+        sync: false
+      - key: CELERY_BROKER_URL     # same Upstash URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND # same Upstash URL
+        sync: false
+
+      # ── Firebase ─────────────────────────────────────────
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CREDENTIALS_JSON   # full service-account JSON string
+        sync: false
+      - key: FIREBASE_WEB_API_KEY
+        sync: false
+
+      # ── LLM + RAG providers ──────────────────────────────
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY          # embeddings (text-embedding-3-large) + chat fallback
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        value: career-roadmap-kb
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

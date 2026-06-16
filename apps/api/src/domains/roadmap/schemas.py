@@ -331,3 +331,46 @@ class RoadmapSummaryOut(BaseModel):
 
 # Paginated list response — returned by GET /roadmaps?cursor=...&limit=...
 RoadmapSummaryPage = PaginatedResponse[RoadmapSummaryOut]
+
+
+# ── Milestone progress ────────────────────────────────────────────────────────
+
+class RoadmapProgressOut(BaseModel):
+    """Per-user completion state for a roadmap's milestones.
+
+    ``completed_milestones`` holds stable milestone keys of the form
+    ``{phase_id}:{milestone_index}``.
+    """
+    roadmap_id: str
+    completed_milestones: list[str] = Field(default_factory=list)
+    updated_at: datetime | None = None
+
+
+class MilestoneToggleRequest(BaseModel):
+    """Flip the completion state of a single milestone."""
+    key: str = Field(min_length=1, max_length=200)
+
+
+# ── Phase editing ─────────────────────────────────────────────────────────────
+
+class PhaseUpdate(BaseModel):
+    """Partial update for a single phase. Omitted fields are left unchanged."""
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    duration_weeks: int | None = Field(default=None, ge=0, le=520)
+    milestones: list[str] | None = None
+    skills_to_gain: list[str] | None = None
+
+
+class PhaseCreate(BaseModel):
+    """A new, user-authored phase appended to the roadmap."""
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2000)
+    duration_weeks: int = Field(default=4, ge=0, le=520)
+    milestones: list[str] = Field(default_factory=list)
+    skills_to_gain: list[str] = Field(default_factory=list)
+
+
+class PhaseReorder(BaseModel):
+    """The full set of phase ids in their new display order."""
+    phase_ids: list[str] = Field(min_length=1)

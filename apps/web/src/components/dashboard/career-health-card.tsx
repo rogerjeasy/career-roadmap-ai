@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
 import type { HealthSignal } from "@/types/dashboard.types";
 
 // ── SVG gauge ─────────────────────────────────────────────────────────────────
@@ -127,7 +128,7 @@ export function CareerHealthCard({
           </p>
         </div>
         <Link
-          href="#"
+          href={ROUTES.healthMethodology}
           className="text-[12px] font-medium text-ink-3 transition-colors duration-150 hover:text-ink"
         >
           Method →

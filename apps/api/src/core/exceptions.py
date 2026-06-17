@@ -43,3 +43,10 @@ class ExternalServiceError(AppException):
 
     status_code = status.HTTP_502_BAD_GATEWAY
     error_code = "upstream_error"
+
+
+class ServiceUnavailableError(AppException):
+    """Raised when an optional capability is not configured/enabled (e.g. billing)."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    error_code = "service_unavailable"

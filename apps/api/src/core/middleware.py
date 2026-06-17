@@ -71,7 +71,14 @@ class CaseConversionMiddleware:
       • JSON response bodies (all status codes, including 4xx / 5xx)
 
     Skips non-JSON payloads (multipart, form-data, binary) transparently.
+
+    Paths in ``RAW_BODY_PATHS`` receive their request body untouched — required
+    where the handler verifies a signature over the exact bytes (e.g. the Stripe
+    webhook, whose HMAC breaks if the JSON is re-serialised).
     """
+
+    # Request bodies for these paths must reach the handler byte-for-byte.
+    RAW_BODY_PATHS: frozenset[str] = frozenset({"/api/v1/billing/webhook"})
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -91,7 +98,11 @@ class CaseConversionMiddleware:
             ).encode()
 
         # ── Request body + response body ──────────────────────────────────────
-        await self.app(scope, _RequestReceiver(receive), _ResponseSender(send))
+        # Signature-verified paths keep their raw body; the response is still
+        # camelCased for the client.
+        raw_body = scope.get("path", "") in self.RAW_BODY_PATHS
+        receiver: Receive = receive if raw_body else _RequestReceiver(receive)
+        await self.app(scope, receiver, _ResponseSender(send))
 
 
 class _RequestReceiver:

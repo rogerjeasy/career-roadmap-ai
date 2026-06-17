@@ -17,4 +17,13 @@ export const cvApi = {
     );
     return data.analysis;
   },
+
+  /** Import a CV from a public URL — analysed server-side, same result as upload(). */
+  async importUrl(url: string): Promise<CvAnalysisResult> {
+    const { data } = await apiClient.post<CvUploadResponse>(
+      "/api/v1/cv/import-url",
+      { url },
+    );
+    return data.analysis;
+  },
 };

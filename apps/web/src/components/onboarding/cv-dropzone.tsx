@@ -111,31 +111,34 @@ export function CvDropzone({
     [onFileSelect],
   );
 
-  const ext = file?.name.split(".").pop()?.toUpperCase() ?? "FILE";
+  const ext = file ? (file.name.split(".").pop()?.toUpperCase() ?? "FILE") : "URL";
   const sizeKb = file ? Math.round(file.size / 1024) : 0;
   const hasFile = !!file;
+  // URL imports have no File object, so drive the content view off any of:
+  // a picked file, an in-flight analysis, or a parsed result.
+  const hasContent = hasFile || isAnalyzing || !!cvResult;
 
   return (
     <div
       className={cn(
         "relative min-h-[360px] overflow-hidden rounded-2xl border bg-paper transition-all duration-200",
-        !hasFile && "flex cursor-pointer flex-col items-center justify-center p-7 text-center",
-        !hasFile && !isDragging && "border-dashed border-rule-strong hover:border-green hover:bg-green-faint",
-        !hasFile && isDragging && "border-green bg-green-faint",
-        hasFile && "flex flex-col gap-4 border-green p-6",
+        !hasContent && "flex cursor-pointer flex-col items-center justify-center p-7 text-center",
+        !hasContent && !isDragging && "border-dashed border-rule-strong hover:border-green hover:bg-green-faint",
+        !hasContent && isDragging && "border-green bg-green-faint",
+        hasContent && "flex flex-col gap-4 border-green p-6",
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      onClick={!hasFile ? () => inputRef.current?.click() : undefined}
-      role={!hasFile ? "button" : undefined}
-      tabIndex={!hasFile ? 0 : undefined}
+      onClick={!hasContent ? () => inputRef.current?.click() : undefined}
+      role={!hasContent ? "button" : undefined}
+      tabIndex={!hasContent ? 0 : undefined}
       onKeyDown={
-        !hasFile
+        !hasContent
           ? (e) => e.key === "Enter" && inputRef.current?.click()
           : undefined
       }
-      aria-label={!hasFile ? "Upload your CV" : undefined}
+      aria-label={!hasContent ? "Upload your CV" : undefined}
     >
       <input
         ref={inputRef}
@@ -146,7 +149,7 @@ export function CvDropzone({
       />
 
       {/* â”€â”€ Empty state â”€â”€ */}
-      {!hasFile && (
+      {!hasContent && (
         <div className="flex flex-col items-center">
           <div
             className={cn(
@@ -178,16 +181,18 @@ export function CvDropzone({
         </div>
       )}
 
-      {/* â”€â”€ File state â”€â”€ */}
-      {hasFile && (
+      {/* â”€â”€ File / import state â”€â”€ */}
+      {hasContent && (
         <>
           {/* File row */}
           <div className="grid grid-cols-[40px_1fr_auto] items-center gap-3.5 border-b border-rule pb-4">
             <FileTypeIcon ext={ext} />
             <div className="min-w-0">
-              <p className="truncate text-[13.5px] font-semibold text-ink">{file?.name}</p>
+              <p className="truncate text-[13.5px] font-semibold text-ink">
+                {file?.name ?? "Imported from link"}
+              </p>
               <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[11.5px] text-ink-3">
-                <span>{sizeKb} KB</span>
+                <span>{hasFile ? `${sizeKb} KB` : "From a URL"}</span>
                 {cvResult && (
                   <>
                     <span className="text-rule-strong">·</span>

@@ -133,6 +133,18 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: SecretStr | None = None
 
+    # ── Billing (Stripe) ──────────────────────────────────
+    # Self-serve Pro subscription. Billing endpoints stay dormant (return 503 on
+    # checkout) until a secret key + Pro price id are configured.
+    stripe_secret_key: SecretStr | None = None
+    stripe_webhook_secret: SecretStr | None = None
+    # Stripe Price id for the Pro plan (e.g. price_123…), from the Stripe dashboard.
+    stripe_price_pro: str | None = None
+    stripe_trial_days: int = 14
+    # Where Stripe Checkout / Billing Portal return the browser (the web app).
+    billing_success_url: str = "http://localhost:3000/settings/billing?checkout=success"
+    billing_cancel_url: str = "http://localhost:3000/settings/billing?checkout=cancelled"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_cors(cls, v: str | list[str]) -> list[str]:

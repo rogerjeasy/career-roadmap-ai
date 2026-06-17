@@ -1,29 +1,37 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { notificationsApi } from "@/lib/api/notifications";
 import { formatRelative } from "@/lib/date";
 import { NotificationBell, type NotificationItem } from "@/components/shared/notification-bell";
+import { LogActivityDialog } from "@/components/schedule/log-activity-dialog";
+import { useUIStore } from "@/store/ui.store";
 
 // ── Page label map ─────────────────────────────────────────────────────────────
 
 const PAGE_LABELS: Record<string, string> = {
   "/dashboard":    "Today",
   "/roadmap":      "Roadmap",
+  "/skill-graph":  "Skill Graph",
   "/coach":        "AI Coach",
   "/market":       "Market Pulse",
   "/opportunities":"Opportunities",
+  "/newsletter":   "Newsletter",
   "/cv-analysis":  "CV & Profile",
+  "/evidence":     "Evidence Vault",
+  "/portfolio":    "Portfolio",
   "/networking":   "Network",
   "/progress":     "Progress",
   "/schedule":     "Schedule",
   "/books":        "Books",
   "/settings":     "Settings",
   "/monthly-plan": "Monthly Plan",
+  "/help":         "Help & feedback",
 };
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -116,8 +124,11 @@ export interface AppTopbarProps {
 
 export function AppTopbar({ className }: AppTopbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const segment = "/" + pathname.split("/")[1];
   const pageLabel = PAGE_LABELS[segment] ?? "Page";
+  const [logOpen, setLogOpen] = useState(false);
+  const setCommandOpen = useUIStore((s) => s.setCommandOpen);
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -147,21 +158,24 @@ export function AppTopbar({ className }: AppTopbarProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 shrink-0">
-        <IconBtn title="Search">
+        <IconBtn title="Search (⌘K)" onClick={() => setCommandOpen(true)}>
           <IconSearch />
         </IconBtn>
         <LiveBell />
-        <IconBtn title="Calendar">
+        <IconBtn title="Schedule" onClick={() => router.push(ROUTES.schedule)}>
           <IconCalendar />
         </IconBtn>
         <button
           type="button"
+          onClick={() => setLogOpen(true)}
           className="ml-1 inline-flex items-center gap-[7px] rounded-[7px] bg-ink px-[14px] py-2 text-[13px] font-medium text-bg transition-colors duration-150 hover:bg-green-2"
         >
           <IconPlus />
           Log activity
         </button>
       </div>
+
+      <LogActivityDialog open={logOpen} onOpenChange={setLogOpen} />
     </header>
   );
 }

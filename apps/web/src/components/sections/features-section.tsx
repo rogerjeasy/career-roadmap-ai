@@ -20,7 +20,7 @@ const FEATURES: Feature[] = [
     tag:         "Career Twin",
     heading:     { before: "An ", em: "AI persona", after: " that grows with you." },
     description: "A persistent companion that knows your plan, energy patterns and language. Voice-first conversations on commutes. Socratic questions before big decisions.",
-    link:        { label: "Meet the Twin →", href: "#" },
+    link:        { label: "Meet the Twin →", href: "/coach" },
     delay:       "0.1s",
   },
   {
@@ -28,7 +28,7 @@ const FEATURES: Feature[] = [
     tag:         "Adaptive Skill Graph",
     heading:     { before: "A living ", em: "map of you", after: " and where you can go next." },
     description: "Visualise current skills, target skills, prerequisites and adjacent roles. Updates as you ship projects, take courses, or shift direction.",
-    link:        { label: "See the graph →", href: "#" },
+    link:        { label: "See the graph →", href: "/skill-graph" },
     delay:       "0.2s",
   },
   {
@@ -44,7 +44,7 @@ const FEATURES: Feature[] = [
     tag:         "Live Job Market Pulse",
     heading:     { before: "The ", em: "real-time", after: " story of your target market." },
     description: "Open positions, week-over-week change, median compensation, fastest-growing skills, time-to-hire. MCP-driven aggregation across major job boards.",
-    link:        { label: "View the pulse →", href: "#" },
+    link:        { label: "View the pulse →", href: "/market" },
     delay:       "0.1s",
   },
   {
@@ -60,7 +60,7 @@ const FEATURES: Feature[] = [
     tag:         "Career Health Score",
     heading:     { before: "One number. ", em: "Five honest signals." },
     description: "Roadmap progress, skill readiness, portfolio strength, market alignment, application readiness. Glanceable, transparent, never gameable.",
-    link:        { label: "See methodology →", href: "#" },
+    link:        { label: "See your score →", href: "/progress" },
     delay:       "0.3s",
   },
 ];
@@ -172,8 +172,9 @@ export function FeaturesSection() {
 
       <section
         ref={sectionRef}
+        id="features"
         aria-labelledby="features-heading"
-        className="features-section-wrap border-y border-rule bg-paper px-6 py-20 sm:px-10 sm:py-[120px] lg:px-12"
+        className="features-section-wrap scroll-mt-24 border-y border-rule bg-paper px-6 py-20 sm:px-10 sm:py-[120px] lg:px-12"
       >
         {/* ── Section header ────────────────────────────────────────── */}
         <div className="mx-auto mb-[72px] max-w-[880px] text-center">
@@ -216,7 +217,8 @@ export function FeaturesSection() {
           {FEATURES.map(({ marker, tag, heading, description, link, delay }) => (
             <article
               key={marker}
-              className="feature-card reveal flex min-h-[280px] flex-col border-b border-r border-rule-strong bg-paper px-8 pb-9 pt-10"
+              id={tag.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}
+              className="feature-card reveal flex min-h-[280px] flex-col scroll-mt-28 border-b border-r border-rule-strong bg-paper px-8 pb-9 pt-10"
               style={{ transitionDelay: delay }}
             >
               {/* Feature tag */}

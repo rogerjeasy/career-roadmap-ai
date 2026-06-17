@@ -40,11 +40,11 @@ interface NavLink {
 
 // ─── Nav links config ─────────────────────────────────────────────────
 const NAV_LINKS: NavLink[] = [
-  { label: "Product",      href: "#"        },
-  { label: "How it works", href: "#"        },
-  { label: "Features",     href: "#"        },
-  { label: "Career Twin",  href: "#",       badge: "Beta" },
-  { label: "Pricing",      href: "#pricing" },
+  { label: "Product",      href: "#pillars"      },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Features",     href: "#features"     },
+  { label: "Career Twin",  href: "#career-twin", badge: "Beta" },
+  { label: "Pricing",      href: "#pricing"      },
 ];
 
 // ─── Header ───────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ export function Header() {
         <strong className="font-semibold">Career Twin</strong>{" "}
         is now in beta — meet the AI persona that knows your full plan.
         <Link
-          href="#"
+          href="#career-twin"
           className="underline underline-offset-[3px] ml-1.5 transition-colors duration-150 hover:text-terra-soft"
         >
           Read the announcement →

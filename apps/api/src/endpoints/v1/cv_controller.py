@@ -14,6 +14,7 @@ Supported formats: PDF · DOCX · TXT · MD (max 10 MB).
 import base64
 from uuid import uuid4
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
 from agents.bus.upload_tasks import (
@@ -27,8 +28,18 @@ from agents.cv_analysis.pdf_parser import PDFParser
 from src.config import settings
 from src.core.auth import AuthenticatedUser, get_current_user
 from src.core.logging import get_logger
-from src.domains.cv.schemas import CvAnalysisResult, CvUploadResponse
+from src.db.http import get_http_client
+from src.domains.cv.schemas import (
+    CvAnalysisResult,
+    CvImportUrlRequest,
+    CvUploadResponse,
+)
 from src.domains.cv.service import CvService, get_cv_service
+from src.domains.cv.url_import import (
+    ALLOWED_EXTS as _URL_ALLOWED_EXTS,
+    UrlImportError,
+    fetch_remote_document,
+)
 from src.session.manager import SessionManager, get_session_manager
 from src.session.models import UserProfileContext
 
@@ -104,6 +115,88 @@ async def upload_cv(
         size_bytes=len(data),
     )
 
+    return await _analyse_and_store(
+        data=data,
+        filename=filename,
+        ext=ext,
+        content_type_hint=file.content_type,
+        user=user,
+        service=service,
+        mgr=mgr,
+    )
+
+
+@router.post(
+    "/import-url",
+    response_model=CvUploadResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Import and analyse a CV from a public URL",
+)
+async def import_cv_from_url(
+    body: CvImportUrlRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: CvService = Depends(get_cv_service),
+    mgr: SessionManager = Depends(get_session_manager),
+    http_client: httpx.AsyncClient = Depends(get_http_client),
+) -> CvUploadResponse:
+    """Fetch a CV from a public link, then run the same analysis as an upload.
+
+    The document is downloaded server-side with SSRF protection (public-host
+    check, manual redirect re-validation, capped streaming). Once fetched, the
+    bytes flow through the identical parse → session-store → Cloudinary path,
+    so a URL import is indistinguishable from a file upload downstream.
+    """
+    url = str(body.url)
+    try:
+        data, filename = await fetch_remote_document(url, http_client)
+    except UrlImportError as exc:
+        logger.info("cv.url_import_rejected", user_id=user.uid, reason=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in _URL_ALLOWED_EXTS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Unsupported document type. Link to a PDF, DOCX, TXT, or MD file.",
+        )
+
+    logger.info(
+        "cv.url_import_received",
+        user_id=user.uid,
+        filename=filename,
+        size_bytes=len(data),
+    )
+
+    return await _analyse_and_store(
+        data=data,
+        filename=filename,
+        ext=ext,
+        content_type_hint=None,
+        user=user,
+        service=service,
+        mgr=mgr,
+    )
+
+
+async def _analyse_and_store(
+    *,
+    data: bytes,
+    filename: str,
+    ext: str,
+    content_type_hint: str | None,
+    user: AuthenticatedUser,
+    service: CvService,
+    mgr: SessionManager,
+) -> CvUploadResponse:
+    """Shared CV pipeline used by both file-upload and URL-import.
+
+    Phase 1 — synchronous Claude analysis (the primary returned value).
+    Phase 1b — persist extracted text into the session for the CV agent.
+    Phase 2 — fire-and-forget Cloudinary upload (failures are non-fatal).
+    """
     # ── Phase 1: synchronous CV analysis ──────────────────────────────────────
     try:
         result: CvAnalysisResult = await service.parse_upload(data, filename)
@@ -146,7 +239,7 @@ async def upload_cv(
 
     # ── Phase 2: fire-and-forget Cloudinary upload ────────────────────────────
     upload_id = str(uuid4())
-    content_type = detect_content_type(filename, file.content_type)
+    content_type = detect_content_type(filename, content_type_hint)
     rtype = resource_type_for(content_type)
     folder = cloudinary_folder(settings.cloudinary_upload_folder, "cvs", user.uid)
 

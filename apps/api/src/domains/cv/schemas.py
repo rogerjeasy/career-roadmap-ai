@@ -1,7 +1,16 @@
 """CV domain — Pydantic schemas for CV analysis results."""
 from enum import Enum
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, HttpUrl, computed_field
+
+
+class CvImportUrlRequest(BaseModel):
+    """Body for POST /cv/import-url — a public link to a CV document.
+
+    ``HttpUrl`` already enforces a well-formed http/https URL; the service layer
+    adds SSRF protection (public-host check, capped streaming download).
+    """
+    url: HttpUrl
 
 
 class SkillLevel(str, Enum):

@@ -179,8 +179,9 @@ export function PillarsSection() {
 
       <section
         ref={sectionRef}
+        id="pillars"
         aria-labelledby="pillars-heading"
-        className="border-y border-rule bg-bg-2 px-5 py-20 sm:px-10 sm:py-24 lg:px-12 lg:py-[120px]"
+        className="scroll-mt-24 border-y border-rule bg-bg-2 px-5 py-20 sm:px-10 sm:py-24 lg:px-12 lg:py-[120px]"
       >
         {/* ── Section header ──────────────────────────────────────────── */}
         <div className="mx-auto mb-16 max-w-[880px] text-center lg:mb-[72px]">

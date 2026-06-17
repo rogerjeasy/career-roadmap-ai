@@ -102,8 +102,9 @@ export function JourneySection() {
 
       <section
         ref={sectionRef}
+        id="how-it-works"
         aria-labelledby="journey-heading"
-        className="bg-bg px-6 py-20 sm:px-10 sm:py-[120px] lg:px-12"
+        className="scroll-mt-24 bg-bg px-6 py-20 sm:px-10 sm:py-[120px] lg:px-12"
       >
         {/* ── Section header ────────────────────────────────────────── */}
         <div className="mx-auto mb-[72px] max-w-[880px] text-center">

@@ -10,6 +10,7 @@ const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/onboarding"];
 const APP_ROUTE_PREFIXES = [
   "/dashboard",
   "/roadmap",
+  "/skill-graph",
   "/schedule",
   "/monthly-plan",
   "/progress",
@@ -17,9 +18,13 @@ const APP_ROUTE_PREFIXES = [
   "/market",
   "/networking",
   "/books",
+  "/evidence",
+  "/portfolio",
+  "/newsletter",
   "/opportunities",
   "/coach",
   "/settings",
+  "/help",
 ];
 
 export function ConditionalShell({ children }: { children: React.ReactNode }) {

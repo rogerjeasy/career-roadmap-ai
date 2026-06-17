@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronUp, CreditCard, HelpCircle, LogOut, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
+import { useUIStore } from "@/store/ui.store";
 import { useAuth } from "@/hooks/use-auth";
-import { ROUTES } from "@/lib/constants";
+import { opportunitiesApi } from "@/lib/api/opportunities";
+import { billingApi } from "@/lib/api/billing";
+import { QUERY_KEYS, ROUTES } from "@/lib/constants";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,32 +113,32 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Today",       href: ROUTES.dashboard,  icon: <IconToday /> },
       { label: "Roadmap",     href: ROUTES.roadmap,    icon: <IconRoadmap /> },
-      { label: "Skill Graph", href: ROUTES.roadmap,    icon: <IconSkillGraph /> },
-      { label: "AI Coach",    href: ROUTES.coach,      icon: <IconCoach />, badge: "2" },
+      { label: "Skill Graph", href: ROUTES.skillGraph, icon: <IconSkillGraph /> },
+      { label: "AI Coach",    href: ROUTES.coach,      icon: <IconCoach /> },
     ],
   },
   {
     title: "Intelligence",
     items: [
       { label: "Market Pulse",   href: ROUTES.market,        icon: <IconMarket /> },
-      { label: "Opportunities",  href: ROUTES.opportunities,  icon: <IconOpportunities />, badge: "5" },
-      { label: "Newsletter",     href: "#",                   icon: <IconNewsletter />, dimmed: true },
+      { label: "Opportunities",  href: ROUTES.opportunities,  icon: <IconOpportunities /> },
+      { label: "Newsletter",     href: ROUTES.newsletter,     icon: <IconNewsletter /> },
     ],
   },
   {
     title: "Assets",
     items: [
       { label: "CV & Profile",    href: ROUTES.cvAnalysis,  icon: <IconCV /> },
-      { label: "Evidence Vault",  href: "#",                icon: <IconEvidenceVault />, dimmed: true },
-      { label: "Portfolio",       href: "#",                icon: <IconPortfolio />, dimmed: true },
+      { label: "Evidence Vault",  href: ROUTES.evidence,    icon: <IconEvidenceVault /> },
+      { label: "Portfolio",       href: ROUTES.portfolio,   icon: <IconPortfolio /> },
       { label: "Network",         href: ROUTES.networking,  icon: <IconNetwork /> },
     ],
   },
   {
     title: "Account",
     items: [
-      { label: "Settings",        href: ROUTES.settings,  icon: <IconSettings />, dimmed: true },
-      { label: "Help & feedback", href: "#",              icon: <IconHelp />, dimmed: true },
+      { label: "Settings",        href: ROUTES.settings,  icon: <IconSettings /> },
+      { label: "Help & feedback", href: ROUTES.help,      icon: <IconHelp /> },
     ],
   },
 ];
@@ -149,10 +153,42 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const setCommandOpen = useUIStore((s) => s.setCommandOpen);
   const { logout } = useAuth();
+
+  // Live high-match opportunity count drives the Opportunities badge.
+  // Shares the query key with the dashboard, so this dedupes rather than refetches.
+  const { data: alerts } = useQuery({
+    queryKey: QUERY_KEYS.opportunityAlerts,
+    queryFn: opportunitiesApi.getAlerts,
+    staleTime: 5 * 60 * 1000,
+  });
+  const highMatchCount = alerts?.highMatchCount ?? 0;
+
+  // Real plan label for the user card (no more hardcoded "Pro").
+  const { data: subscription } = useQuery({
+    queryKey: QUERY_KEYS.subscription,
+    queryFn: billingApi.getSubscription,
+    staleTime: 5 * 60 * 1000,
+  });
+  const planLabel =
+    subscription?.plan === "pro"
+      ? "Pro"
+      : subscription?.plan === "teams"
+        ? "Teams"
+        : "Free";
+  const isPaidPlan = planLabel !== "Free";
 
   const isActive = (href: string) =>
     href !== "#" && (pathname === href || pathname.startsWith(`${href}/`));
+
+  /** Resolve a live badge for a nav item — only the real signals we have. */
+  const badgeFor = (item: NavItem): string | undefined => {
+    if (item.href === ROUTES.opportunities && highMatchCount > 0) {
+      return highMatchCount > 99 ? "99+" : String(highMatchCount);
+    }
+    return item.badge;
+  };
 
   const initials =
     user?.displayName
@@ -181,6 +217,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
       {/* Command search */}
       <button
         type="button"
+        onClick={() => setCommandOpen(true)}
         className="mx-4 mb-[22px] flex items-center gap-2 rounded-[7px] border border-rule bg-paper px-3 py-2 text-[13px] text-ink-3 transition-colors duration-150 hover:border-rule-strong"
         aria-label="Open command search"
       >
@@ -201,6 +238,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             <ul className="space-y-px" role="list">
               {section.items.map((item) => {
                 const active = isActive(item.href);
+                const badge = badgeFor(item);
                 return (
                   <li key={item.label}>
                     <Link
@@ -224,9 +262,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
                         {item.icon}
                       </span>
                       <span className="min-w-0 truncate">{item.label}</span>
-                      {item.badge && (
+                      {badge && (
                         <span className="ml-auto shrink-0 rounded-[3px] bg-terra px-[5px] py-px text-[10px] font-semibold leading-[1.5] text-white">
-                          {item.badge}
+                          {badge}
                         </span>
                       )}
                     </Link>
@@ -258,7 +296,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
               <p className="truncate text-[13px] font-semibold text-ink">
                 {user?.displayName ?? user?.email ?? "User"}
               </p>
-              <p className="mt-px text-[11px] text-ink-3">Pro plan</p>
+              <p className="mt-px text-[11px] text-ink-3">{planLabel} plan</p>
             </div>
             <ChevronUp className="shrink-0 h-3.5 w-3.5 text-ink-3" aria-hidden="true" />
           </DropdownMenuTrigger>
@@ -278,8 +316,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     <p className="truncate text-[11px] text-ink-3 leading-tight mt-px">
                       {user?.email}
                     </p>
-                    <span className="mt-1 inline-block rounded-[3px] bg-terra px-[5px] py-px text-[10px] font-semibold leading-[1.5] text-white">
-                      Pro
+                    <span
+                      className={cn(
+                        "mt-1 inline-block rounded-[3px] px-[5px] py-px text-[10px] font-semibold leading-[1.5]",
+                        isPaidPlan ? "bg-terra text-white" : "bg-bg-3 text-ink-2",
+                      )}
+                    >
+                      {planLabel}
                     </span>
                   </div>
                 </div>
@@ -293,12 +336,12 @@ export function AppSidebar({ className }: AppSidebarProps) {
               Settings
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={() => router.push(ROUTES.settingsProfile)}>
+            <DropdownMenuItem onClick={() => router.push(ROUTES.settingsBilling)}>
               <CreditCard className="h-4 w-4" />
-              Manage plan
+              Plan &amp; billing
             </DropdownMenuItem>
 
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push(ROUTES.help)}>
               <HelpCircle className="h-4 w-4" />
               Help &amp; Feedback
             </DropdownMenuItem>

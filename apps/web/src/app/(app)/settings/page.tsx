@@ -134,6 +134,10 @@ export default function SettingsPage() {
           <p className="text-[14px] font-semibold text-ink">Integrations</p>
           <p className="mt-1 text-[12.5px] text-ink-3">Connect LinkedIn, GitHub, and calendar.</p>
         </Link>
+        <Link href={ROUTES.settingsBilling} className="rounded-[12px] border border-rule bg-paper p-5 transition-colors duration-150 hover:border-rule-strong">
+          <p className="text-[14px] font-semibold text-ink">Plan &amp; billing</p>
+          <p className="mt-1 text-[12.5px] text-ink-3">Your subscription, payment method, and invoices.</p>
+        </Link>
       </div>
 
       {/* Notifications */}

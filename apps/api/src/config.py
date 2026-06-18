@@ -133,6 +133,10 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: SecretStr | None = None
 
+    # Optional GitHub personal-access token used only to raise the public REST API
+    # rate limit for CV-by-GitHub import (60 → 5000 req/hr). Import works without it.
+    github_api_token: SecretStr | None = None
+
     # ── Billing (Stripe) ──────────────────────────────────
     # Self-serve Pro subscription. Billing endpoints stay dormant (return 503 on
     # checkout) until a secret key + Pro price id are configured.

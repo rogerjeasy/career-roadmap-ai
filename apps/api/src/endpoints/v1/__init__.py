@@ -3,15 +3,18 @@ from fastapi import APIRouter
 
 from src.endpoints.v1.admin_kb_controller import router as admin_kb_router
 from src.endpoints.v1.auth_controller import router as auth_router
+from src.endpoints.v1.autopilot_controller import router as autopilot_router
 from src.endpoints.v1.billing_controller import router as billing_router
 from src.endpoints.v1.books_controller import router as books_router
 from src.endpoints.v1.coach_controller import router as coach_router
 from src.endpoints.v1.contact_controller import router as contact_router
 from src.endpoints.v1.cv_controller import router as cv_router
+from src.endpoints.v1.discovery_controller import router as discovery_router
 from src.endpoints.v1.evidence_controller import router as evidence_router
 from src.endpoints.v1.feedback_controller import router as feedback_router
 from src.endpoints.v1.intake_controller import router as intake_router
 from src.endpoints.v1.integrations_controller import router as integrations_router
+from src.endpoints.v1.localisation_controller import router as localisation_router
 from src.endpoints.v1.market_controller import router as market_router
 from src.endpoints.v1.monthly_plan_controller import router as monthly_plan_router
 from src.endpoints.v1.networking_controller import router as networking_router
@@ -35,6 +38,7 @@ router.include_router(orchestrator_router)
 router.include_router(stream_router)
 router.include_router(coach_router)
 router.include_router(cv_router)
+router.include_router(discovery_router)
 router.include_router(intake_router)
 router.include_router(opportunity_router)
 router.include_router(roadmap_router)
@@ -47,9 +51,11 @@ router.include_router(monthly_plan_router)
 router.include_router(books_router)
 router.include_router(notification_router)
 router.include_router(integrations_router)
+router.include_router(localisation_router)
 router.include_router(evidence_router)
 router.include_router(portfolio_router)
 router.include_router(feedback_router)
 router.include_router(newsletter_router)
+router.include_router(autopilot_router)
 router.include_router(contact_router)
 router.include_router(billing_router)

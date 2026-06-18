@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   newsletterApi,
+  type NewsletterDigest,
   type NewsletterFrequency,
   type NewsletterPrefs,
 } from "@/lib/api/newsletter";
@@ -62,6 +63,8 @@ export default function NewsletterPage() {
         description="A digest tailored to your career goal — market moves, matched opportunities and reading, delivered on your schedule. You're in control of every part of it."
       />
 
+      <DigestSection />
+
       {isLoading || !prefs ? (
         <LoadingSpinner fullPage label="Loading your preferences…" />
       ) : (
@@ -69,6 +72,139 @@ export default function NewsletterPage() {
         // can be seeded directly from props (no state-syncing effect needed).
         <NewsletterForm prefs={prefs} />
       )}
+    </div>
+  );
+}
+
+function DigestSection() {
+  const queryClient = useQueryClient();
+  const { data: digest, isLoading } = useQuery({
+    queryKey: QUERY_KEYS.newsletterDigest,
+    queryFn: newsletterApi.getDigest,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const generate = useMutation({
+    mutationFn: newsletterApi.generateDigest,
+    onSuccess: (data: NewsletterDigest) => {
+      queryClient.setQueryData(QUERY_KEYS.newsletterDigest, data);
+      if (!data.hasData) {
+        toast.info("Set a target role or generate a roadmap first, then try again.");
+      } else {
+        toast.success("This week's digest is ready");
+      }
+    },
+    onError: () => toast.error("Couldn't generate your digest. Please try again."),
+  });
+
+  return (
+    <section className="mb-8 rounded-[12px] border border-rule bg-paper p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-serif text-[16px] font-medium tracking-[-0.01em] text-ink">
+            This week&apos;s digest
+          </h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
+            {digest?.hasData
+              ? digest.periodLabel || "Your latest personalised digest."
+              : "Generate a personalised digest from your plan and market signals."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => generate.mutate()}
+          disabled={generate.isPending}
+          className="shrink-0 rounded-[7px] bg-ink px-3.5 py-2 text-[13px] font-medium text-bg transition-colors duration-150 hover:bg-green-2 disabled:opacity-50"
+        >
+          {generate.isPending
+            ? "Writing…"
+            : digest?.hasData
+              ? "Regenerate"
+              : "Generate digest"}
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="mt-4">
+          <LoadingSpinner label="Loading your digest…" />
+        </div>
+      ) : digest?.hasData ? (
+        <div className="mt-5 space-y-5">
+          {digest.summary && (
+            <p className="text-[14px] leading-relaxed text-ink break-words">{digest.summary}</p>
+          )}
+
+          {digest.articles.length > 0 && (
+            <DigestBlock title="Worth reading">
+              <ul className="space-y-2.5" role="list">
+                {digest.articles.map((a, i) => (
+                  <li key={`${a.title}-${i}`} className="min-w-0">
+                    {a.url ? (
+                      <a
+                        href={a.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[13.5px] font-medium text-green underline-offset-2 hover:underline break-words"
+                      >
+                        {a.title}
+                      </a>
+                    ) : (
+                      <span className="text-[13.5px] font-medium text-ink break-words">
+                        {a.title}
+                      </span>
+                    )}
+                    {a.why && (
+                      <span className="block text-[12.5px] leading-relaxed text-ink-3">
+                        {a.why}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </DigestBlock>
+          )}
+
+          {digest.peopleToFollow.length > 0 && (
+            <DigestBlock title="People to follow">
+              <ul className="space-y-2" role="list">
+                {digest.peopleToFollow.map((p, i) => (
+                  <li key={`${p.name}-${i}`} className="text-[13.5px] text-ink-2">
+                    <span className="font-medium text-ink">{p.name}</span>
+                    {p.handle && <span className="text-ink-3"> · {p.handle}</span>}
+                    {p.reason && (
+                      <span className="block text-[12.5px] leading-relaxed text-ink-3">
+                        {p.reason}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </DigestBlock>
+          )}
+
+          {digest.actionItem && (
+            <div className="rounded-[8px] border border-green-soft bg-green-soft/40 p-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-green-2">
+                One action this week
+              </p>
+              <p className="mt-1 text-[13.5px] leading-relaxed text-ink break-words">
+                {digest.actionItem}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function DigestBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">
+        {title}
+      </h3>
+      {children}
     </div>
   );
 }

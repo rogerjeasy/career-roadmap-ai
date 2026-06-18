@@ -15,6 +15,29 @@ export interface NewsletterPrefsInput {
   topics: string[];
 }
 
+export interface DigestArticle {
+  title: string;
+  why: string;
+  url: string | null;
+}
+
+export interface DigestPerson {
+  name: string;
+  reason: string;
+  handle: string | null;
+}
+
+export interface NewsletterDigest {
+  periodLabel: string;
+  summary: string;
+  articles: DigestArticle[];
+  peopleToFollow: DigestPerson[];
+  actionItem: string;
+  confidence: number;
+  hasData: boolean;
+  generatedAt: string | null;
+}
+
 export const newsletterApi = {
   async get(): Promise<NewsletterPrefs> {
     const { data } = await apiClient.get<NewsletterPrefs>("/api/v1/newsletter");
@@ -23,6 +46,18 @@ export const newsletterApi = {
 
   async update(input: NewsletterPrefsInput): Promise<NewsletterPrefs> {
     const { data } = await apiClient.put<NewsletterPrefs>("/api/v1/newsletter", input);
+    return data;
+  },
+
+  async getDigest(): Promise<NewsletterDigest> {
+    const { data } = await apiClient.get<NewsletterDigest>("/api/v1/newsletter/digest");
+    return data;
+  },
+
+  async generateDigest(): Promise<NewsletterDigest> {
+    const { data } = await apiClient.post<NewsletterDigest>(
+      "/api/v1/newsletter/digest/generate",
+    );
     return data;
   },
 };

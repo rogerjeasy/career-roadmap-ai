@@ -295,7 +295,7 @@ export function PricingSection() {
           All plans include a 14-day free trial on Pro. No credit card required
           to start. ·{" "}
           <Link
-            href="#"
+            href="#features"
             className="text-terra underline underline-offset-[3px] transition-colors hover:text-terra-2"
           >
             Compare all features →

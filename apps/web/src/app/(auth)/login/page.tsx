@@ -89,7 +89,7 @@ export default function SignInPage() {
   const [password, setPassword]         = useState("");
   const [isLoading, setIsLoading]       = useState(false);
 
-  const { loginWithEmail, loginWithGoogle } = useAuth();
+  const { loginWithEmail, loginWithGoogle, loginWithGithub } = useAuth();
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +110,15 @@ export default function SignInPage() {
       setIsLoading(false);
     }
   }, [loginWithGoogle]);
+
+  const handleGithub = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await loginWithGithub();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loginWithGithub]);
 
   return (
     <>
@@ -335,7 +344,7 @@ export default function SignInPage() {
               <button
                 type="button"
                 className="oauth-btn flex h-[46px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-[10px] border border-rule-strong bg-paper text-[14px] font-medium text-ink disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {/* TODO: GitHub OAuth */}}
+                onClick={handleGithub}
                 disabled={isLoading}
               >
                 <GitHubIcon />

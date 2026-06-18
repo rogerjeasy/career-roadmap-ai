@@ -74,6 +74,29 @@ export function useAuth() {
     }
   }, [setUser, router]);
 
+  const loginWithGithub = useCallback(async () => {
+    try {
+      const profile = await authApi.loginWithGithub();
+      setUser(profile);
+      router.push(await postLoginRoute());
+    } catch (err) {
+      // User dismissed the popup — silent, not an error.
+      if (err instanceof Error && err.message.includes("popup-closed-by-user")) return;
+      // GitHub email already registered via another provider (e.g. Google).
+      if (
+        err instanceof Error &&
+        err.message.includes("account-exists-with-different-credential")
+      ) {
+        toast.error(
+          "That email is already linked to another sign-in method. Use it to sign in instead.",
+        );
+        return;
+      }
+      toast.error(err instanceof ApiError ? err.message : "GitHub sign-in failed");
+      throw err;
+    }
+  }, [setUser, router]);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -90,6 +113,7 @@ export function useAuth() {
     registerWithEmail,
     loginWithEmail,
     loginWithGoogle,
+    loginWithGithub,
     logout,
   };
 }

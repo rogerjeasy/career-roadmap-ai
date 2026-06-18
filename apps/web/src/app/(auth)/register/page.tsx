@@ -164,7 +164,7 @@ export default function RegisterPage() {
   const [terms,       setTerms]       = useState(false);
   const [isLoading,   setIsLoading]   = useState(false);
 
-  const { registerWithEmail, loginWithGoogle } = useAuth();
+  const { registerWithEmail, loginWithGoogle, loginWithGithub } = useAuth();
 
   const strength = getStrength(password);
 
@@ -193,6 +193,15 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   }, [loginWithGoogle]);
+
+  const handleGithub = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await loginWithGithub();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loginWithGithub]);
 
   return (
     <>
@@ -418,7 +427,7 @@ export default function RegisterPage() {
               </button>
               <button type="button"
                 className="su-oauth flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-rule-strong bg-paper text-[13.5px] font-medium text-ink disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {/* TODO: GitHub OAuth */}}
+                onClick={handleGithub}
                 disabled={isLoading}>
                 <GitHubIcon />
                 GitHub

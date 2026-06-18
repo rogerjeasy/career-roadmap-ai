@@ -9,6 +9,7 @@ import { WeeklyBudgetCard }      from "@/components/dashboard/weekly-budget-card
 import { CareerHealthCard }      from "@/components/dashboard/career-health-card";
 import { MarketPulseCard }       from "@/components/dashboard/market-pulse-card";
 import { OpportunityRadarCard }  from "@/components/dashboard/opportunity-radar-card";
+import { AutopilotCard }         from "@/components/dashboard/autopilot-card";
 import { ActivityHeatmapCard }   from "@/components/dashboard/activity-heatmap-card";
 import { CoachFab }              from "@/components/dashboard/coach-fab";
 
@@ -76,6 +77,7 @@ export default function DashboardPage() {
 
         {/* Right column */}
         <div className="flex flex-col gap-[18px]">
+          <AutopilotCard />
           <CareerHealthCard
             score={healthScore}
             delta={healthDelta}

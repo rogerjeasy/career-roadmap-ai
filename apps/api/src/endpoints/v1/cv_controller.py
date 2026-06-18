@@ -31,8 +31,13 @@ from src.core.logging import get_logger
 from src.db.http import get_http_client
 from src.domains.cv.schemas import (
     CvAnalysisResult,
+    CvImportGithubRequest,
     CvImportUrlRequest,
     CvUploadResponse,
+)
+from src.domains.cv.github_import import (
+    GithubImportError,
+    build_profile_document,
 )
 from src.domains.cv.service import CvService, get_cv_service
 from src.domains.cv.url_import import (
@@ -175,6 +180,54 @@ async def import_cv_from_url(
         filename=filename,
         ext=ext,
         content_type_hint=None,
+        user=user,
+        service=service,
+        mgr=mgr,
+    )
+
+
+@router.post(
+    "/import-github",
+    response_model=CvUploadResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Import and analyse a profile from a public GitHub account",
+)
+async def import_cv_from_github(
+    body: CvImportGithubRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: CvService = Depends(get_cv_service),
+    mgr: SessionManager = Depends(get_session_manager),
+    http_client: httpx.AsyncClient = Depends(get_http_client),
+) -> CvUploadResponse:
+    """Build a CV from a public GitHub profile, then run the standard analysis.
+
+    Uses the first-party GitHub REST API (public data only) to assemble a
+    plain-text profile from the user's bio, repository languages, and top
+    projects, then runs it through the identical parse → session-store →
+    Cloudinary path so a GitHub import is indistinguishable from an upload
+    downstream.
+    """
+    try:
+        data, filename = await build_profile_document(body.handle, http_client)
+    except GithubImportError as exc:
+        logger.info("cv.github_import_rejected", user_id=user.uid, reason=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    logger.info(
+        "cv.github_import_received",
+        user_id=user.uid,
+        filename=filename,
+        size_bytes=len(data),
+    )
+
+    return await _analyse_and_store(
+        data=data,
+        filename=filename,
+        ext="txt",
+        content_type_hint="text/plain",
         user=user,
         service=service,
         mgr=mgr,

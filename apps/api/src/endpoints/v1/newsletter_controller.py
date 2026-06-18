@@ -7,7 +7,11 @@ Routes:
 from fastapi import APIRouter, Depends
 
 from src.core.auth import AuthenticatedUser, get_current_user
-from src.domains.newsletter.schemas import NewsletterPrefsOut, NewsletterPrefsUpdate
+from src.domains.newsletter.schemas import (
+    NewsletterDigest,
+    NewsletterPrefsOut,
+    NewsletterPrefsUpdate,
+)
 from src.domains.newsletter.service import NewsletterService, get_newsletter_service
 
 router = APIRouter(prefix="/newsletter", tags=["newsletter"])
@@ -30,3 +34,27 @@ async def update_newsletter_prefs(
     service: NewsletterService = Depends(get_newsletter_service),
 ) -> NewsletterPrefsOut:
     return await service.update(user.uid, body)
+
+
+@router.get(
+    "/digest",
+    response_model=NewsletterDigest,
+    summary="Get the latest generated digest",
+)
+async def get_digest(
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: NewsletterService = Depends(get_newsletter_service),
+) -> NewsletterDigest:
+    return await service.get_digest(user.uid)
+
+
+@router.post(
+    "/digest/generate",
+    response_model=NewsletterDigest,
+    summary="Generate this week's digest",
+)
+async def generate_digest(
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: NewsletterService = Depends(get_newsletter_service),
+) -> NewsletterDigest:
+    return await service.generate_digest(user.uid)

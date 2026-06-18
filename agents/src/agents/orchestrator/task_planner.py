@@ -72,6 +72,15 @@ _AGENT_SPECS: dict[AgentType, dict] = {
         "is_required": True,
         "retry_policy": {"max_attempts": 3, "timeout_seconds": 90, "backoff_seconds": 3.0},
     },
+    # VALIDATOR is intentionally absent from every DAG template below. Per-generation
+    # quality control is handled inline by the orchestrator's ``validate`` step
+    # (``output_validator.OutputValidator`` — realism/coherence, grounding, citation,
+    # per-step confidence). The standalone ``ValidatorAgent`` (evidence coverage +
+    # claim audit + realism + structured fix instructions) is the richer critic
+    # reserved for a future repair loop / on-demand review intent; wiring it into the
+    # auto-DAG today would double-validate at extra LLM cost with nothing consuming its
+    # fix instructions. This spec is retained so that future intent is dispatched with a
+    # sensible retry policy.
     AgentType.VALIDATOR: {
         "is_required": False,
         "retry_policy": {"max_attempts": 2, "timeout_seconds": 60, "backoff_seconds": 2.0},

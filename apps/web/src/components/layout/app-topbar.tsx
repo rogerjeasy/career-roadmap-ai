@@ -32,6 +32,9 @@ const PAGE_LABELS: Record<string, string> = {
   "/settings":     "Settings",
   "/monthly-plan": "Monthly Plan",
   "/help":         "Help & feedback",
+  "/discovery":    "Discover Paths",
+  "/localisation": "Localisation",
+  "/autopilot":    "Autopilot",
 };
 
 // ── Icons ─────────────────────────────────────────────────────────────────────

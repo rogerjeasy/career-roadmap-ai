@@ -10,6 +10,7 @@ import { useUIStore } from "@/store/ui.store";
 import { useAuth } from "@/hooks/use-auth";
 import { opportunitiesApi } from "@/lib/api/opportunities";
 import { billingApi } from "@/lib/api/billing";
+import { autopilotApi } from "@/lib/api/autopilot";
 import { QUERY_KEYS, ROUTES } from "@/lib/constants";
 import {
   DropdownMenu,
@@ -64,6 +65,18 @@ function IconNewsletter() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 5l6 4 6-4"/></svg>;
 }
 
+function IconDiscovery() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="8" r="6"/><path d="M10.5 5.5L9 9l-3.5 1.5L7 7z" fill="currentColor" stroke="none"/></svg>;
+}
+
+function IconGlobe() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12"/></svg>;
+}
+
+function IconAutopilot() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5L4.5 8 7 7z" fill="currentColor" stroke="none"/></svg>;
+}
+
 function IconCV() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>;
 }
@@ -111,16 +124,19 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: "Planning",
     items: [
-      { label: "Today",       href: ROUTES.dashboard,  icon: <IconToday /> },
-      { label: "Roadmap",     href: ROUTES.roadmap,    icon: <IconRoadmap /> },
-      { label: "Skill Graph", href: ROUTES.skillGraph, icon: <IconSkillGraph /> },
-      { label: "AI Coach",    href: ROUTES.coach,      icon: <IconCoach /> },
+      { label: "Today",        href: ROUTES.dashboard,  icon: <IconToday /> },
+      { label: "Roadmap",      href: ROUTES.roadmap,    icon: <IconRoadmap /> },
+      { label: "Autopilot",    href: ROUTES.autopilot,  icon: <IconAutopilot /> },
+      { label: "Skill Graph",  href: ROUTES.skillGraph, icon: <IconSkillGraph /> },
+      { label: "Discover Paths", href: ROUTES.discovery, icon: <IconDiscovery /> },
+      { label: "AI Coach",     href: ROUTES.coach,      icon: <IconCoach /> },
     ],
   },
   {
     title: "Intelligence",
     items: [
       { label: "Market Pulse",   href: ROUTES.market,        icon: <IconMarket /> },
+      { label: "Localisation",   href: ROUTES.localisation,  icon: <IconGlobe /> },
       { label: "Opportunities",  href: ROUTES.opportunities,  icon: <IconOpportunities /> },
       { label: "Newsletter",     href: ROUTES.newsletter,     icon: <IconNewsletter /> },
     ],
@@ -165,6 +181,14 @@ export function AppSidebar({ className }: AppSidebarProps) {
   });
   const highMatchCount = alerts?.highMatchCount ?? 0;
 
+  // Open autopilot proposals drive the Autopilot badge.
+  const { data: proposals } = useQuery({
+    queryKey: QUERY_KEYS.autopilot,
+    queryFn: autopilotApi.list,
+    staleTime: 5 * 60 * 1000,
+  });
+  const openProposalCount = proposals?.length ?? 0;
+
   // Real plan label for the user card (no more hardcoded "Pro").
   const { data: subscription } = useQuery({
     queryKey: QUERY_KEYS.subscription,
@@ -186,6 +210,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const badgeFor = (item: NavItem): string | undefined => {
     if (item.href === ROUTES.opportunities && highMatchCount > 0) {
       return highMatchCount > 99 ? "99+" : String(highMatchCount);
+    }
+    if (item.href === ROUTES.autopilot && openProposalCount > 0) {
+      return openProposalCount > 99 ? "99+" : String(openProposalCount);
     }
     return item.badge;
   };

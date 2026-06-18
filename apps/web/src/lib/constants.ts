@@ -12,8 +12,11 @@ export const ROUTES = {
   roadmapGenerate: "/roadmap/generate",
   skillGraph: "/skill-graph",
   cvAnalysis: "/cv-analysis",
+  discovery: "/discovery",
   coach: "/coach",
   market: "/market",
+  localisation: "/localisation",
+  autopilot: "/autopilot",
   progress: "/progress",
   healthMethodology: "/progress/methodology",
   schedule: "/schedule",
@@ -60,5 +63,11 @@ export const QUERY_KEYS = {
   portfolio: ["portfolio"] as const,
   feedback: ["feedback"] as const,
   newsletter: ["newsletter"] as const,
+  newsletterDigest: ["newsletter", "digest"] as const,
   subscription: ["billing", "subscription"] as const,
+  discovery: ["discovery"] as const,
+  localisation: (country: string, role?: string) =>
+    ["localisation", country, role ?? ""] as const,
+  localisationSaved: ["localisation", "saved"] as const,
+  autopilot: ["autopilot"] as const,
 } as const;

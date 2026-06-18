@@ -12,6 +12,7 @@ import pytest
 
 from src.domains.newsletter.schemas import NewsletterPrefsOut, NewsletterPrefsUpdate
 from src.domains.newsletter.service import NewsletterService
+from src.session.models import SessionData, PlanContext, UserProfileContext
 
 
 def _doc(**over: Any) -> dict[str, Any]:
@@ -36,8 +37,33 @@ def repo() -> MagicMock:
 
 
 @pytest.fixture
-def service(repo: MagicMock) -> NewsletterService:
-    return NewsletterService(repo)
+def digests() -> MagicMock:
+    m = MagicMock()
+    m.get = AsyncMock(return_value=None)
+    m.create = AsyncMock(side_effect=lambda user_id, data, doc_id=None: {"id": doc_id, **data})
+    m.update = AsyncMock(side_effect=lambda doc_id, user_id, data: {"id": doc_id, **data})
+    return m
+
+
+@pytest.fixture
+def llm() -> MagicMock:
+    m = MagicMock()
+    m.complete_json = AsyncMock()
+    return m
+
+
+@pytest.fixture
+def sessions() -> MagicMock:
+    m = MagicMock()
+    m.get = AsyncMock(return_value=None)
+    return m
+
+
+@pytest.fixture
+def service(
+    repo: MagicMock, digests: MagicMock, llm: MagicMock, sessions: MagicMock
+) -> NewsletterService:
+    return NewsletterService(repo, digests, llm, sessions)
 
 
 @pytest.mark.asyncio
@@ -96,3 +122,71 @@ async def test_update_patches_when_present(
 def test_from_doc_coerces_unknown_frequency() -> None:
     prefs = NewsletterPrefsOut.from_doc(_doc(frequency="hourly"))
     assert prefs.frequency == "weekly"
+
+
+# ── Digest generation ──────────────────────────────────────────────────────────
+
+_DIGEST_PAYLOAD = {
+    "period_label": "This week",
+    "summary": "RAG systems are surging in your field.",
+    "articles": [
+        {"title": "Why RAG matters", "why": "Core to your target role", "url": None},
+        {"title": "MLOps in 2026", "why": "Hiring signal", "url": "https://example.com"},
+        {"title": "Vector DBs", "why": "Adjacent skill", "url": None},
+    ],
+    "people_to_follow": [
+        {"name": "Jane Dev", "reason": "RAG thought leader", "handle": "@jane"},
+        {"name": "Sam ML", "reason": "MLOps writer", "handle": None},
+    ],
+    "action_item": "Ship a small RAG demo this week.",
+    "confidence": 0.6,
+}
+
+
+def _session(target_role: str | None = "ML Engineer", snapshot: dict | None = None) -> SessionData:
+    now = datetime.now(timezone.utc)
+    return SessionData(
+        user_id="u1",
+        email="u@example.com",
+        created_at=now,
+        last_active_at=now,
+        user_profile_context=UserProfileContext(target_role=target_role),
+        plan_context=PlanContext(snapshot=snapshot or {}),
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_digest_writes_and_returns(
+    service: NewsletterService, digests: MagicMock, llm: MagicMock, sessions: MagicMock
+) -> None:
+    sessions.get = AsyncMock(return_value=_session(snapshot={"market": {"market_summary": "Hot"}}))
+    llm.complete_json = AsyncMock(return_value=_DIGEST_PAYLOAD)
+
+    digest = await service.generate_digest("u1")
+
+    llm.complete_json.assert_awaited_once()
+    digests.create.assert_awaited_once()
+    assert digest.has_data is True
+    assert len(digest.articles) == 3
+    assert len(digest.people_to_follow) == 2
+    assert digest.action_item
+
+
+@pytest.mark.asyncio
+async def test_generate_digest_empty_without_context(
+    service: NewsletterService, llm: MagicMock, sessions: MagicMock
+) -> None:
+    sessions.get = AsyncMock(return_value=None)
+    digest = await service.generate_digest("u1")
+    llm.complete_json.assert_not_awaited()
+    assert digest.has_data is False
+
+
+@pytest.mark.asyncio
+async def test_generate_digest_fallback_on_bad_output(
+    service: NewsletterService, llm: MagicMock, sessions: MagicMock
+) -> None:
+    sessions.get = AsyncMock(return_value=_session())
+    llm.complete_json = AsyncMock(side_effect=ValueError("bad"))
+    digest = await service.generate_digest("u1")
+    assert digest.has_data is False

@@ -49,3 +49,58 @@ class NewsletterPrefsOut(BaseModel):
             topics=list(doc.get("topics", [])),
             updated_at=doc.get("updated_at"),
         )
+
+
+# ── Generated digest ───────────────────────────────────────────────────────────
+
+
+class DigestArticle(BaseModel):
+    title: str
+    why: str = ""  # why it matters to this user
+    url: str | None = None
+
+
+class DigestPerson(BaseModel):
+    name: str
+    reason: str = ""  # why worth following
+    handle: str | None = None
+
+
+class NewsletterDigest(BaseModel):
+    """A generated weekly digest: industry summary, reading, people, one action."""
+
+    period_label: str = ""
+    summary: str = ""
+    articles: list[DigestArticle] = Field(default_factory=list)
+    people_to_follow: list[DigestPerson] = Field(default_factory=list)
+    action_item: str = ""
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    has_data: bool = False
+    generated_at: datetime | None = None
+
+    @classmethod
+    def empty(cls) -> "NewsletterDigest":
+        return cls(has_data=False)
+
+    @classmethod
+    def from_doc(cls, doc: dict[str, Any]) -> "NewsletterDigest":
+        articles = [
+            DigestArticle.model_validate(a)
+            for a in doc.get("articles", [])
+            if isinstance(a, dict)
+        ]
+        people = [
+            DigestPerson.model_validate(p)
+            for p in doc.get("people_to_follow", [])
+            if isinstance(p, dict)
+        ]
+        return cls(
+            period_label=doc.get("period_label", ""),
+            summary=doc.get("summary", ""),
+            articles=articles,
+            people_to_follow=people,
+            action_item=doc.get("action_item", ""),
+            confidence=float(doc.get("confidence", 0.5) or 0.5),
+            has_data=bool(doc.get("summary") or articles),
+            generated_at=doc.get("generated_at") or doc.get("created_at"),
+        )

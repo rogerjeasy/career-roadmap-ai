@@ -98,6 +98,30 @@ async def login_google(
 
 
 @router.post(
+    "/github",
+    response_model=UserProfile,
+    summary="Sync after GitHub sign-in",
+)
+async def login_github(
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> UserProfile:
+    """
+    Sync a GitHub-authenticated user with the application database.
+
+    Call this endpoint after the client completes GitHub sign-in via the
+    Firebase JS SDK and obtains a Firebase ID token. Send that token in the
+    `Authorization: Bearer <id_token>` header.
+
+    - Verifies the Firebase ID token server-side.
+    - Creates or updates the user record in the application database.
+    - Requires the GitHub account to expose a verified email address.
+    """
+    user = await service.login_with_github(auth_user)
+    return UserProfile.model_validate(user)
+
+
+@router.post(
     "/refresh",
     response_model=TokenRefreshResponse,
     summary="Refresh an access token",

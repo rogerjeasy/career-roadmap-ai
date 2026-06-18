@@ -21,6 +21,7 @@ logger = get_logger(__name__)
 
 PROVIDER_PASSWORD = "password"
 PROVIDER_GOOGLE = "google.com"
+PROVIDER_GITHUB = "github.com"
 
 _FIREBASE_AUTH_URL = "https://identitytoolkit.googleapis.com/v1"
 _FIREBASE_TOKEN_URL = "https://securetoken.googleapis.com/v1"
@@ -123,20 +124,36 @@ class UserService:
         return user, id_token, refresh_token, expires_in
 
     async def login_with_google(self, auth_user: AuthenticatedUser) -> User:
-        """
-        Sync a Google-authenticated user into Firestore after client-side Firebase sign-in.
+        """Sync a Google-authenticated user into Firestore after client-side sign-in."""
+        return await self._sync_oauth_user(auth_user, PROVIDER_GOOGLE)
+
+    async def login_with_github(self, auth_user: AuthenticatedUser) -> User:
+        """Sync a GitHub-authenticated user into Firestore after client-side sign-in."""
+        return await self._sync_oauth_user(auth_user, PROVIDER_GITHUB)
+
+    async def _sync_oauth_user(
+        self, auth_user: AuthenticatedUser, provider: str
+    ) -> User:
+        """Create or update a user record after a client-side Firebase OAuth sign-in.
+
+        The provider (Google, GitHub, …) verifies the user and Firebase issues the
+        ID token; this only mirrors the verified identity into Firestore. An email
+        is required — GitHub accounts with a private primary email must make it
+        public (or verify one) before signing in.
         """
         if not auth_user.email:
-            raise AuthenticationError("Google account must have an email address")
+            raise AuthenticationError(
+                "Your account must expose a verified email address to sign in."
+            )
 
         user = await self.repo.upsert(
             firebase_uid=auth_user.uid,
             email=auth_user.email,
-            provider=PROVIDER_GOOGLE,
+            provider=provider,
             display_name=auth_user.name,
             email_verified=auth_user.email_verified,
         )
-        logger.info("user.login_google", uid=auth_user.uid)
+        logger.info("user.login_oauth", uid=auth_user.uid, provider=provider)
         return user
 
     # ── Token management ──────────────────────────────────────────────────────

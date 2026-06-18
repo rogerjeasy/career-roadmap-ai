@@ -1,7 +1,7 @@
 """CV domain — Pydantic schemas for CV analysis results."""
 from enum import Enum
 
-from pydantic import BaseModel, HttpUrl, computed_field
+from pydantic import BaseModel, Field, HttpUrl, computed_field
 
 
 class CvImportUrlRequest(BaseModel):
@@ -11,6 +11,15 @@ class CvImportUrlRequest(BaseModel):
     adds SSRF protection (public-host check, capped streaming download).
     """
     url: HttpUrl
+
+
+class CvImportGithubRequest(BaseModel):
+    """Body for POST /cv/import-github — a GitHub username or profile URL.
+
+    The handle is parsed/validated in the service layer; only public profile
+    and repository data is read via the GitHub REST API.
+    """
+    handle: str = Field(min_length=1, max_length=200)
 
 
 class SkillLevel(str, Enum):

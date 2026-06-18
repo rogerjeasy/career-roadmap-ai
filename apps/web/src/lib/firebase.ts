@@ -1,5 +1,5 @@
 import { getApps, initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GithubAuthProvider, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -18,3 +18,8 @@ export const firebaseAuth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope("email");
 googleProvider.addScope("profile");
+
+export const githubProvider = new GithubAuthProvider();
+// user:email lets Firebase read the account's verified email even when the
+// public profile email is hidden — required by the backend OAuth sync.
+githubProvider.addScope("user:email");

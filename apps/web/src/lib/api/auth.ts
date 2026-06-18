@@ -8,7 +8,7 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
 } from "firebase/auth";
-import { firebaseAuth, googleProvider } from "@/lib/firebase";
+import { firebaseAuth, githubProvider, googleProvider } from "@/lib/firebase";
 import type { UserProfile } from "@/types/api.types";
 import { apiClient } from "./client";
 
@@ -57,6 +57,16 @@ export const authApi = {
   async loginWithGoogle(): Promise<UserProfile> {
     await signInWithPopup(firebaseAuth, googleProvider);
     const { data } = await apiClient.post<UserProfile>("/api/v1/auth/google");
+    return data;
+  },
+
+  /**
+   * Sign in with GitHub via popup.
+   * Firebase SDK handles OAuth → backend syncs the user with provider info.
+   */
+  async loginWithGithub(): Promise<UserProfile> {
+    await signInWithPopup(firebaseAuth, githubProvider);
+    const { data } = await apiClient.post<UserProfile>("/api/v1/auth/github");
     return data;
   },
 

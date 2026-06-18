@@ -26,4 +26,16 @@ export const cvApi = {
     );
     return data.analysis;
   },
+
+  /**
+   * Build a CV from a public GitHub profile (username or profile URL).
+   * Public data only — analysed server-side, same result as upload().
+   */
+  async importGithub(handle: string): Promise<CvAnalysisResult> {
+    const { data } = await apiClient.post<CvUploadResponse>(
+      "/api/v1/cv/import-github",
+      { handle },
+    );
+    return data.analysis;
+  },
 };

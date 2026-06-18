@@ -55,16 +55,7 @@ export function StepCvUpload({ onBack, onNext }: StepCvUploadProps) {
   }, [setCvResult, resetDownstreamSteps, resetAgent]);
 
   const handleUrlSubmit = useCallback(
-    async (url: string, source: "linkedin" | "github" | "url") => {
-      // Only a direct document link maps to the CV importer. LinkedIn/GitHub
-      // profile pages are HTML, not CV documents — that's a separate integration.
-      if (source !== "url") {
-        toast.info(
-          "Importing from LinkedIn/GitHub is coming soon — paste a direct link to your CV file (PDF, DOCX, TXT, MD), or upload it.",
-        );
-        return;
-      }
-
+    async (value: string, source: "github" | "url") => {
       // Mirror a fresh file upload: wipe downstream state, then analyse.
       resetDownstreamSteps();
       resetAgent();
@@ -72,12 +63,21 @@ export function StepCvUpload({ onBack, onNext }: StepCvUploadProps) {
       setCvResult(null);
       setIsAnalyzing(true);
       try {
-        const result = await cvApi.importUrl(url);
+        const result =
+          source === "github"
+            ? await cvApi.importGithub(value)
+            : await cvApi.importUrl(value);
         setCvResult(result);
-        toast.success("CV imported successfully");
+        toast.success(
+          source === "github"
+            ? "GitHub profile imported successfully"
+            : "CV imported successfully",
+        );
       } catch (err) {
         let message =
-          "Couldn't import that CV. Link directly to a PDF, DOCX, TXT, or MD file — or upload it.";
+          source === "github"
+            ? "Couldn't import that GitHub profile. Check the username, or upload a CV instead."
+            : "Couldn't import that CV. Link directly to a PDF, DOCX, TXT, or MD file — or upload it.";
         if (axios.isAxiosError(err)) {
           const detail = err.response?.data?.detail;
           if (typeof detail === "string") message = detail;
@@ -116,7 +116,11 @@ export function StepCvUpload({ onBack, onNext }: StepCvUploadProps) {
           onFileSelect={handleFileSelect}
           onReplace={handleReplace}
         />
-        <CvAltInputs onUrlSubmit={handleUrlSubmit} isLoading={isAnalyzing} />
+        <CvAltInputs
+          onUrlSubmit={handleUrlSubmit}
+          onFileSelect={handleFileSelect}
+          isLoading={isAnalyzing}
+        />
       </div>
 
       <div className="mt-11 flex items-center justify-between border-t border-rule pt-6">

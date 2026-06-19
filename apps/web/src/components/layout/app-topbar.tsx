@@ -21,9 +21,16 @@ const PAGE_LABELS: Record<string, string> = {
   "/coach":        "AI Coach",
   "/market":       "Market Pulse",
   "/opportunities":"Opportunities",
+  "/negotiation":  "Negotiation Coach",
   "/newsletter":   "Newsletter",
   "/cv-analysis":  "CV & Profile",
   "/evidence":     "Evidence Vault",
+  "/credentials":  "Skill Credentials",
+  "/learning":     "Learning ROI",
+  "/open-source":  "Open-Source Finder",
+  "/storytelling": "Storytelling Studio",
+  "/cohorts":      "Accountability Cohorts",
+  "/mentorship":   "Mentorship",
   "/portfolio":    "Portfolio",
   "/networking":   "Network",
   "/progress":     "Progress",
@@ -35,6 +42,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/discovery":    "Discover Paths",
   "/localisation": "Localisation",
   "/autopilot":    "Autopilot",
+  "/wellness":     "Wellness Monitor",
 };
 
 // ── Icons ─────────────────────────────────────────────────────────────────────

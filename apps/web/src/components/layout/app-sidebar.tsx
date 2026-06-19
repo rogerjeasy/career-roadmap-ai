@@ -77,12 +77,44 @@ function IconAutopilot() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5L4.5 8 7 7z" fill="currentColor" stroke="none"/></svg>;
 }
 
+function IconWellness() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M8 13.5S2.5 10 2.5 6.2A2.7 2.7 0 018 4.5a2.7 2.7 0 015.5 1.7C13.5 10 8 13.5 8 13.5z"/></svg>;
+}
+
+function IconNegotiation() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M8 2v12M4.5 5h5.5a2 2 0 010 4H6a2 2 0 000 4h5.5" strokeLinecap="round"/></svg>;
+}
+
 function IconCV() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>;
 }
 
 function IconEvidenceVault() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><rect x="2" y="4" width="12" height="9" rx="1.2"/><path d="M2 7h12M5 4V2.5h6V4"/><circle cx="8" cy="10" r="1" fill="currentColor"/></svg>;
+}
+
+function IconCredential() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="6" r="3"/><path d="M6 8.6L5 14l3-1.6L11 14l-1-5.4" strokeLinejoin="round"/></svg>;
+}
+
+function IconOpenSource() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="4" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><path d="M4 6v4M5.7 11l4.5-2M5.7 5l4.5 2"/></svg>;
+}
+
+function IconLearningRoi() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M2 13h12M3 13V9M6.5 13V6M10 13V8M13.5 13V4" strokeLinecap="round"/></svg>;
+}
+
+function IconCohorts() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M1.5 13c0-2 1.6-3.2 3.5-3.2M14.5 13c0-2-1.6-3.2-3.5-3.2M6 13c0-1.4 1-2.3 2-2.3s2 .9 2 2.3"/></svg>;
+}
+
+function IconMentorship() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="5" r="2.4"/><path d="M3.5 13c0-2.6 2-4.2 4.5-4.2s4.5 1.6 4.5 4.2"/><path d="M11.5 2.8l1.2 1.2-1.2 1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+
+function IconStorytelling() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M3 2.5h7l3 3V13a.5.5 0 01-.5.5h-9A.5.5 0 013 13z"/><path d="M9.5 2.5V6h3.5M5.5 9h5M5.5 11h3"/></svg>;
 }
 
 function IconPortfolio() {
@@ -130,6 +162,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Skill Graph",  href: ROUTES.skillGraph, icon: <IconSkillGraph /> },
       { label: "Discover Paths", href: ROUTES.discovery, icon: <IconDiscovery /> },
       { label: "AI Coach",     href: ROUTES.coach,      icon: <IconCoach /> },
+      { label: "Wellness",     href: ROUTES.wellness,   icon: <IconWellness /> },
     ],
   },
   {
@@ -138,6 +171,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Market Pulse",   href: ROUTES.market,        icon: <IconMarket /> },
       { label: "Localisation",   href: ROUTES.localisation,  icon: <IconGlobe /> },
       { label: "Opportunities",  href: ROUTES.opportunities,  icon: <IconOpportunities /> },
+      { label: "Negotiation",    href: ROUTES.negotiation,    icon: <IconNegotiation /> },
       { label: "Newsletter",     href: ROUTES.newsletter,     icon: <IconNewsletter /> },
     ],
   },
@@ -146,8 +180,19 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "CV & Profile",    href: ROUTES.cvAnalysis,  icon: <IconCV /> },
       { label: "Evidence Vault",  href: ROUTES.evidence,    icon: <IconEvidenceVault /> },
+      { label: "Credentials",     href: ROUTES.credentials, icon: <IconCredential /> },
+      { label: "Learning ROI",    href: ROUTES.learning,    icon: <IconLearningRoi /> },
+      { label: "Open Source",     href: ROUTES.oss,         icon: <IconOpenSource /> },
+      { label: "Storytelling",    href: ROUTES.storytelling, icon: <IconStorytelling /> },
       { label: "Portfolio",       href: ROUTES.portfolio,   icon: <IconPortfolio /> },
       { label: "Network",         href: ROUTES.networking,  icon: <IconNetwork /> },
+    ],
+  },
+  {
+    title: "Community",
+    items: [
+      { label: "Cohorts",         href: ROUTES.cohorts,     icon: <IconCohorts /> },
+      { label: "Mentorship",      href: ROUTES.mentorship,  icon: <IconMentorship /> },
     ],
   },
   {

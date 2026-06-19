@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     # Used to protect POST /admin/kb/ingest. Must be set in production.
     admin_api_key: SecretStr | None = None
 
+    # ── Verifiable credentials ────────────────────────────
+    # HMAC secret used to sign issued skill credentials so a public verifier can
+    # confirm a credential was issued by this platform and not tampered with.
+    # Falls back to a dev-only constant; MUST be overridden in production.
+    credential_signing_secret: SecretStr = SecretStr("dev-credential-signing-secret-change-me")
+
     # ── External data sources (KB enrichment) ─────────────
     # BLS Public Data API v2 key — register free at https://data.bls.gov/registrationEngine/
     # Optional: raises daily request limit from 25 → 500.

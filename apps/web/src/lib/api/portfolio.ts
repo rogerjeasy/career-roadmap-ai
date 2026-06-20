@@ -30,6 +30,26 @@ export interface PortfolioItemCreateInput {
 
 export type PortfolioItemUpdateInput = Partial<PortfolioItemCreateInput>;
 
+export interface ArtefactSuggestion {
+  id: string;
+  title: string;
+  artefactType: string;
+  summary: string;
+  skillsDemonstrated: string[];
+  closesGap: string;
+  effort: string;
+  priority: number;
+  why: string;
+  starterSteps: string[];
+}
+
+export interface PortfolioPlan {
+  hasData: boolean;
+  basedOn: string;
+  suggestions: ArtefactSuggestion[];
+  generatedAt: string | null;
+}
+
 export const portfolioApi = {
   async list(): Promise<PortfolioItem[]> {
     const { data } = await apiClient.get<PortfolioItem[]>("/api/v1/portfolio");
@@ -54,5 +74,15 @@ export const portfolioApi = {
 
   async remove(id: string): Promise<void> {
     await apiClient.delete(`/api/v1/portfolio/${id}`);
+  },
+
+  async getPlan(): Promise<PortfolioPlan> {
+    const { data } = await apiClient.get<PortfolioPlan>("/api/v1/portfolio/plan");
+    return data;
+  },
+
+  async generatePlan(): Promise<PortfolioPlan> {
+    const { data } = await apiClient.post<PortfolioPlan>("/api/v1/portfolio/plan/generate");
+    return data;
   },
 };

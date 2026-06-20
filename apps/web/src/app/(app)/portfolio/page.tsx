@@ -13,6 +13,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { PortfolioBuildPlan } from "@/components/portfolio/portfolio-build-plan";
+import { useAddToEvidence } from "@/hooks/use-add-to-evidence";
 
 const FIELD_CLASS =
   "w-full rounded-[8px] border border-rule bg-bg px-3.5 py-2.5 text-[13.5px] text-ink placeholder:text-ink-3 focus:border-green focus:bg-paper focus:outline-none";
@@ -37,6 +39,7 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
 
 export default function PortfolioPage() {
   const queryClient = useQueryClient();
+  const addToEvidence = useAddToEvidence();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [role, setRole] = useState("");
@@ -117,6 +120,10 @@ export default function PortfolioPage() {
           </button>
         }
       />
+
+      <div className="mb-6">
+        <PortfolioBuildPlan />
+      </div>
 
       {showForm && (
         <form
@@ -263,6 +270,22 @@ export default function PortfolioPage() {
                     Code →
                   </a>
                 )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    addToEvidence.mutate({
+                      title: item.title,
+                      description: item.description,
+                      type: "project",
+                      link: item.url || item.repoUrl,
+                      skills: item.tech,
+                    })
+                  }
+                  disabled={addToEvidence.isPending}
+                  className="ml-auto text-[12px] font-medium text-green-2 transition-colors hover:text-green disabled:opacity-50"
+                >
+                  + Evidence
+                </button>
               </div>
             </article>
           ))}

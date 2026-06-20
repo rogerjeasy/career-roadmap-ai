@@ -81,6 +81,15 @@ class Settings(BaseSettings):
     # Falls back to a dev-only constant; MUST be overridden in production.
     credential_signing_secret: SecretStr = SecretStr("dev-credential-signing-secret-change-me")
 
+    # ── Web Push (VAPID) ──────────────────────────────────
+    # Generate a key pair once (e.g. `vapid --gen` from py-vapid, or web-push).
+    # Push is only "enabled" when the public key + private key are both set AND
+    # the optional `pywebpush` package is installed; otherwise it degrades to a
+    # no-op so the rest of the app is unaffected.
+    vapid_public_key: str | None = None
+    vapid_private_key: SecretStr | None = None
+    vapid_subject: str = "mailto:support@careerroadmap.ai"
+
     # ── External data sources (KB enrichment) ─────────────
     # BLS Public Data API v2 key — register free at https://data.bls.gov/registrationEngine/
     # Optional: raises daily request limit from 25 → 500.

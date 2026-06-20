@@ -167,6 +167,21 @@ class FirestoreRoadmapRepository:
         logger.info("roadmap.saved", roadmap_id=doc.id, user_id=doc.user_id)
         return doc.id
 
+    async def restore_in_place(self, doc: RoadmapDocument) -> str:
+        """Overwrite a roadmap with snapshot content, clearing stale subcollection docs.
+
+        ``save`` writes subcollection docs by id but never removes ones absent from
+        the incoming document, so restoring a snapshot with fewer phases/habits/steps
+        would otherwise leave orphans. This deletes the existing subcollection docs
+        first, then delegates to ``save`` for the (single-batch) rewrite.
+        """
+        roadmap_ref = self._col.document(doc.id)
+        for col in (_COL_PHASES, _COL_WEEKLY_HABITS, _COL_NEXT_STEPS):
+            async for snap in roadmap_ref.collection(col).stream():
+                await snap.reference.delete()
+        logger.info("roadmap.restore_cleared", roadmap_id=doc.id, user_id=doc.user_id)
+        return await self.save(doc)
+
     async def get(self, roadmap_id: str, user_id: str) -> RoadmapDocument | None:
         """Return the full roadmap with all subcollection data, or None."""
         ref = self._col.document(roadmap_id)

@@ -12,6 +12,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoadmapProgressBar } from "@/components/roadmap/roadmap-progress-bar";
 import { PhaseCard, type PhaseStatus } from "@/components/roadmap/phase-card";
 import { PhaseManager } from "@/components/roadmap/phase-manager";
+import { RoadmapVersions } from "@/components/roadmap/roadmap-versions";
+import { RoadmapExport } from "@/components/roadmap/roadmap-export";
 import type { RoadmapPhaseDetail } from "@/types/roadmap.types";
 
 function deriveStatuses(
@@ -39,6 +41,7 @@ export default function RoadmapPage() {
   const { roadmap, isLoading, isEmpty, isError } = useRoadmap();
   const { doneInPhase } = useRoadmapProgress(roadmap?.id ?? null);
   const [manage, setManage] = useState(false);
+  const [versions, setVersions] = useState(false);
 
   if (isLoading) {
     return (
@@ -109,6 +112,14 @@ export default function RoadmapPage() {
             </span>
             <button
               type="button"
+              onClick={() => setVersions((v) => !v)}
+              aria-pressed={versions}
+              className="shrink-0 rounded-[7px] border border-rule-strong bg-paper px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors duration-150 hover:bg-bg-2"
+            >
+              {versions ? "Hide versions" : "Versions"}
+            </button>
+            <button
+              type="button"
               onClick={() => setManage((m) => !m)}
               aria-pressed={manage}
               className="shrink-0 rounded-[7px] border border-rule-strong bg-paper px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors duration-150 hover:bg-bg-2"
@@ -118,6 +129,24 @@ export default function RoadmapPage() {
           </div>
         }
       />
+
+      {/* Version history */}
+      {versions && (
+        <div className="mb-7 space-y-4">
+          <RoadmapVersions roadmapId={roadmap.id} />
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-rule bg-paper p-5">
+            <div>
+              <p className="font-serif text-[15px] font-medium tracking-[-0.01em] text-ink">
+                Export
+              </p>
+              <p className="text-[12.5px] text-ink-3">
+                Download your plan as Markdown, or add its phases to your calendar.
+              </p>
+            </div>
+            <RoadmapExport roadmapId={roadmap.id} />
+          </div>
+        </div>
+      )}
 
       {/* Phase management */}
       {manage && (

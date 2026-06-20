@@ -180,8 +180,13 @@ export function GenerateProgress({
   }, [status]);
 
   // ── Auto-navigate on completion ────────────────────────────────────────────
+  // Keep the latest onComplete in a ref (updated in an effect, never during
+  // render) so the completion timer always calls the current callback without
+  // re-arming when onComplete's identity changes.
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (status !== "completed") return;

@@ -9,6 +9,7 @@ import { userApi } from "@/lib/api/user";
 import { ROUTES, QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { PushNotifications } from "@/components/settings/push-notifications";
 import { cn } from "@/lib/utils";
 import type { NotificationPreferences, UserProfile } from "@/types/api.types";
 
@@ -138,6 +139,10 @@ export default function SettingsPage() {
           <p className="text-[14px] font-semibold text-ink">Plan &amp; billing</p>
           <p className="mt-1 text-[12.5px] text-ink-3">Your subscription, payment method, and invoices.</p>
         </Link>
+        <Link href={ROUTES.privacy} className="rounded-[12px] border border-rule bg-paper p-5 transition-colors duration-150 hover:border-rule-strong">
+          <p className="text-[14px] font-semibold text-ink">Privacy &amp; data</p>
+          <p className="mt-1 text-[12.5px] text-ink-3">Export your data, or erase it and delete your account.</p>
+        </Link>
       </div>
 
       {/* Notifications */}
@@ -148,6 +153,7 @@ export default function SettingsPage() {
         <Toggle label="Weekly digest" description="A Monday summary of your progress and focus." checked={prefs.weeklyDigest} onChange={set("weeklyDigest")} />
         <Toggle label="Milestone alerts" description="Get notified when a milestone is due or completed." checked={prefs.milestoneAlerts} onChange={set("milestoneAlerts")} />
         <Toggle label="Market alerts" description="New high-match roles in your target market." checked={prefs.marketAlerts} onChange={set("marketAlerts")} />
+        <PushNotifications />
       </section>
 
       {/* Data & danger zone */}

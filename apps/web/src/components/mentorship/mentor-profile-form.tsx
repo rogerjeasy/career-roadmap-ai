@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { mentorshipApi } from "@/lib/api/mentorship";
@@ -21,7 +21,6 @@ export function MentorProfileForm(_props: MentorProfileFormProps): React.ReactEl
   const [expertise, setExpertise] = useState("");
   const [capacity, setCapacity] = useState("3");
   const [isActive, setIsActive] = useState(true);
-  const [hydrated, setHydrated] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: QUERY_KEYS.mentorProfile,
@@ -29,16 +28,17 @@ export function MentorProfileForm(_props: MentorProfileFormProps): React.ReactEl
     staleTime: 30 * 1000,
   });
 
-  useEffect(() => {
-    if (profile && !hydrated) {
-      setHeadline(profile.headline);
-      setBio(profile.bio);
-      setExpertise(profile.expertise.join(", "));
-      setCapacity(String(profile.capacity));
-      setIsActive(profile.isActive);
-      setHydrated(true);
-    }
-  }, [profile, hydrated]);
+  // Hydrate the form once the profile loads — React's render-phase pattern for
+  // "adjust state when the source data changes" (no setState-in-effect).
+  const [hydratedFrom, setHydratedFrom] = useState<typeof profile | null>(null);
+  if (profile && profile !== hydratedFrom) {
+    setHydratedFrom(profile);
+    setHeadline(profile.headline);
+    setBio(profile.bio);
+    setExpertise(profile.expertise.join(", "));
+    setCapacity(String(profile.capacity));
+    setIsActive(profile.isActive);
+  }
 
   const saveMutation = useMutation({
     mutationFn: mentorshipApi.upsertProfile,
@@ -81,7 +81,7 @@ export function MentorProfileForm(_props: MentorProfileFormProps): React.ReactEl
   return (
     <form onSubmit={onSubmit} className="space-y-4 rounded-[12px] border border-rule bg-paper p-5">
       <p className="text-[13px] leading-relaxed text-ink-2">
-        Opt in to mentor others. You'll appear in discovery for members whose goals
+        Opt in to mentor others. You&apos;ll appear in discovery for members whose goals
         match your expertise, and you decide which session requests to accept.
       </p>
       <input

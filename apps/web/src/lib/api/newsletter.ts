@@ -60,4 +60,11 @@ export const newsletterApi = {
     );
     return data;
   },
+
+  async deliverDigest(): Promise<NewsletterDigest> {
+    const { data } = await apiClient.post<NewsletterDigest>(
+      "/api/v1/newsletter/digest/deliver",
+    );
+    return data;
+  },
 };

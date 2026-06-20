@@ -97,6 +97,12 @@ function DigestSection() {
     onError: () => toast.error("Couldn't generate your digest. Please try again."),
   });
 
+  const deliver = useMutation({
+    mutationFn: newsletterApi.deliverDigest,
+    onSuccess: () => toast.success("Digest delivered to your channels"),
+    onError: () => toast.error("Couldn't deliver your digest."),
+  });
+
   return (
     <section className="mb-8 rounded-[12px] border border-rule bg-paper p-5">
       <div className="flex items-start justify-between gap-3">
@@ -110,18 +116,30 @@ function DigestSection() {
               : "Generate a personalised digest from your plan and market signals."}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => generate.mutate()}
-          disabled={generate.isPending}
-          className="shrink-0 rounded-[7px] bg-ink px-3.5 py-2 text-[13px] font-medium text-bg transition-colors duration-150 hover:bg-green-2 disabled:opacity-50"
-        >
-          {generate.isPending
-            ? "Writing…"
-            : digest?.hasData
-              ? "Regenerate"
-              : "Generate digest"}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {digest?.hasData && (
+            <button
+              type="button"
+              onClick={() => deliver.mutate()}
+              disabled={deliver.isPending}
+              className="rounded-[7px] border border-rule px-3.5 py-2 text-[12.5px] font-medium text-ink-2 transition-colors duration-150 hover:border-rule-strong disabled:opacity-50"
+            >
+              {deliver.isPending ? "Sending…" : "Deliver"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => generate.mutate()}
+            disabled={generate.isPending}
+            className="rounded-[7px] bg-ink px-3.5 py-2 text-[13px] font-medium text-bg transition-colors duration-150 hover:bg-green-2 disabled:opacity-50"
+          >
+            {generate.isPending
+              ? "Writing…"
+              : digest?.hasData
+                ? "Regenerate"
+                : "Generate digest"}
+          </button>
+        </div>
       </div>
 
       {isLoading ? (

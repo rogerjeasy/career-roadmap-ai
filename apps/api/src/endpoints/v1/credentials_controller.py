@@ -8,7 +8,7 @@ Routes:
   DELETE /api/v1/credentials/{id}              — soft-delete
   GET    /api/v1/credentials/verify/{token}    — PUBLIC verification (no auth)
 """
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from src.core.auth import AuthenticatedUser, get_current_user
 from src.domains.credentials.schemas import (
@@ -17,6 +17,7 @@ from src.domains.credentials.schemas import (
     CredentialVerification,
 )
 from src.domains.credentials.service import CredentialService, get_credential_service
+from src.domains.webhooks.service import WebhookService, get_webhook_service
 
 router = APIRouter(prefix="/credentials", tags=["credentials"])
 
@@ -41,10 +42,19 @@ async def list_credentials(
 )
 async def issue_credential(
     payload: CredentialIssue,
+    background: BackgroundTasks,
     user: AuthenticatedUser = Depends(get_current_user),
     service: CredentialService = Depends(get_credential_service),
+    webhooks: WebhookService = Depends(get_webhook_service),
 ) -> CredentialOut:
-    return await service.issue(user.uid, _holder_name(user), payload)
+    credential = await service.issue(user.uid, _holder_name(user), payload)
+    background.add_task(
+        webhooks.dispatch,
+        user.uid,
+        "credential.issued",
+        {"credential_id": credential.id, "skill": credential.skill, "level": credential.level},
+    )
+    return credential
 
 
 # NB: the public verify route is declared before "/{credential_id}" so the

@@ -16,14 +16,18 @@ import { useUIStore } from "@/store/ui.store";
 
 const PAGE_LABELS: Record<string, string> = {
   "/dashboard":    "Today",
+  "/analytics":    "Analytics",
   "/roadmap":      "Roadmap",
+  "/roadmap-options": "Roadmap Strategies",
   "/skill-graph":  "Skill Graph",
   "/coach":        "AI Coach",
   "/market":       "Market Pulse",
   "/opportunities":"Opportunities",
   "/negotiation":  "Negotiation Coach",
+  "/interview":    "Interview Prep",
   "/newsletter":   "Newsletter",
   "/cv-analysis":  "CV & Profile",
+  "/applications": "Applications",
   "/evidence":     "Evidence Vault",
   "/credentials":  "Skill Credentials",
   "/learning":     "Learning ROI",
@@ -31,6 +35,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/storytelling": "Storytelling Studio",
   "/cohorts":      "Accountability Cohorts",
   "/mentorship":   "Mentorship",
+  "/outreach":     "Outreach Drafts",
   "/portfolio":    "Portfolio",
   "/networking":   "Network",
   "/progress":     "Progress",
@@ -43,6 +48,8 @@ const PAGE_LABELS: Record<string, string> = {
   "/localisation": "Localisation",
   "/autopilot":    "Autopilot",
   "/wellness":     "Wellness Monitor",
+  "/career-twin":  "Career Twin",
+  "/developer":    "Developer API",
 };
 
 // ── Icons ─────────────────────────────────────────────────────────────────────

@@ -12,6 +12,8 @@ import { opportunitiesApi } from "@/lib/api/opportunities";
 import { billingApi } from "@/lib/api/billing";
 import { autopilotApi } from "@/lib/api/autopilot";
 import { QUERY_KEYS, ROUTES } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,8 +79,20 @@ function IconAutopilot() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5L4.5 8 7 7z" fill="currentColor" stroke="none"/></svg>;
 }
 
+function IconCareerTwin() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="5.5" r="2.5"/><path d="M3.5 13.5c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4"/><path d="M8 5.5v8" strokeDasharray="1.2 1.4"/></svg>;
+}
+
+function IconAnalytics() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M2 2v12h12" strokeLinecap="round"/><rect x="4.5" y="8" width="2" height="4"/><rect x="7.5" y="5.5" width="2" height="6.5"/><rect x="10.5" y="3.5" width="2" height="8.5"/></svg>;
+}
+
 function IconWellness() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M8 13.5S2.5 10 2.5 6.2A2.7 2.7 0 018 4.5a2.7 2.7 0 015.5 1.7C13.5 10 8 13.5 8 13.5z"/></svg>;
+}
+
+function IconInterview() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/><path d="M5.5 6h5M5.5 8h3"/></svg>;
 }
 
 function IconNegotiation() {
@@ -87,6 +101,14 @@ function IconNegotiation() {
 
 function IconCV() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>;
+}
+
+function IconStrategies() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M2 12.5L6 4l2.5 5L11 5.5l3 7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+
+function IconApplications() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><rect x="2.5" y="4" width="11" height="9.5" rx="1.3"/><path d="M6 4V2.8h4V4M5.5 7.5h5M5.5 10h3"/></svg>;
 }
 
 function IconEvidenceVault() {
@@ -109,6 +131,10 @@ function IconCohorts() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M1.5 13c0-2 1.6-3.2 3.5-3.2M14.5 13c0-2-1.6-3.2-3.5-3.2M6 13c0-1.4 1-2.3 2-2.3s2 .9 2 2.3"/></svg>;
 }
 
+function IconOutreach() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M2 7.5L14 2.5l-4 11-2.5-4.5z" strokeLinejoin="round"/><path d="M7.5 9L10 6.5"/></svg>;
+}
+
 function IconMentorship() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="5" r="2.4"/><path d="M3.5 13c0-2.6 2-4.2 4.5-4.2s4.5 1.6 4.5 4.2"/><path d="M11.5 2.8l1.2 1.2-1.2 1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
@@ -127,6 +153,10 @@ function IconNetwork() {
 
 function IconSettings() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="8" r="2"/><path d="M13 8.7l1.4-.4-.4-1.4-1.4-.2-.4-1.4 1-1L11.6 3l-1 1-1.4-.4-.2-1.4-1.4-.4L7.2 3l-1.4.4-1-1L3.4 3.6l1 1-.4 1.4L2.6 6.4 2.2 7.8l1.4.4.4 1.4-1 1L4.4 12l1-1 1.4.4.2 1.4 1.4.4.4-1.4 1.4-.4 1 1L12.6 11.4l-1-1z"/></svg>;
+}
+
+function IconDeveloper() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M5.5 5L2.5 8l3 3M10.5 5l3 3-3 3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
 function IconHelp() {
@@ -157,11 +187,14 @@ const NAV_SECTIONS: NavSection[] = [
     title: "Planning",
     items: [
       { label: "Today",        href: ROUTES.dashboard,  icon: <IconToday /> },
+      { label: "Analytics",    href: ROUTES.analytics,  icon: <IconAnalytics /> },
       { label: "Roadmap",      href: ROUTES.roadmap,    icon: <IconRoadmap /> },
+      { label: "Strategies",   href: ROUTES.roadmapOptions, icon: <IconStrategies /> },
       { label: "Autopilot",    href: ROUTES.autopilot,  icon: <IconAutopilot /> },
       { label: "Skill Graph",  href: ROUTES.skillGraph, icon: <IconSkillGraph /> },
       { label: "Discover Paths", href: ROUTES.discovery, icon: <IconDiscovery /> },
       { label: "AI Coach",     href: ROUTES.coach,      icon: <IconCoach /> },
+      { label: "Career Twin",  href: ROUTES.careerTwin, icon: <IconCareerTwin /> },
       { label: "Wellness",     href: ROUTES.wellness,   icon: <IconWellness /> },
     ],
   },
@@ -172,6 +205,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Localisation",   href: ROUTES.localisation,  icon: <IconGlobe /> },
       { label: "Opportunities",  href: ROUTES.opportunities,  icon: <IconOpportunities /> },
       { label: "Negotiation",    href: ROUTES.negotiation,    icon: <IconNegotiation /> },
+      { label: "Interview Prep", href: ROUTES.interview,      icon: <IconInterview /> },
       { label: "Newsletter",     href: ROUTES.newsletter,     icon: <IconNewsletter /> },
     ],
   },
@@ -179,6 +213,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: "Assets",
     items: [
       { label: "CV & Profile",    href: ROUTES.cvAnalysis,  icon: <IconCV /> },
+      { label: "Applications",    href: ROUTES.applications, icon: <IconApplications /> },
       { label: "Evidence Vault",  href: ROUTES.evidence,    icon: <IconEvidenceVault /> },
       { label: "Credentials",     href: ROUTES.credentials, icon: <IconCredential /> },
       { label: "Learning ROI",    href: ROUTES.learning,    icon: <IconLearningRoi /> },
@@ -193,12 +228,14 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Cohorts",         href: ROUTES.cohorts,     icon: <IconCohorts /> },
       { label: "Mentorship",      href: ROUTES.mentorship,  icon: <IconMentorship /> },
+      { label: "Outreach",        href: ROUTES.outreach,    icon: <IconOutreach /> },
     ],
   },
   {
     title: "Account",
     items: [
       { label: "Settings",        href: ROUTES.settings,  icon: <IconSettings /> },
+      { label: "Developer API",   href: ROUTES.developer, icon: <IconDeveloper /> },
       { label: "Help & feedback", href: ROUTES.help,      icon: <IconHelp /> },
     ],
   },
@@ -213,6 +250,7 @@ export interface AppSidebarProps {
 export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
   const user = useAuthStore((s) => s.user);
   const setCommandOpen = useUIStore((s) => s.setCommandOpen);
   const { logout } = useAuth();
@@ -305,7 +343,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
         {NAV_SECTIONS.map((section) => (
           <div key={section.title}>
             <p className="px-[10px] pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3 select-none">
-              {section.title}
+              {t(section.title)}
             </p>
             <ul className="space-y-px" role="list">
               {section.items.map((item) => {
@@ -333,7 +371,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                       >
                         {item.icon}
                       </span>
-                      <span className="min-w-0 truncate">{item.label}</span>
+                      <span className="min-w-0 truncate">{t(item.label)}</span>
                       {badge && (
                         <span className="ml-auto shrink-0 rounded-[3px] bg-terra px-[5px] py-px text-[10px] font-semibold leading-[1.5] text-white">
                           {badge}
@@ -350,6 +388,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Language switcher */}
+      <div className="px-4 pb-1">
+        <LanguageSwitcher />
+      </div>
 
       {/* User card — dropdown */}
       <div className="p-4">

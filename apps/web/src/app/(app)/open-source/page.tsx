@@ -8,6 +8,7 @@ import { QUERY_KEYS } from "@/lib/constants";
 import { PageHeader } from "@/components/shared/page-header";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { EmptyState } from "@/components/shared/empty-state";
+import { useAddToEvidence } from "@/hooks/use-add-to-evidence";
 import { cn } from "@/lib/utils";
 
 const FIELD_CLASS =
@@ -17,6 +18,7 @@ type Tab = "find" | "saved";
 
 export default function OpenSourcePage() {
   const queryClient = useQueryClient();
+  const addToEvidence = useAddToEvidence();
   const [tab, setTab] = useState<Tab>("find");
   const [language, setLanguage] = useState("");
   const [query, setQuery] = useState("");
@@ -230,7 +232,23 @@ export default function OpenSourcePage() {
                   <option value="merged">Merged</option>
                 </select>
               </div>
-              <div className="mt-3 flex justify-end">
+              <div className="mt-3 flex items-center justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    addToEvidence.mutate({
+                      title: b.title,
+                      description: `Open-source contribution to ${b.repo}`,
+                      type: "project",
+                      link: b.url,
+                      skills: b.language ? [b.language] : [],
+                    })
+                  }
+                  disabled={addToEvidence.isPending}
+                  className="text-[12px] font-medium text-green-2 transition-colors hover:text-green disabled:opacity-50"
+                >
+                  + Evidence
+                </button>
                 <button
                   type="button"
                   onClick={() => removeMutation.mutate(b.id)}

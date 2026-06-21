@@ -51,6 +51,14 @@ export const ROUTES = {
   settingsBilling: "/settings/billing",
   developer: "/developer",
   privacy: "/settings/privacy",
+  // ── Admin area (role-gated) ──────────────────────────────────────────────────
+  admin: "/admin",
+  adminUsers: "/admin/users",
+  adminUser: (uid: string) => `/admin/users/${uid}`,
+  adminInbox: "/admin/inbox",
+  adminBroadcast: "/admin/broadcast",
+  adminSystem: "/admin/system",
+  adminAudit: "/admin/audit",
 } as const;
 
 export const QUERY_KEYS = {
@@ -120,4 +128,14 @@ export const QUERY_KEYS = {
     ["localisation", country, role ?? ""] as const,
   localisationSaved: ["localisation", "saved"] as const,
   autopilot: ["autopilot"] as const,
+  // ── Admin ────────────────────────────────────────────────────────────────────
+  adminOverview: ["admin", "overview"] as const,
+  adminUsers: (params?: unknown) => ["admin", "users", params ?? {}] as const,
+  adminUser: (uid: string) => ["admin", "users", uid] as const,
+  adminFeedback: (status?: string) => ["admin", "feedback", status ?? "all"] as const,
+  adminContact: (status?: string) => ["admin", "contact", status ?? "all"] as const,
+  adminSubscribers: ["admin", "subscribers"] as const,
+  adminAudit: ["admin", "audit"] as const,
+  adminHealth: ["admin", "health"] as const,
+  adminKbEval: ["admin", "kb", "eval"] as const,
 } as const;

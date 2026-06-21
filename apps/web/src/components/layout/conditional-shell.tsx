@@ -8,6 +8,7 @@ const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/onboarding"];
 
 // App routes use their own sidebar+topbar shell — skip the marketing chrome
 const APP_ROUTE_PREFIXES = [
+  "/admin",
   "/dashboard",
   "/analytics",
   "/roadmap",

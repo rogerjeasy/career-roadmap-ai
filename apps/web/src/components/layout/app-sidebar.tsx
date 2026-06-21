@@ -163,6 +163,16 @@ function IconHelp() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="8" cy="8" r="6"/><path d="M6.5 6.5C6.5 5.5 7 5 8 5s1.5.5 1.5 1.5S8 7.5 8 8.5M8 11h.01" strokeLinecap="round"/></svg>;
 }
 
+function IconAdmin() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M8 1.5l5 2v3.5c0 3-2.1 5.2-5 6-2.9-.8-5-3-5-6V3.5z"/><path d="M6 8l1.4 1.4L10.5 6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+
+// Appended to the nav only for admins/superadmins (server still enforces access).
+const ADMIN_SECTION: NavSection = {
+  title: "Administration",
+  items: [{ label: "Admin Console", href: ROUTES.admin, icon: <IconAdmin /> }],
+};
+
 function IconSearch() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-[13px] w-[13px] opacity-70"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3" strokeLinecap="round"/></svg>;
 }
@@ -255,6 +265,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const setCommandOpen = useUIStore((s) => s.setCommandOpen);
   const { logout } = useAuth();
 
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const navSections = isAdmin ? [...NAV_SECTIONS, ADMIN_SECTION] : NAV_SECTIONS;
+
   // Live high-match opportunity count drives the Opportunities badge.
   // Shares the query key with the dashboard, so this dedupes rather than refetches.
   const { data: alerts } = useQuery({
@@ -340,7 +353,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-[22px]" aria-label="App navigation">
-        {NAV_SECTIONS.map((section) => (
+        {navSections.map((section) => (
           <div key={section.title}>
             <p className="px-[10px] pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3 select-none">
               {t(section.title)}

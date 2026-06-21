@@ -19,6 +19,12 @@ def on_worker_init(**_kwargs) -> None:
     """Initialise per-process singletons when a Celery worker starts."""
     configure_agent_logging()
 
+    # OTel tracer provider for the agent layer. Without this, the ~180
+    # start_as_current_span() calls across the agents package emit to the
+    # default no-op provider and no traces ever reach Tempo. Must run before
+    # CeleryInstrumentor so task spans attach to the configured provider.
+    _setup_worker_tracing()
+
     # Mirror API-side Sentry setup so worker errors are also captured
     if settings.sentry_dsn:
         import sentry_sdk  # noqa: PLC0415
@@ -32,6 +38,29 @@ def on_worker_init(**_kwargs) -> None:
         )
 
     _register_agents()
+
+
+def _setup_worker_tracing() -> None:
+    """Configure the agent OTel tracer provider and auto-instrument Celery.
+
+    ``configure_observability`` sets the global TracerProvider (OTLP export in
+    prod, console in dev). ``CeleryInstrumentor`` then wraps task execution so
+    every Celery task becomes a root span the agent spans nest under.
+    """
+    import structlog  # noqa: PLC0415
+    from agents.core.observability import configure_observability  # noqa: PLC0415
+
+    logger = structlog.get_logger("celery.worker")
+    try:
+        configure_observability()
+        from opentelemetry.instrumentation.celery import (  # noqa: PLC0415
+            CeleryInstrumentor,
+        )
+
+        CeleryInstrumentor().instrument()
+        logger.info("celery.worker.tracing_configured")
+    except Exception as exc:  # pragma: no cover - tracing must never block startup
+        logger.warning("celery.worker.tracing_setup_failed", error=str(exc))
 
     import structlog  # noqa: PLC0415
     logger = structlog.get_logger("celery.worker")

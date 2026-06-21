@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from google.cloud.firestore_v1.async_client import AsyncClient
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.db.firestore_crud import FirestoreCrudRepository
 
@@ -21,7 +22,7 @@ class FirestoreCredentialRepository(FirestoreCrudRepository):
         """Collection-wide lookup by share token for unauthenticated verification."""
         if not share_token:
             return None
-        query = self._col.where("share_token", "==", share_token).limit(1)
+        query = self._col.where(filter=FieldFilter("share_token", "==", share_token)).limit(1)
         async for snap in query.stream():
             data: dict[str, Any] = snap.to_dict() or {}
             return {"id": snap.id, **data}

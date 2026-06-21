@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from google.cloud.firestore_v1.async_client import AsyncClient
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.db.firestore_crud import FirestoreCrudRepository
 
@@ -19,7 +20,7 @@ class FirestoreApiKeyRepository(FirestoreCrudRepository):
     async def get_by_hash(self, key_hash: str) -> dict[str, Any] | None:
         if not key_hash:
             return None
-        query = self._col.where("key_hash", "==", key_hash).limit(1)
+        query = self._col.where(filter=FieldFilter("key_hash", "==", key_hash)).limit(1)
         async for snap in query.stream():
             data: dict[str, Any] = snap.to_dict() or {}
             if data.get("deleted_at") is not None:

@@ -38,10 +38,15 @@ export interface UserProfile {
   provider: string;
   emailVerified: boolean;
   isActive: boolean;
+  /** Authorization role: "user" | "admin" | "superadmin". Drives admin-area access. */
+  role: UserRole;
   notificationPreferences: NotificationPreferences;
   createdAt: string;
   updatedAt: string;
 }
+
+/** Authorization role mirrored from the Firebase custom claim. */
+export type UserRole = "user" | "admin" | "superadmin";
 
 /** Partial profile update — omitted fields are left unchanged. */
 export interface UserUpdateInput {

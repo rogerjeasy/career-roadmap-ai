@@ -25,6 +25,7 @@ from uuid import uuid4
 from google.cloud.firestore_v1 import Query as FSQuery
 from google.cloud.firestore_v1.async_client import AsyncClient
 from google.cloud.firestore_v1.async_document import AsyncDocumentReference
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.core.logging import get_logger
 from src.domains.roadmap.schemas import (
@@ -233,7 +234,7 @@ class FirestoreRoadmapRepository:
         """
         query = (
             self._col
-            .where("user_id", "==", user_id)
+            .where(filter=FieldFilter("user_id", "==", user_id))
             .limit(limit * 2)
         )
         summaries: list[RoadmapSummary] = []
@@ -270,8 +271,8 @@ class FirestoreRoadmapRepository:
         """
         query = (
             self._col
-            .where("user_id", "==", user_id)
-            .where("deleted_at", "==", None)
+            .where(filter=FieldFilter("user_id", "==", user_id))
+            .where(filter=FieldFilter("deleted_at", "==", None))
             .order_by("created_at", direction=FSQuery.DESCENDING)
             .limit(limit + 1)
         )

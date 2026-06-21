@@ -1,12 +1,13 @@
 "use client";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 export interface ErrorBoundaryProps {
   children: ReactNode;
   /** Custom fallback. Receives the error and a reset callback. */
   fallback?: (error: Error, reset: () => void) => ReactNode;
-  /** Called when an error is caught — wire to Sentry/logging if desired. */
+  /** Called when an error is caught — runs in addition to the Sentry report. */
   onError?: (error: Error, info: ErrorInfo) => void;
 }
 
@@ -22,6 +23,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    // Report to Sentry (no-op when NEXT_PUBLIC_SENTRY_DSN is unset), then run
+    // any caller-supplied handler.
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: info.componentStack } },
+    });
     this.props.onError?.(error, info);
   }
 

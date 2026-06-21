@@ -1,6 +1,7 @@
 """API v1 router — aggregates all v1 controllers."""
 from fastapi import APIRouter
 
+from src.endpoints.v1.admin_controller import router as admin_router
 from src.endpoints.v1.admin_kb_controller import router as admin_kb_router
 from src.endpoints.v1.analytics_controller import router as analytics_router
 from src.endpoints.v1.api_keys_controller import router as api_keys_router
@@ -65,6 +66,7 @@ router.include_router(discovery_router)
 router.include_router(intake_router)
 router.include_router(opportunity_router)
 router.include_router(roadmap_router)
+router.include_router(admin_router)
 router.include_router(admin_kb_router)
 router.include_router(market_router)
 router.include_router(networking_router)

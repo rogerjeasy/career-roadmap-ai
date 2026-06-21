@@ -26,6 +26,10 @@ class User:
     updated_at: datetime
     display_name: str | None = None
     photo_url: str | None = None
+    # Authorization role. Firebase custom claims are the source of truth for
+    # access control; this Firestore field mirrors the claim so the admin user
+    # directory can list and filter by role without iterating Firebase Auth.
+    role: str = "user"
     notification_preferences: dict[str, bool] = field(
         default_factory=default_notification_preferences
     )

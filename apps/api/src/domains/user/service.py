@@ -191,6 +191,14 @@ class UserService:
                 display_name=auth_user.name,
                 email_verified=auth_user.email_verified,
             )
+
+        # Self-heal the role mirror: Firebase custom claims are the source of
+        # truth for authorization, so keep the Firestore field consistent with
+        # the verified token (covers roles granted out-of-band by the CLI script).
+        if user.role != auth_user.role:
+            synced = await self.repo.set_role(auth_user.uid, auth_user.role)
+            if synced is not None:
+                user = synced
         return user
 
     async def update_profile(

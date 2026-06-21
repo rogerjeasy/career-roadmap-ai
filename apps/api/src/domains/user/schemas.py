@@ -64,6 +64,9 @@ class UserProfile(BaseSchema):
     provider: str
     email_verified: bool
     is_active: bool
+    # "user" | "admin" | "superadmin" — surfaced so the web app can reveal the
+    # admin area only to privileged users (authz is still enforced server-side).
+    role: str = "user"
     notification_preferences: NotificationPreferences = Field(
         default_factory=NotificationPreferences
     )

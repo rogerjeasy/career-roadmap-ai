@@ -6,6 +6,7 @@ operations filter ``read`` in Python so no composite index is required.
 from __future__ import annotations
 
 from google.cloud.firestore_v1.async_client import AsyncClient
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.db.firestore_crud import FirestoreCrudRepository, utcnow
 
@@ -18,7 +19,7 @@ class FirestoreNotificationRepository(FirestoreCrudRepository):
 
     async def mark_all_read(self, user_id: str) -> int:
         """Set ``read=True`` on every unread notification; returns the count updated."""
-        query = self._col.where("user_id", "==", user_id).limit(500)
+        query = self._col.where(filter=FieldFilter("user_id", "==", user_id)).limit(500)
         batch = self._db.batch()
         count = 0
         async for snap in query.stream():
@@ -32,7 +33,7 @@ class FirestoreNotificationRepository(FirestoreCrudRepository):
         return count
 
     async def count_unread(self, user_id: str) -> int:
-        query = self._col.where("user_id", "==", user_id).limit(500)
+        query = self._col.where(filter=FieldFilter("user_id", "==", user_id)).limit(500)
         count = 0
         async for snap in query.stream():
             data = snap.to_dict() or {}

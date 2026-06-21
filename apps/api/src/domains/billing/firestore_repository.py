@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from google.cloud.firestore_v1.async_client import AsyncClient
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.db.firestore_crud import FirestoreCrudRepository
 
@@ -30,7 +31,9 @@ class FirestoreBillingRepository(FirestoreCrudRepository):
         return merged or {"id": user_id, **data}
 
     async def find_by_customer_id(self, customer_id: str) -> dict[str, Any] | None:
-        query = self._col.where("stripe_customer_id", "==", customer_id).limit(1)
+        query = self._col.where(
+            filter=FieldFilter("stripe_customer_id", "==", customer_id)
+        ).limit(1)
         async for snap in query.stream():
             return {"id": snap.id, **(snap.to_dict() or {})}
         return None

@@ -16,6 +16,7 @@ from typing import Any
 from uuid import uuid4
 
 from google.cloud.firestore_v1.async_client import AsyncClient
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.core.logging import get_logger
 
@@ -61,7 +62,9 @@ class FirestoreCohortRepository:
         return {"id": snap.id, **data}
 
     async def list_for_member(self, user_id: str) -> list[dict[str, Any]]:
-        query = self._cohorts.where("member_ids", "array_contains", user_id)
+        query = self._cohorts.where(
+            filter=FieldFilter("member_ids", "array_contains", user_id)
+        )
         out: list[dict[str, Any]] = []
         async for snap in query.stream():
             data: dict[str, Any] = snap.to_dict() or {}
@@ -72,7 +75,7 @@ class FirestoreCohortRepository:
         return out
 
     async def list_open(self, limit: int = 100) -> list[dict[str, Any]]:
-        query = self._cohorts.where("status", "==", "open").limit(limit * 2)
+        query = self._cohorts.where(filter=FieldFilter("status", "==", "open")).limit(limit * 2)
         out: list[dict[str, Any]] = []
         async for snap in query.stream():
             data: dict[str, Any] = snap.to_dict() or {}
@@ -113,7 +116,9 @@ class FirestoreCohortRepository:
         return {"id": doc_id, **payload}
 
     async def list_checkins(self, cohort_id: str, limit: int = 50) -> list[dict[str, Any]]:
-        query = self._checkins.where("cohort_id", "==", cohort_id).limit(limit * 2)
+        query = self._checkins.where(
+            filter=FieldFilter("cohort_id", "==", cohort_id)
+        ).limit(limit * 2)
         out: list[dict[str, Any]] = []
         async for snap in query.stream():
             out.append({"id": snap.id, **(snap.to_dict() or {})})

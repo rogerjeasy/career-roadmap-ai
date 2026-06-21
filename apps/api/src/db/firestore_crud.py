@@ -20,6 +20,7 @@ from typing import Any
 from uuid import uuid4
 
 from google.cloud.firestore_v1.async_client import AsyncClient
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.core.exceptions import AuthorizationError
 from src.core.logging import get_logger
@@ -91,7 +92,7 @@ class FirestoreCrudRepository:
         order_desc: bool = True,
     ) -> list[dict[str, Any]]:
         """Return the user's documents, newest-first by ``created_at``."""
-        query = self._col.where("user_id", "==", user_id).limit(limit * 2)
+        query = self._col.where(filter=FieldFilter("user_id", "==", user_id)).limit(limit * 2)
         out: list[dict[str, Any]] = []
         async for snap in query.stream():
             data: dict[str, Any] = snap.to_dict() or {}

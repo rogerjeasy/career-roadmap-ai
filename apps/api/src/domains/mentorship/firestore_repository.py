@@ -13,6 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from google.cloud.firestore_v1.async_client import AsyncClient
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 
 def _utcnow() -> datetime:
@@ -58,7 +59,7 @@ class FirestoreMentorshipRepository:
         )
 
     async def list_active_profiles(self, limit: int = 100) -> list[dict[str, Any]]:
-        query = self._profiles.where("is_active", "==", True).limit(limit * 2)
+        query = self._profiles.where(filter=FieldFilter("is_active", "==", True)).limit(limit * 2)
         out: list[dict[str, Any]] = []
         async for snap in query.stream():
             data = snap.to_dict() or {}
@@ -91,7 +92,7 @@ class FirestoreMentorshipRepository:
         return {"id": session_id, **(snap.to_dict() or {}), **patch}
 
     async def list_sessions_for(self, user_id: str, field: str, limit: int = 100) -> list[dict[str, Any]]:
-        query = self._sessions.where(field, "==", user_id).limit(limit * 2)
+        query = self._sessions.where(filter=FieldFilter(field, "==", user_id)).limit(limit * 2)
         out: list[dict[str, Any]] = []
         async for snap in query.stream():
             out.append({"id": snap.id, **(snap.to_dict() or {})})

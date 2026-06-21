@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 
 from google.cloud.firestore_v1.async_client import AsyncClient
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.domains.user.model import User, default_notification_preferences
 
@@ -22,7 +23,7 @@ class FirestoreUserRepository:
         return _doc_to_user(doc.id, doc.to_dict())
 
     async def get_by_email(self, email: str) -> User | None:
-        async for doc in self._col.where("email", "==", email).limit(1).stream():
+        async for doc in self._col.where(filter=FieldFilter("email", "==", email)).limit(1).stream():
             return _doc_to_user(doc.id, doc.to_dict())
         return None
 
@@ -49,6 +50,7 @@ class FirestoreUserRepository:
                 "provider": provider,
                 "email_verified": email_verified,
                 "is_active": True,
+                "role": "user",
                 "notification_preferences": default_notification_preferences(),
                 "created_at": now,
                 "updated_at": now,
@@ -97,6 +99,43 @@ class FirestoreUserRepository:
         """Hard-delete the user document."""
         await self._col.document(firebase_uid).delete()
 
+    # ── Admin operations ────────────────────────────────────────────────────────
+
+    async def set_role(self, firebase_uid: str, role: str) -> User | None:
+        """Mirror an authorization role onto the user document. Returns None if absent."""
+        doc_ref = self._col.document(firebase_uid)
+        doc = await doc_ref.get()
+        if not doc.exists:
+            return None
+        updates = {"role": role, "updated_at": datetime.now(timezone.utc)}
+        await doc_ref.update(updates)
+        return _doc_to_user(firebase_uid, {**doc.to_dict(), **updates})
+
+    async def set_active(self, firebase_uid: str, is_active: bool) -> User | None:
+        """Enable/disable a user account at the profile level. Returns None if absent."""
+        doc_ref = self._col.document(firebase_uid)
+        doc = await doc_ref.get()
+        if not doc.exists:
+            return None
+        updates = {"is_active": is_active, "updated_at": datetime.now(timezone.utc)}
+        await doc_ref.update(updates)
+        return _doc_to_user(firebase_uid, {**doc.to_dict(), **updates})
+
+    async def list_all(self, limit: int = 5000) -> list[User]:
+        """Stream every user document (admin directory).
+
+        Sorting/filtering/pagination are applied in the service layer so this
+        domain stays index-free, matching the rest of the codebase's Firestore
+        approach. ``limit`` is a hard safety cap on the scan size.
+        """
+        out: list[User] = []
+        async for doc in self._col.limit(limit).stream():
+            data = doc.to_dict() or {}
+            if "email" not in data:
+                continue
+            out.append(_doc_to_user(doc.id, data))
+        return out
+
 
 def _doc_to_user(doc_id: str, data: dict) -> User:
     return User(
@@ -108,6 +147,7 @@ def _doc_to_user(doc_id: str, data: dict) -> User:
         provider=data["provider"],
         email_verified=data.get("email_verified", False),
         is_active=data.get("is_active", True),
+        role=data.get("role", "user"),
         notification_preferences=(
             data.get("notification_preferences")
             or default_notification_preferences()

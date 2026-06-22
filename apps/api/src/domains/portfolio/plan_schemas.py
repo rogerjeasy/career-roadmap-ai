@@ -35,6 +35,15 @@ class ArtefactSuggestion(BaseModel):
         )
 
 
+class PlanTrackResult(BaseModel):
+    """Outcome of turning a suggestion into tracked work."""
+
+    suggestion_id: str
+    portfolio_item_id: str
+    schedule_block_id: str
+    message: str
+
+
 class PortfolioPlan(BaseModel):
     has_data: bool = True
     based_on: str = ""

@@ -8,17 +8,18 @@ cached as one per-user document and regenerated on demand.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import Depends
 from google.cloud.firestore_v1.async_client import AsyncClient
 
-from src.core.exceptions import ValidationError
+from src.core.exceptions import NotFoundError, ValidationError
 from src.core.llm import LlmJsonClient, get_llm_client
 from src.core.logging import get_logger
 from src.db.firestore import get_firestore_client
 from src.db.firestore_crud import FirestoreCrudRepository, utcnow
-from src.domains.portfolio.plan_schemas import PortfolioPlan
+from src.domains.portfolio.plan_schemas import PlanTrackResult, PortfolioPlan
 from src.session.manager import SessionManager, get_session_manager
 
 logger = get_logger(__name__)
@@ -55,17 +56,69 @@ class PortfolioPlannerService:
         self,
         plans: FirestoreCrudRepository,
         items: FirestoreCrudRepository,
+        blocks: FirestoreCrudRepository,
         llm: LlmJsonClient,
         sessions: SessionManager,
     ) -> None:
         self._plans = plans
         self._items = items
+        self._blocks = blocks
         self._llm = llm
         self._sessions = sessions
 
     async def get(self, user_id: str) -> PortfolioPlan:
         doc = await self._plans.get(user_id, user_id)
         return PortfolioPlan.from_doc(doc) if doc else PortfolioPlan.empty()
+
+    async def track(self, user_id: str, suggestion_id: str) -> PlanTrackResult:
+        """Turn a suggested artefact into tracked work: a planned portfolio item
+        plus a weekly ``build`` schedule block, in one step."""
+        plan_doc = await self._plans.get(user_id, user_id)
+        suggestion = next(
+            (
+                s
+                for s in ((plan_doc or {}).get("suggestions") or [])
+                if isinstance(s, dict) and s.get("id") == suggestion_id
+            ),
+            None,
+        )
+        if suggestion is None:
+            raise NotFoundError("Suggestion not found in your current plan.")
+
+        title = str(suggestion.get("title", "Portfolio project"))
+        skills = list(suggestion.get("skills_demonstrated", []) or [])
+        item = await self._items.create(
+            user_id,
+            {
+                "title": title,
+                "description": str(suggestion.get("summary", "")),
+                "status": "in_progress",
+                "tech": skills,
+                "link": "",
+                "source": "portfolio_plan",
+            },
+        )
+        block = await self._blocks.create(
+            user_id,
+            {
+                "day": datetime.now(timezone.utc).weekday(),  # 0 = Monday
+                "label": f"Build: {title}",
+                "category": "build",
+            },
+        )
+        logger.info(
+            "portfolio_plan.tracked",
+            user_id=user_id,
+            suggestion_id=suggestion_id,
+            item_id=item["id"],
+            block_id=block["id"],
+        )
+        return PlanTrackResult(
+            suggestion_id=suggestion_id,
+            portfolio_item_id=item["id"],
+            schedule_block_id=block["id"],
+            message=f"Added “{title}” to your portfolio and this week's build schedule.",
+        )
 
     async def generate(self, user_id: str) -> PortfolioPlan:
         context = await self._build_context(user_id)
@@ -137,6 +190,7 @@ async def get_portfolio_planner_service(
     return PortfolioPlannerService(
         FirestoreCrudRepository(db, "portfolio_plans"),
         FirestoreCrudRepository(db, "portfolio"),
+        FirestoreCrudRepository(db, "schedule_blocks"),
         llm,
         sessions,
     )

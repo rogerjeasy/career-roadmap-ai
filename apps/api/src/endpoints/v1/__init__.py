@@ -6,6 +6,7 @@ from src.endpoints.v1.admin_kb_controller import router as admin_kb_router
 from src.endpoints.v1.analytics_controller import router as analytics_router
 from src.endpoints.v1.api_keys_controller import router as api_keys_router
 from src.endpoints.v1.applications_controller import router as applications_router
+from src.endpoints.v1.assessments_controller import router as assessments_router
 from src.endpoints.v1.auth_controller import router as auth_router
 from src.endpoints.v1.autopilot_controller import router as autopilot_router
 from src.endpoints.v1.billing_controller import router as billing_router
@@ -14,6 +15,7 @@ from src.endpoints.v1.career_twin_controller import router as career_twin_router
 from src.endpoints.v1.coach_controller import router as coach_router
 from src.endpoints.v1.cohorts_controller import router as cohorts_router
 from src.endpoints.v1.contact_controller import router as contact_router
+from src.endpoints.v1.content_controller import router as content_router
 from src.endpoints.v1.credentials_controller import router as credentials_router
 from src.endpoints.v1.cv_controller import router as cv_router
 from src.endpoints.v1.discovery_controller import router as discovery_router
@@ -107,3 +109,5 @@ router.include_router(push_router)
 router.include_router(exports_router)
 router.include_router(outreach_router)
 router.include_router(webhooks_router)
+router.include_router(assessments_router)
+router.include_router(content_router)

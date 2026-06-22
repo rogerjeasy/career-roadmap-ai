@@ -35,6 +35,16 @@ export function PortfolioBuildPlan(_props: PortfolioBuildPlanProps): React.React
     onError: () => toast.error("Couldn't generate a plan. Add a target role first."),
   });
 
+  const trackMutation = useMutation({
+    mutationFn: portfolioApi.trackSuggestion,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.portfolio });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.scheduleBlocks });
+      toast.success(result.message);
+    },
+    onError: () => toast.error("Couldn't track that project."),
+  });
+
   const suggestions = plan?.suggestions ?? [];
 
   return (
@@ -125,6 +135,18 @@ export function PortfolioBuildPlan(_props: PortfolioBuildPlanProps): React.React
                   ))}
                 </ul>
               )}
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => trackMutation.mutate(s.id)}
+                  disabled={trackMutation.isPending}
+                  className="rounded-[7px] border border-rule bg-paper px-3 py-1.5 text-[12px] font-medium text-ink transition-colors hover:border-green disabled:opacity-50"
+                >
+                  {trackMutation.isPending && trackMutation.variables === s.id
+                    ? "Adding…"
+                    : "Track this →"}
+                </button>
+              </div>
             </li>
           ))}
         </ol>

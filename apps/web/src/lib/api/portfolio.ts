@@ -50,6 +50,13 @@ export interface PortfolioPlan {
   generatedAt: string | null;
 }
 
+export interface PlanTrackResult {
+  suggestionId: string;
+  portfolioItemId: string;
+  scheduleBlockId: string;
+  message: string;
+}
+
 export const portfolioApi = {
   async list(): Promise<PortfolioItem[]> {
     const { data } = await apiClient.get<PortfolioItem[]>("/api/v1/portfolio");
@@ -83,6 +90,13 @@ export const portfolioApi = {
 
   async generatePlan(): Promise<PortfolioPlan> {
     const { data } = await apiClient.post<PortfolioPlan>("/api/v1/portfolio/plan/generate");
+    return data;
+  },
+
+  async trackSuggestion(suggestionId: string): Promise<PlanTrackResult> {
+    const { data } = await apiClient.post<PlanTrackResult>("/api/v1/portfolio/plan/track", {
+      suggestionId,
+    });
     return data;
   },
 };

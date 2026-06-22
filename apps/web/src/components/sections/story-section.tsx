@@ -337,7 +337,7 @@ export function StorySection() {
 
             {/* Stats */}
             <div
-              className="grid grid-cols-3 gap-6 border-t border-rule pt-8"
+              className="grid grid-cols-3 gap-4 border-t border-rule pt-8 sm:gap-6"
               role="list"
               aria-label="Member outcomes"
             >

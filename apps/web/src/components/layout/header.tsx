@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Logo mark ────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ const NAV_LINKS: NavLink[] = [
 // ─── Header ───────────────────────────────────────────────────────────
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -94,11 +96,11 @@ export function Header() {
         {/* ── Brand ──────────────────────────────────────────────── */}
         <Link
           href="/"
-          className="flex items-center gap-2.5 font-serif text-[22px] font-medium tracking-[-0.01em] text-ink no-underline"
+          className="flex min-w-0 items-center gap-2.5 font-serif text-[19px] font-medium tracking-[-0.01em] text-ink no-underline sm:text-[22px]"
           aria-label="Career Roadmap AI — home"
         >
           <LogoMark className="w-7 h-7 shrink-0" />
-          Career Roadmap AI
+          <span className="truncate">Career Roadmap AI</span>
         </Link>
 
         {/* ── Nav links (hidden on mobile) ─────────────────────── */}
@@ -120,10 +122,10 @@ export function Header() {
         </div>
 
         {/* ── CTA group ───────────────────────────────────────────── */}
-        <div className="flex items-center gap-6">
+        <div className="flex shrink-0 items-center gap-3 sm:gap-6">
           <Link
             href="/login"
-            className="text-sm font-medium text-ink-2 transition-colors duration-150 hover:text-ink"
+            className="hidden text-sm font-medium text-ink-2 transition-colors duration-150 hover:text-ink sm:inline"
           >
             Sign in
           </Link>
@@ -131,7 +133,7 @@ export function Header() {
           <Link
             href="/register"
             className={cn(
-              "group inline-flex items-center gap-2",
+              "group hidden items-center gap-2 sm:inline-flex",
               "bg-ink text-bg",
               "text-sm font-medium",
               "px-[18px] py-[10px] rounded-full",
@@ -146,9 +148,59 @@ export function Header() {
               →
             </span>
           </Link>
+
+          {/* Mobile menu toggle */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+            className="flex h-9 w-9 items-center justify-center rounded-[8px] text-ink transition-colors duration-150 hover:bg-bg-2 md:hidden"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
 
       </nav>
+
+      {/* ── Mobile menu panel ────────────────────────────────────── */}
+      {mobileOpen && (
+        <div className="border-b border-rule bg-bg md:hidden">
+          <nav className="flex flex-col gap-1 px-6 py-4" aria-label="Mobile navigation">
+            {NAV_LINKS.map(({ label, href, badge }: NavLink) => (
+              <Link
+                key={label}
+                href={href}
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2 rounded-[8px] px-2 py-2.5 text-[15px] font-medium text-ink-2 transition-colors duration-150 hover:bg-bg-2 hover:text-ink"
+              >
+                {label}
+                {badge !== undefined && (
+                  <span className="align-middle text-[9px] font-semibold tracking-[0.05em] bg-terra-soft text-terra-2 px-[5px] py-[2px] rounded-[3px]">
+                    {badge}
+                  </span>
+                )}
+              </Link>
+            ))}
+            <div className="mt-2 flex flex-col gap-2 border-t border-rule pt-3">
+              <Link
+                href="/login"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-[8px] px-2 py-2.5 text-[15px] font-medium text-ink-2 transition-colors duration-150 hover:bg-bg-2 hover:text-ink"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setMobileOpen(false)}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-[18px] py-[11px] text-sm font-medium text-bg transition-colors duration-200 hover:bg-green-2"
+              >
+                Get started →
+              </Link>
+            </div>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

@@ -11,6 +11,7 @@ import { formatRelative } from "@/lib/date";
 import { NotificationBell, type NotificationItem } from "@/components/shared/notification-bell";
 import { LogActivityDialog } from "@/components/schedule/log-activity-dialog";
 import { useUIStore } from "@/store/ui.store";
+import { Menu } from "lucide-react";
 
 // ── Page label map ─────────────────────────────────────────────────────────────
 
@@ -147,6 +148,7 @@ export function AppTopbar({ className }: AppTopbarProps) {
   const pageLabel = PAGE_LABELS[segment] ?? "Page";
   const [logOpen, setLogOpen] = useState(false);
   const setCommandOpen = useUIStore((s) => s.setCommandOpen);
+  const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen);
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -158,24 +160,35 @@ export function AppTopbar({ className }: AppTopbarProps) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 flex h-[60px] shrink-0 items-center justify-between bg-bg px-7 border-b border-rule",
+        "sticky top-0 z-40 flex h-[60px] shrink-0 items-center justify-between gap-2 bg-bg px-4 sm:px-6 lg:px-7 border-b border-rule",
         className,
       )}
     >
-      {/* Breadcrumbs + date */}
-      <div className="flex items-center gap-3 text-[13px] min-w-0">
-        <Link href={ROUTES.dashboard} className="text-ink-3 hover:text-ink transition-colors duration-150 shrink-0">
+      {/* Hamburger (mobile) + breadcrumbs + date */}
+      <div className="flex items-center gap-2 text-[13px] min-w-0">
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="Open navigation menu"
+          className="-ml-1 flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[7px] text-ink-2 transition-colors duration-150 hover:bg-bg-2 hover:text-ink md:hidden"
+        >
+          <Menu className="h-5 w-5" aria-hidden="true" />
+        </button>
+        <Link
+          href={ROUTES.dashboard}
+          className="hidden text-ink-3 hover:text-ink transition-colors duration-150 shrink-0 sm:inline"
+        >
           Home
         </Link>
-        <span className="text-rule-strong shrink-0" aria-hidden="true">/</span>
-        <span className="font-semibold text-ink shrink-0">{pageLabel}</span>
-        <span className="ml-[18px] hidden border-l border-rule pl-[18px] font-serif italic text-ink-2 sm:block shrink-0">
+        <span className="hidden text-rule-strong shrink-0 sm:inline" aria-hidden="true">/</span>
+        <span className="font-semibold text-ink truncate">{pageLabel}</span>
+        <span className="ml-[18px] hidden border-l border-rule pl-[18px] font-serif italic text-ink-2 lg:block shrink-0">
           {today}
         </span>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <IconBtn title="Search (⌘K)" onClick={() => setCommandOpen(true)}>
           <IconSearch />
         </IconBtn>
@@ -186,10 +199,11 @@ export function AppTopbar({ className }: AppTopbarProps) {
         <button
           type="button"
           onClick={() => setLogOpen(true)}
-          className="ml-1 inline-flex items-center gap-[7px] rounded-[7px] bg-ink px-[14px] py-2 text-[13px] font-medium text-bg transition-colors duration-150 hover:bg-green-2"
+          aria-label="Log activity"
+          className="ml-0.5 inline-flex items-center gap-[7px] rounded-[7px] bg-ink px-2.5 py-2 text-[13px] font-medium text-bg transition-colors duration-150 hover:bg-green-2 sm:ml-1 sm:px-[14px]"
         >
           <IconPlus />
-          Log activity
+          <span className="hidden sm:inline">Log activity</span>
         </button>
       </div>
 

@@ -23,6 +23,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 // ── Logo mark ─────────────────────────────────────────────────────────────────
 
@@ -147,6 +153,14 @@ function IconPortfolio() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 10l3-3 3 3 5-5"/></svg>;
 }
 
+function IconAssessment() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M4 2.5h8a.5.5 0 01.5.5v10a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5V3a.5.5 0 01.5-.5z"/><path d="M6 6.5l1.2 1.2L9.5 5M6 10.5h4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+
+function IconContent() {
+  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><path d="M11.5 2.5l2 2-7 7-2.5.5.5-2.5z" strokeLinecap="round" strokeLinejoin="round"/><path d="M2.5 13.5h11"/></svg>;
+}
+
 function IconNetwork() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-4 w-4"><circle cx="6" cy="6" r="2.4"/><circle cx="11" cy="5" r="1.8"/><path d="M2 13c0-2.2 2-3.6 4-3.6s4 1.4 4 3.6M9 13c0-1.6 1.5-2.6 3-2.6s2 .8 2 2.4"/></svg>;
 }
@@ -202,6 +216,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Strategies",   href: ROUTES.roadmapOptions, icon: <IconStrategies /> },
       { label: "Autopilot",    href: ROUTES.autopilot,  icon: <IconAutopilot /> },
       { label: "Skill Graph",  href: ROUTES.skillGraph, icon: <IconSkillGraph /> },
+      { label: "Skill Tests",  href: ROUTES.assessments, icon: <IconAssessment /> },
       { label: "Discover Paths", href: ROUTES.discovery, icon: <IconDiscovery /> },
       { label: "AI Coach",     href: ROUTES.coach,      icon: <IconCoach /> },
       { label: "Career Twin",  href: ROUTES.careerTwin, icon: <IconCareerTwin /> },
@@ -229,6 +244,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Learning ROI",    href: ROUTES.learning,    icon: <IconLearningRoi /> },
       { label: "Open Source",     href: ROUTES.oss,         icon: <IconOpenSource /> },
       { label: "Storytelling",    href: ROUTES.storytelling, icon: <IconStorytelling /> },
+      { label: "Content Engine",  href: ROUTES.content,     icon: <IconContent /> },
       { label: "Portfolio",       href: ROUTES.portfolio,   icon: <IconPortfolio /> },
       { label: "Network",         href: ROUTES.networking,  icon: <IconNetwork /> },
     ],
@@ -251,13 +267,14 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
+// ── Sidebar inner content (shared by desktop aside + mobile drawer) ─────────────
 
-export interface AppSidebarProps {
-  className?: string;
+export interface SidebarInnerProps {
+  /** Called whenever the user activates a nav link — used to close the mobile drawer. */
+  onNavigate?: () => void;
 }
 
-export function AppSidebar({ className }: AppSidebarProps) {
+function SidebarInner({ onNavigate }: SidebarInnerProps) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useT();
@@ -319,17 +336,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
       : user?.email?.[0]?.toUpperCase() ?? "U";
 
   return (
-    <aside
-      className={cn(
-        "hidden md:flex w-[248px] shrink-0 flex-col bg-bg-2 border-r border-rule",
-        "sticky top-0 h-screen overflow-y-auto",
-        "scrollbar-thin scrollbar-thumb-rule-strong",
-        className,
-      )}
-    >
+    <div className="flex h-full min-h-0 flex-col">
       {/* Brand */}
       <Link
         href={ROUTES.dashboard}
+        onClick={onNavigate}
         className="flex items-center gap-2.5 px-6 pt-[22px] pb-1 mb-[18px] font-serif text-[18px] font-medium tracking-[-0.01em] text-ink hover:no-underline"
         aria-label="Career Roadmap AI dashboard"
       >
@@ -366,6 +377,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   <li key={item.label}>
                     <Link
                       href={item.href}
+                      onClick={onNavigate}
                       className={cn(
                         "flex items-center gap-[11px] rounded-[6px] px-[10px] py-[7px] text-[13.5px] font-medium transition-all duration-[120ms]",
                         active
@@ -483,6 +495,52 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+    </div>
+  );
+}
+
+// ── Desktop sidebar ─────────────────────────────────────────────────────────────
+
+export interface AppSidebarProps {
+  className?: string;
+}
+
+export function AppSidebar({ className }: AppSidebarProps) {
+  return (
+    <aside
+      className={cn(
+        "hidden md:flex w-[248px] shrink-0 flex-col bg-bg-2 border-r border-rule",
+        "sticky top-0 h-screen overflow-y-auto",
+        "scrollbar-thin scrollbar-thumb-rule-strong",
+        className,
+      )}
+    >
+      <SidebarInner />
     </aside>
+  );
+}
+
+// ── Mobile navigation drawer ────────────────────────────────────────────────────
+
+export function AppMobileNav() {
+  const open = useUIStore((s) => s.mobileNavOpen);
+  const setOpen = useUIStore((s) => s.setMobileNavOpen);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent
+        side="left"
+        showCloseButton={false}
+        className="w-[280px] max-w-[85vw] gap-0 border-r border-rule bg-bg-2 p-0 md:hidden"
+      >
+        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+        <SheetDescription className="sr-only">
+          Primary application navigation
+        </SheetDescription>
+        <div className="h-[100dvh] overflow-y-auto scrollbar-thin scrollbar-thumb-rule-strong">
+          <SidebarInner onNavigate={() => setOpen(false)} />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -9,6 +9,9 @@ interface UIState {
   commandOpen: boolean;
   setCommandOpen: (open: boolean) => void;
   toggleCommand: () => void;
+  /** Mobile navigation drawer visibility — transient, never persisted. */
+  mobileNavOpen: boolean;
+  setMobileNavOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -20,6 +23,8 @@ export const useUIStore = create<UIState>()(
       commandOpen: false,
       setCommandOpen: (commandOpen) => set({ commandOpen }),
       toggleCommand: () => set((s) => ({ commandOpen: !s.commandOpen })),
+      mobileNavOpen: false,
+      setMobileNavOpen: (mobileNavOpen) => set({ mobileNavOpen }),
     }),
     {
       name: "ui-store",

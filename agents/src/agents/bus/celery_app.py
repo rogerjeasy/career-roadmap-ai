@@ -151,6 +151,14 @@ celery_app.conf.update(
             "schedule": crontab(hour=1, minute=0),  # 01:00 UTC daily
             "options": {"queue": "agents.default"},
         },
+        # Fire due application reminders as web-push nudges. Implemented in the
+        # API layer (src.tasks.reminder_tasks) and referenced here by name only,
+        # so the agents package keeps no import dependency on apps/api.
+        "applications-scan-due-reminders": {
+            "task": "applications.scan_due_reminders",
+            "schedule": crontab(minute="*/15"),  # every 15 minutes
+            "options": {"queue": "agents.default"},
+        },
     },
     beat_scheduler="celery.beat:PersistentScheduler",
     beat_schedule_filename="celerybeat-schedule",

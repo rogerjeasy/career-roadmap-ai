@@ -12,6 +12,7 @@ from celery.signals import worker_init, worker_shutdown, task_failure
 from agents.bus.celery_app import celery_app  # noqa: F401 — Celery autodiscovery
 from agents.core.logging import configure_agent_logging
 from src.config import settings
+from src.tasks import reminder_tasks  # noqa: F401 — registers API-side beat tasks
 
 
 @worker_init.connect

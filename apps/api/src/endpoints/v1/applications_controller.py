@@ -1,15 +1,21 @@
 """Job Applications — CV rewrite + cover letter + tracking (§10.2).
 
 Routes:
-  GET    /api/v1/applications                  — my application pipeline
-  GET    /api/v1/applications/summary          — pipeline counts
-  POST   /api/v1/applications                  — track a new application
-  GET    /api/v1/applications/{id}             — one application
-  PATCH  /api/v1/applications/{id}             — update (status, notes, …)
-  DELETE /api/v1/applications/{id}             — remove
-  POST   /api/v1/applications/{id}/tailor-cv   — generate a tailored CV rewrite
-  POST   /api/v1/applications/{id}/cover-letter — generate a cover letter
+  GET    /api/v1/applications                       — my application pipeline
+  GET    /api/v1/applications/summary               — pipeline counts
+  POST   /api/v1/applications                       — track a new application
+  GET    /api/v1/applications/{id}                  — one application
+  PATCH  /api/v1/applications/{id}                  — update (status, notes, …)
+  DELETE /api/v1/applications/{id}                  — remove
+  POST   /api/v1/applications/{id}/tailor-cv        — generate a tailored CV rewrite
+  POST   /api/v1/applications/{id}/cover-letter     — generate a cover letter
+  PUT    /api/v1/applications/{id}/stage-notes/{s}  — set a per-stage note
+  POST   /api/v1/applications/{id}/reminders        — add a follow-up reminder
+  PATCH  /api/v1/applications/{id}/reminders/{rid}  — mark a reminder done/undone
+  DELETE /api/v1/applications/{id}/reminders/{rid}  — remove a reminder
 """
+from pydantic import BaseModel
+
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from src.core.auth import AuthenticatedUser, get_current_user
@@ -18,6 +24,8 @@ from src.domains.applications.schemas import (
     ApplicationOut,
     ApplicationSummary,
     ApplicationUpdate,
+    ReminderCreate,
+    StageNoteUpdate,
 )
 from src.domains.applications.service import (
     ApplicationService,
@@ -135,3 +143,76 @@ async def cover_letter(
     service: ApplicationService = Depends(get_application_service),
 ) -> ApplicationOut:
     return await service.cover_letter(user.uid, app_id)
+
+
+@router.put(
+    "/{app_id}/stage-notes/{stage}",
+    response_model=ApplicationOut,
+    summary="Set a per-stage note",
+)
+async def set_stage_note(
+    app_id: str,
+    stage: str,
+    payload: StageNoteUpdate,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ApplicationService = Depends(get_application_service),
+) -> ApplicationOut:
+    return await service.set_stage_note(user.uid, app_id, stage, payload.note)
+
+
+@router.post(
+    "/{app_id}/reminders",
+    response_model=ApplicationOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a follow-up reminder",
+)
+async def add_reminder(
+    app_id: str,
+    payload: ReminderCreate,
+    background: BackgroundTasks,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ApplicationService = Depends(get_application_service),
+    push: PushService = Depends(get_push_service),
+) -> ApplicationOut:
+    app = await service.add_reminder(user.uid, app_id, payload)
+    background.add_task(
+        push.send_to_user,
+        user.uid,
+        title="Reminder set",
+        body=f"{payload.title} — {app.role} at {app.company}",
+        url="/applications",
+    )
+    return app
+
+
+class ReminderDonePatch(BaseModel):
+    done: bool = True
+
+
+@router.patch(
+    "/{app_id}/reminders/{reminder_id}",
+    response_model=ApplicationOut,
+    summary="Mark a reminder done/undone",
+)
+async def update_reminder(
+    app_id: str,
+    reminder_id: str,
+    payload: ReminderDonePatch,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ApplicationService = Depends(get_application_service),
+) -> ApplicationOut:
+    return await service.set_reminder_done(user.uid, app_id, reminder_id, payload.done)
+
+
+@router.delete(
+    "/{app_id}/reminders/{reminder_id}",
+    response_model=ApplicationOut,
+    summary="Remove a reminder",
+)
+async def delete_reminder(
+    app_id: str,
+    reminder_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+    service: ApplicationService = Depends(get_application_service),
+) -> ApplicationOut:
+    return await service.delete_reminder(user.uid, app_id, reminder_id)

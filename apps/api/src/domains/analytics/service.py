@@ -19,8 +19,9 @@ from src.domains.analytics.schemas import (
     MomentumSummary,
     WellnessSummary,
 )
+from src.domains.applications.schemas import normalize_status
 
-_TERMINAL = {"rejected", "accepted", "withdrawn"}
+_TERMINAL = {"closed"}
 
 
 class AnalyticsService:
@@ -42,16 +43,18 @@ class AnalyticsService:
     async def _applications(self, user_id: str) -> ApplicationsFunnel:
         docs = await self._col("applications").list_for_user(user_id, limit=500)
         by_status: dict[str, int] = {}
+        accepted = 0
         for d in docs:
-            s = str(d.get("status", "saved"))
+            s, outcome = normalize_status(d.get("status"), d.get("outcome"))
             by_status[s] = by_status.get(s, 0) + 1
-        applied_plus = sum(
-            c for s, c in by_status.items() if s != "saved"
+            if s == "closed" and outcome == "accepted":
+                accepted += 1
+        applied_plus = sum(c for s, c in by_status.items() if s != "saved")
+        # Reached an interview or beyond (accepted offers count as having interviewed).
+        interviewing_plus = (
+            by_status.get("interview", 0) + by_status.get("offer", 0) + accepted
         )
-        interviewing_plus = sum(
-            by_status.get(s, 0) for s in ("interviewing", "offer", "accepted")
-        )
-        offers = by_status.get("offer", 0) + by_status.get("accepted", 0)
+        offers = by_status.get("offer", 0) + accepted
         active = sum(c for s, c in by_status.items() if s not in _TERMINAL)
         return ApplicationsFunnel(
             total=len(docs),

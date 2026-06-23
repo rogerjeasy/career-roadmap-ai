@@ -23,3 +23,22 @@ dev = [
     "factory-boy (>=3.3.3,<4.0.0)",
     "faker (>=40.15.0,<41.0.0)"
 ]
+
+[tool.pytest.ini_options]
+# Async tests run without a per-test @pytest.mark.asyncio decorator.
+asyncio_mode = "auto"
+# Discover the centralised tests/ tree (unit / integration / regression) as well
+# as the legacy colocated suites that still live next to the domains.
+testpaths = ["tests", "src"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra --strict-markers"
+markers = [
+    "unit: fast, isolated tests — no network, no DB, no Firestore (all I/O mocked)",
+    "integration: exercise wiring across layers (routers, middleware, DI overrides)",
+    "regression: pin a specific previously-fixed bug so it cannot silently return",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

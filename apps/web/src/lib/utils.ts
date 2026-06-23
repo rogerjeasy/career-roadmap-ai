@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 // Reverse Windows-1252 mojibake for emoji saved with the wrong encoding.
 // Emoji UTF-8 bytes were interpreted as Win-1252 single bytes, then re-encoded
 // as UTF-8 characters (e.g. "ðŸ—ï¸" instead of "🏗️").
-const MOJIBAKE_MAP: [string, string][] = [
+export const MOJIBAKE_MAP: [string, string][] = [
   ["ðŸ—ï¸", "🏗️"],  // 🏗️ building construction
   ["ðŸ› ï¸", "🛠️"],  // 🛠️ hammer and wrench
   ["ðŸ§ ",                   "🧠"],   // 🧠 brain

@@ -1,0 +1,20 @@
+# MCP servers — shared tooling config.
+#
+# Each server (calendar/, job-board/, …) is an independent FastAPI JSON-RPC app
+# with its own colocated tests in ``<server>/tests/``. The centralised
+# ``tests/`` tree below covers the cross-cutting ``shared/`` package
+# (circuit breaker, cache, rate limiter, auth, audit) used by every server.
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# Only the centralised shared-package suite is collected here. The per-server
+# colocated suites are run from their own directory (each rewires sys.path to
+# import its local ``server`` module, so they cannot be collected together).
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "unit: fast, isolated tests — no Redis, no network (all I/O mocked)",
+    "integration: exercise wiring (cache single-flight, breaker under concurrency)",
+    "regression: pin a specific previously-fixed bug so it cannot silently return",
+]
+filterwarnings = ["ignore::DeprecationWarning"]

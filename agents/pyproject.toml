@@ -67,4 +67,13 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["src/agents"]
+# "tests" holds the centralised unit/integration/regression tree; "src/agents"
+# keeps discovering the per-agent colocated suites.
+testpaths = ["tests", "src/agents"]
+addopts = "-ra --strict-markers"
+markers = [
+    "unit: fast, isolated tests — no broker, no LLM, no network (all mocked)",
+    "integration: cross-component wiring (contracts serialisation, bus, graph)",
+    "regression: pin a specific previously-fixed bug so it cannot silently return",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
